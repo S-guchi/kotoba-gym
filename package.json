@@ -1,0 +1,23 @@
+{
+  "name": "kotoba-gym",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src",
+    "format": "biome format --write src"
+  },
+  "dependencies": {
+    "@google/genai": "latest",
+    "zod": "^3",
+    "dotenv": "^16"
+  },
+  "devDependencies": {
+    "tsx": "^4",
+    "typescript": "^5",
+    "@biomejs/biome": "^1",
+    "@types/node": "^20"
+  }
+}

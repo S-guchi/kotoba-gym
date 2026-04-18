@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import type {
+  AcousticObservationSchema,
   ChecklistItemSchema,
   ConversationMessageSchema,
   FeedbackSchema,
@@ -9,6 +10,7 @@ import type {
   TopicSchema,
 } from "./schemas.js";
 
+export type AcousticObservation = z.infer<typeof AcousticObservationSchema>;
 export type ChecklistItem = z.infer<typeof ChecklistItemSchema>;
 export type Topic = z.infer<typeof TopicSchema>;
 export type JudgeResult = z.infer<typeof JudgeResultSchema>;
@@ -18,3 +20,17 @@ export type ConversationMessage = z.infer<typeof ConversationMessageSchema>;
 export type SessionSnapshot = z.infer<typeof SessionSnapshotSchema>;
 export type SessionState = "idle" | "active" | "ended" | "finalized";
 export type ChecklistState = "empty" | "partial" | "filled";
+
+export interface AudioTurnInput {
+  audio: Buffer;
+  mimeType: string;
+  transcriptHint?: string;
+}
+
+export interface AudioTurnResult {
+  reply: string;
+  transcript: string;
+  checklist: ChecklistItem[];
+  acousticObservations: AcousticObservation[];
+  isEnded: boolean;
+}

@@ -62,8 +62,7 @@ export const presets: Topic[] = [
       {
         id: "business-impact",
         label: "ビジネスへの影響",
-        description:
-          "放置するとどんな実害があるか、開発速度・障害リスクなど",
+        description: "放置するとどんな実害があるか、開発速度・障害リスクなど",
         state: "empty",
       },
       {
@@ -81,8 +80,7 @@ export const presets: Topic[] = [
       {
         id: "inaction-risk",
         label: "放置リスク",
-        description:
-          "対処しなかった場合の最悪シナリオ、時間経過で悪化する要素",
+        description: "対処しなかった場合の最悪シナリオ、時間経過で悪化する要素",
         state: "empty",
       },
     ],

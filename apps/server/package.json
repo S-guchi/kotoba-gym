@@ -1,0 +1,26 @@
+{
+  "name": "@kotoba-gym/server",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome check src",
+    "format": "biome format --write src"
+  },
+  "dependencies": {
+    "@google/genai": "latest",
+    "@hono/node-server": "^1",
+    "@kotoba-gym/core": "workspace:*",
+    "dotenv": "^16",
+    "hono": "^4",
+    "zod": "^3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1",
+    "@types/node": "^20",
+    "tsx": "^4",
+    "typescript": "^5"
+  }
+}

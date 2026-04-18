@@ -1,8 +1,4 @@
-import type {
-  ChecklistItem,
-  ConversationMessage,
-  Topic,
-} from "../types.js";
+import type { ChecklistItem, ConversationMessage, Topic } from "../types.js";
 import type { LLMClient } from "./client.js";
 
 function describeUnfilledItems(checklist: ChecklistItem[]): string {
@@ -11,7 +7,10 @@ function describeUnfilledItems(checklist: ChecklistItem[]): string {
 
   return unfilled
     .map((item) => {
-      const status = item.state === "empty" ? "まだ聞けていない" : "もう少し具体的に知りたい";
+      const status =
+        item.state === "empty"
+          ? "まだ聞けていない"
+          : "もう少し具体的に知りたい";
       return `- ${item.description}（${status}）`;
     })
     .join("\n");
@@ -21,7 +20,7 @@ function buildSystemPrompt(
   topic: Topic,
   checklist: ChecklistItem[],
   turnNumber: number,
-  maxTurns: number
+  maxTurns: number,
 ): string {
   const unfilledText = describeUnfilledItems(checklist);
   const allFilled = checklist.every((item) => item.state === "filled");
@@ -45,6 +44,7 @@ function buildSystemPrompt(
 3. 曖昧な説明には具体化を求める（「もう少し具体的に言うと？」「例えばどういうケース？」）
 4. 口調は丁寧だがフランク、社内1on1の温度感
 5. 日本語で返答する
+6. 音声会話なので、返答は2〜3文以内にする
 
 ## あなたがまだ知りたいこと
 ${unfilledText}
@@ -63,7 +63,7 @@ function formatHistory(history: ConversationMessage[]): string {
 export async function generateOpeningMessage(
   topic: Topic,
   client: LLMClient,
-  temperature: number
+  temperature: number,
 ): Promise<string> {
   const systemPrompt = `あなたは中規模BtoB SaaS企業のPMです。元エンジニアで技術的な話も理解できます。
 今からエンジニアとの1on1で「${topic.topicTitle}」について話を聞きます。
@@ -74,10 +74,10 @@ export async function generateOpeningMessage(
 - 1〜2文程度
 - 日本語で`;
 
-  return client.generate(
-    "1on1を始めてください。最初の一言をお願いします。",
-    { systemPrompt, temperature }
-  );
+  return client.generate("1on1を始めてください。最初の一言をお願いします。", {
+    systemPrompt,
+    temperature,
+  });
 }
 
 export async function generatePMResponse(params: {
@@ -93,13 +93,57 @@ export async function generatePMResponse(params: {
     params.topic,
     params.checklist,
     params.turnNumber,
-    params.maxTurns
+    params.maxTurns,
   );
 
   const historyText = formatHistory(params.history);
 
   return params.client.generate(
     `これまでの会話:\n${historyText}\n\nPMとして次の返答をしてください。`,
-    { systemPrompt, temperature: params.temperature }
+    { systemPrompt, temperature: params.temperature },
+  );
+}
+
+export function streamPMResponseFromAudio(params: {
+  topic: Topic;
+  checklist: ChecklistItem[];
+  history: ConversationMessage[];
+  turnNumber: number;
+  maxTurns: number;
+  audio: Buffer;
+  mimeType: string;
+  transcriptHint?: string;
+  client: LLMClient;
+  temperature: number;
+}): AsyncIterable<string> {
+  const systemPrompt = buildSystemPrompt(
+    params.topic,
+    params.checklist,
+    params.turnNumber,
+    params.maxTurns,
+  );
+
+  const historyText = formatHistory(params.history);
+  const hintText = params.transcriptHint
+    ? `\n\nブラウザ字幕の参考文字起こし（誤りを含む可能性あり）:\n${params.transcriptHint}`
+    : "";
+
+  return params.client.streamParts(
+    [
+      {
+        text: `これまでの会話:\n${historyText || "まだ会話は始まっていません。"}${hintText}\n\n添付された直近のエンジニア音声を理解し、PMとして次の返答をしてください。`,
+      },
+      {
+        inlineData: {
+          mimeType: params.mimeType,
+          data: params.audio.toString("base64"),
+        },
+      },
+    ],
+    {
+      systemPrompt,
+      temperature: params.temperature,
+      thinkingLevel: "low",
+    },
   );
 }

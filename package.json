@@ -1,23 +1,19 @@
 {
   "name": "kotoba-gym",
+  "private": true,
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/cli.ts",
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "lint": "biome check src",
-    "format": "biome format --write src"
-  },
-  "dependencies": {
-    "@google/genai": "latest",
-    "zod": "^3",
-    "dotenv": "^16"
+    "dev:cli": "pnpm --filter @kotoba-gym/core dev",
+    "dev:server": "pnpm --filter @kotoba-gym/server dev",
+    "dev:web": "pnpm --filter @kotoba-gym/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format"
   },
   "devDependencies": {
-    "tsx": "^4",
-    "typescript": "^5",
     "@biomejs/biome": "^1",
-    "@types/node": "^20"
+    "typescript": "^5"
   }
 }

@@ -1,13 +1,17 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { createLLMClient, type LLMClient } from "./llm/client.js";
+import { type LLMClient, createLLMClient } from "./llm/client.js";
 import { generateFeedback } from "./llm/feedback.js";
-import { evaluateChecklist } from "./llm/judge.js";
+import { evaluateChecklist, evaluateChecklistFromAudio } from "./llm/judge.js";
 import {
   generateOpeningMessage,
   generatePMResponse,
+  streamPMResponseFromAudio,
 } from "./llm/persona.js";
 import type {
+  AcousticObservation,
+  AudioTurnInput,
+  AudioTurnResult,
   ChecklistItem,
   ConversationMessage,
   Feedback,
@@ -22,6 +26,7 @@ export class Session {
   private config: SessionConfig;
   private checklist: ChecklistItem[];
   private history: ConversationMessage[] = [];
+  private acousticObservations: AcousticObservation[] = [];
   private turnCount = 0;
   private state: SessionState = "idle";
   private feedback: Feedback | null = null;
@@ -46,7 +51,7 @@ export class Session {
     const openingMessage = await generateOpeningMessage(
       this.topic,
       this.client,
-      this.config.personaTemperature
+      this.config.personaTemperature,
     );
 
     this.history.push({
@@ -59,7 +64,7 @@ export class Session {
   }
 
   async userSay(
-    utterance: string
+    utterance: string,
   ): Promise<{ reply: string; checklist: ChecklistItem[]; isEnded: boolean }> {
     if (this.state !== "active") {
       throw new Error(`Cannot accept input in state: ${this.state}`);
@@ -133,6 +138,7 @@ export class Session {
       topic: this.topic,
       finalChecklist: this.checklist,
       history: this.history,
+      acousticObservations: this.acousticObservations,
       client: this.client,
       temperature: this.config.personaTemperature,
     });
@@ -156,6 +162,9 @@ export class Session {
       },
       checklist: this.checklist.map((item) => ({ ...item })),
       history: [...this.history],
+      acousticObservations: this.acousticObservations.map((item) => ({
+        ...item,
+      })),
       turnCount: this.turnCount,
       state: this.state,
       feedback: this.feedback,
@@ -173,5 +182,116 @@ export class Session {
     const filepath = path.join(logDir, filename);
 
     fs.writeFileSync(filepath, JSON.stringify(this.toJSON(), null, 2), "utf-8");
+  }
+
+  startAudioTurn(input: AudioTurnInput): {
+    replyStream: AsyncIterable<string>;
+    done: Promise<AudioTurnResult>;
+  } {
+    if (this.state !== "active") {
+      throw new Error(`Cannot accept input in state: ${this.state}`);
+    }
+
+    const priorHistory = [...this.history];
+    const turnNumber = this.turnCount + 1;
+    this.turnCount = turnNumber;
+
+    const judgePromise = evaluateChecklistFromAudio({
+      topic: this.topic,
+      currentChecklist: this.checklist.map((item) => ({ ...item })),
+      history: priorHistory,
+      audio: input.audio,
+      mimeType: input.mimeType,
+      transcriptHint: input.transcriptHint,
+      client: this.client,
+      temperature: this.config.judgeTemperature,
+    });
+
+    const sourceStream = streamPMResponseFromAudio({
+      topic: this.topic,
+      checklist: this.checklist.map((item) => ({ ...item })),
+      history: priorHistory,
+      turnNumber,
+      maxTurns: this.config.maxTurns,
+      audio: input.audio,
+      mimeType: input.mimeType,
+      transcriptHint: input.transcriptHint,
+      client: this.client,
+      temperature: this.config.personaTemperature,
+    });
+
+    let reply = "";
+    let resolveReply!: (value: string) => void;
+    let rejectReply!: (reason: unknown) => void;
+    const replyDone = new Promise<string>((resolve, reject) => {
+      resolveReply = resolve;
+      rejectReply = reject;
+    });
+
+    const replyStream = (async function* () {
+      try {
+        for await (const token of sourceStream) {
+          reply += token;
+          yield token;
+        }
+        resolveReply(reply);
+      } catch (error) {
+        rejectReply(error);
+        throw error;
+      }
+    })();
+
+    const done = Promise.all([judgePromise, replyDone]).then(
+      ([judgeResult, finalReply]) => {
+        const transcript =
+          judgeResult.transcript?.trim() ||
+          input.transcriptHint?.trim() ||
+          "（音声発話）";
+
+        this.history.push({
+          role: "user",
+          content: transcript,
+          timestamp: new Date().toISOString(),
+        });
+
+        for (const update of judgeResult.updates) {
+          const item = this.checklist.find((i) => i.id === update.id);
+          if (item) {
+            item.state = update.newState;
+          }
+        }
+
+        this.acousticObservations.push(...judgeResult.acousticObservations);
+
+        const allFilled = this.checklist.every(
+          (item) => item.state === "filled",
+        );
+        const maxTurnsReached = this.turnCount >= this.config.maxTurns;
+        const isEnded = allFilled || maxTurnsReached;
+
+        this.history.push({
+          role: "pm",
+          content: finalReply,
+          timestamp: new Date().toISOString(),
+        });
+
+        if (isEnded) {
+          this.state = "ended";
+          this.endedAt = new Date().toISOString();
+        }
+
+        return {
+          reply: finalReply,
+          transcript,
+          checklist: this.checklist.map((item) => ({ ...item })),
+          acousticObservations: this.acousticObservations.map((item) => ({
+            ...item,
+          })),
+          isEnded,
+        };
+      },
+    );
+
+    return { replyStream, done };
   }
 }

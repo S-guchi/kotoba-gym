@@ -45,11 +45,8 @@ function displayChecklist(checklist: ChecklistItem[]): void {
   console.log(`\n  進捗: ${filled}/${checklist.length} 項目クリア`);
 }
 
-function displayFeedback(
-  feedback: Feedback,
-  checklist: ChecklistItem[]
-): void {
-  console.log("\n" + "=".repeat(50));
+function displayFeedback(feedback: Feedback, checklist: ChecklistItem[]): void {
+  console.log(`\n${"=".repeat(50)}`);
   console.log("  セッション結果");
   console.log("=".repeat(50));
 
@@ -87,8 +84,8 @@ async function main() {
   console.log("\n kotoba-gym - 言語化トレーニング\n");
   console.log("お題を選んでください:\n");
 
-  for (let i = 0; i < topics.length; i++) {
-    console.log(`  ${i + 1}. ${topics[i]!.topicTitle}`);
+  for (const [i, topic] of topics.entries()) {
+    console.log(`  ${i + 1}. ${topic.topicTitle}`);
   }
 
   const choice = await ask(rl, "\n番号を入力 > ");

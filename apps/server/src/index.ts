@@ -35,6 +35,28 @@ const TtsRequestSchema = z.object({
   text: z.string().min(1),
 });
 
+function sec(valueMs: number): string {
+  const seconds = valueMs / 1000;
+  if (seconds < 10) {
+    return `${seconds.toFixed(1)}s`;
+  }
+  return `${Math.round(seconds)}s`;
+}
+
+function logGemini(label: string, fields: Record<string, unknown>): void {
+  const details = Object.entries(fields)
+    .filter(([, value]) => value !== undefined && value !== "")
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(" ");
+
+  console.log(`[gemini] ${label}${details ? ` ${details}` : ""}`);
+}
+
+function logGeminiText(label: string, text: string): void {
+  console.log(`[gemini] ${label}:`);
+  console.log(text.trim() || "(empty)");
+}
+
 function jsonError(message: string, status = 400) {
   return Response.json({ error: message }, { status });
 }
@@ -58,6 +80,7 @@ app.post("/session", async (c) => {
 });
 
 app.post("/reply", async (c) => {
+  const requestStartedAt = performance.now();
   const form = await c.req.formData();
   const sessionId = form.get("sessionId");
   const transcriptHint = form.get("transcriptHint");
@@ -72,16 +95,47 @@ app.post("/reply", async (c) => {
 
   const session = store.get(sessionId);
   const bytes = Buffer.from(await audio.arrayBuffer());
+  const requestId = crypto.randomUUID();
+  logGemini("reply_received", {
+    audioBytes: bytes.byteLength,
+    mimeType: audio.type || "audio/webm",
+    parse: sec(performance.now() - requestStartedAt),
+  });
+
   const turn = session.startAudioTurn({
     audio: bytes,
     mimeType: audio.type || "audio/webm",
     transcriptHint:
       typeof transcriptHint === "string" ? transcriptHint : undefined,
+    onTiming: (event) => {
+      if (event.type === "judge_result") {
+        logGeminiText("judge transcript", event.transcript);
+        logGemini("judge result", {
+          updates: event.updates,
+          observations: event.observations.length,
+        });
+        for (const observation of event.observations) {
+          logGemini("judge observation", {
+            type: observation.type,
+            context: observation.context,
+            note: observation.note,
+          });
+        }
+        return;
+      }
+
+      logGemini(event.type, {
+        elapsed: sec(event.elapsedMs),
+        chars: "chars" in event ? event.chars : undefined,
+      });
+    },
   });
 
   return streamSSE(c, async (stream) => {
     try {
+      let tokenCount = 0;
       for await (const token of turn.replyStream) {
+        tokenCount++;
         await stream.writeSSE({
           event: "message",
           data: JSON.stringify({ type: "token", text: token }),
@@ -89,6 +143,14 @@ app.post("/reply", async (c) => {
       }
 
       const result = await turn.done;
+      logGeminiText("persona reply", result.reply);
+      logGemini("reply_done", {
+        total: sec(performance.now() - requestStartedAt),
+        events: tokenCount,
+        replyChars: result.reply.length,
+        observations: result.acousticObservations.length,
+        isEnded: result.isEnded,
+      });
       await stream.writeSSE({
         event: "message",
         data: JSON.stringify({
@@ -101,6 +163,10 @@ app.post("/reply", async (c) => {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
+      logGemini("reply_error", {
+        total: sec(performance.now() - requestStartedAt),
+        message,
+      });
       await stream.writeSSE({
         event: "message",
         data: JSON.stringify({ type: "error", message }),
@@ -110,11 +176,27 @@ app.post("/reply", async (c) => {
 });
 
 app.post("/tts", async (c) => {
+  const requestStartedAt = performance.now();
   const requestBody = TtsRequestSchema.parse(await c.req.json());
+  logGeminiText("tts text", requestBody.text);
+  logGemini("tts_received", {
+    chars: requestBody.text.length,
+    model: config.geminiTtsModel,
+    voice: config.geminiTtsVoice,
+  });
+
   const result = await synthesizeGeminiSpeech(requestBody.text, {
     apiKey: config.geminiApiKey,
     model: config.geminiTtsModel,
     voiceName: config.geminiTtsVoice,
+  });
+  logGemini("tts_done", {
+    firstChunk: sec(result.timings.firstChunkMs),
+    gemini: sec(result.timings.totalMs),
+    total: sec(performance.now() - requestStartedAt),
+    chunks: result.timings.chunkCount,
+    bytes: result.timings.bytes,
+    mimeType: result.mimeType,
   });
 
   const audioBody = result.audio.buffer.slice(

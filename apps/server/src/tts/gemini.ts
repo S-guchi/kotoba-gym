@@ -9,6 +9,12 @@ export interface TtsConfig {
 export interface TtsResult {
   audio: Buffer;
   mimeType: string;
+  timings: {
+    firstChunkMs: number;
+    totalMs: number;
+    chunkCount: number;
+    bytes: number;
+  };
 }
 
 interface WavOptions {
@@ -66,7 +72,10 @@ function createWavHeader(dataLength: number, options: WavOptions): Buffer {
   return buffer;
 }
 
-function normalizeAudio(buffer: Buffer, mimeType: string): TtsResult {
+function normalizeAudio(
+  buffer: Buffer,
+  mimeType: string,
+): Pick<TtsResult, "audio" | "mimeType"> {
   const parsed = parseMimeType(mimeType);
   const normalizedMimeType = mimeType.toLowerCase();
   if (
@@ -94,6 +103,7 @@ export async function synthesizeGeminiSpeech(
   text: string,
   config: TtsConfig,
 ): Promise<TtsResult> {
+  const startedAt = performance.now();
   const ai = new GoogleGenAI({ apiKey: config.apiKey });
   const response = await ai.models.generateContentStream({
     model: config.model,
@@ -117,11 +127,15 @@ export async function synthesizeGeminiSpeech(
 
   const chunks: Buffer[] = [];
   let mimeType = "audio/wav";
+  let firstChunkMs = 0;
 
   for await (const chunk of response) {
     const part = chunk.candidates?.[0]?.content?.parts?.[0];
     const inlineData = part?.inlineData;
     if (inlineData?.data) {
+      if (firstChunkMs === 0) {
+        firstChunkMs = performance.now() - startedAt;
+      }
       mimeType = inlineData.mimeType || mimeType;
       chunks.push(Buffer.from(inlineData.data, "base64"));
     }
@@ -131,5 +145,15 @@ export async function synthesizeGeminiSpeech(
     throw new Error("TTS returned empty audio");
   }
 
-  return normalizeAudio(Buffer.concat(chunks), mimeType);
+  const normalized = normalizeAudio(Buffer.concat(chunks), mimeType);
+
+  return {
+    ...normalized,
+    timings: {
+      firstChunkMs,
+      totalMs: performance.now() - startedAt,
+      chunkCount: chunks.length,
+      bytes: normalized.audio.byteLength,
+    },
+  };
 }

@@ -14,6 +14,7 @@ export type {
   AcousticObservation,
   AudioTurnInput,
   AudioTurnResult,
+  AudioTurnTimingEvent,
   ChecklistItem,
   ChecklistState,
   ConversationMessage,

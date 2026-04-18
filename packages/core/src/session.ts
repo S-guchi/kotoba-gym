@@ -195,6 +195,8 @@ export class Session {
     const priorHistory = [...this.history];
     const turnNumber = this.turnCount + 1;
     this.turnCount = turnNumber;
+    const turnStartedAt = performance.now();
+    let sawFirstToken = false;
 
     const judgePromise = evaluateChecklistFromAudio({
       topic: this.topic,
@@ -205,6 +207,12 @@ export class Session {
       transcriptHint: input.transcriptHint,
       client: this.client,
       temperature: this.config.judgeTemperature,
+    }).then((result) => {
+      input.onTiming?.({
+        type: "judge_done",
+        elapsedMs: performance.now() - turnStartedAt,
+      });
+      return result;
     });
 
     const sourceStream = streamPMResponseFromAudio({
@@ -231,9 +239,21 @@ export class Session {
     const replyStream = (async function* () {
       try {
         for await (const token of sourceStream) {
+          if (!sawFirstToken) {
+            sawFirstToken = true;
+            input.onTiming?.({
+              type: "persona_first_token",
+              elapsedMs: performance.now() - turnStartedAt,
+            });
+          }
           reply += token;
           yield token;
         }
+        input.onTiming?.({
+          type: "persona_done",
+          elapsedMs: performance.now() - turnStartedAt,
+          chars: reply.length,
+        });
         resolveReply(reply);
       } catch (error) {
         rejectReply(error);
@@ -247,6 +267,13 @@ export class Session {
           judgeResult.transcript?.trim() ||
           input.transcriptHint?.trim() ||
           "（音声発話）";
+
+        input.onTiming?.({
+          type: "judge_result",
+          transcript,
+          updates: judgeResult.updates.length,
+          observations: judgeResult.acousticObservations,
+        });
 
         this.history.push({
           role: "user",

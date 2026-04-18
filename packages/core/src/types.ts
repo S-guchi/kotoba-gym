@@ -25,6 +25,7 @@ export interface AudioTurnInput {
   audio: Buffer;
   mimeType: string;
   transcriptHint?: string;
+  onTiming?: (event: AudioTurnTimingEvent) => void;
 }
 
 export interface AudioTurnResult {
@@ -34,3 +35,14 @@ export interface AudioTurnResult {
   acousticObservations: AcousticObservation[];
   isEnded: boolean;
 }
+
+export type AudioTurnTimingEvent =
+  | { type: "judge_done"; elapsedMs: number }
+  | {
+      type: "judge_result";
+      transcript: string;
+      updates: number;
+      observations: AcousticObservation[];
+    }
+  | { type: "persona_first_token"; elapsedMs: number }
+  | { type: "persona_done"; elapsedMs: number; chars: number };

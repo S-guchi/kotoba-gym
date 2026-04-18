@@ -8,6 +8,7 @@ import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { loadConfig } from "./config.js";
 import { SessionStore } from "./sessions.js";
+import { synthesizeDeepgramSpeech } from "./tts/deepgram.js";
 import { synthesizeGeminiSpeech } from "./tts/gemini.js";
 
 for (const envPath of [
@@ -43,18 +44,25 @@ function sec(valueMs: number): string {
   return `${Math.round(seconds)}s`;
 }
 
-function logGemini(label: string, fields: Record<string, unknown>): void {
+function logAi(label: string, fields: Record<string, unknown>): void {
   const details = Object.entries(fields)
     .filter(([, value]) => value !== undefined && value !== "")
     .map(([key, value]) => `${key}=${String(value)}`)
     .join(" ");
 
-  console.log(`[gemini] ${label}${details ? ` ${details}` : ""}`);
+  console.log(`[ai] ${label}${details ? ` ${details}` : ""}`);
 }
 
-function logGeminiText(label: string, text: string): void {
-  console.log(`[gemini] ${label}:`);
+function logAiText(label: string, text: string): void {
+  console.log(`[ai] ${label}:`);
   console.log(text.trim() || "(empty)");
+}
+
+function requireDeepgramApiKey(): string {
+  if (!config.deepgramApiKey) {
+    throw new Error("DEEPGRAM_API_KEY is required when TTS_PROVIDER=deepgram");
+  }
+  return config.deepgramApiKey;
 }
 
 function jsonError(message: string, status = 400) {
@@ -96,7 +104,7 @@ app.post("/reply", async (c) => {
   const session = store.get(sessionId);
   const bytes = Buffer.from(await audio.arrayBuffer());
   const requestId = crypto.randomUUID();
-  logGemini("reply_received", {
+  logAi("reply_received", {
     audioBytes: bytes.byteLength,
     mimeType: audio.type || "audio/webm",
     parse: sec(performance.now() - requestStartedAt),
@@ -109,13 +117,13 @@ app.post("/reply", async (c) => {
       typeof transcriptHint === "string" ? transcriptHint : undefined,
     onTiming: (event) => {
       if (event.type === "judge_result") {
-        logGeminiText("judge transcript", event.transcript);
-        logGemini("judge result", {
+        logAiText("judge transcript", event.transcript);
+        logAi("judge result", {
           updates: event.updates,
           observations: event.observations.length,
         });
         for (const observation of event.observations) {
-          logGemini("judge observation", {
+          logAi("judge observation", {
             type: observation.type,
             context: observation.context,
             note: observation.note,
@@ -124,7 +132,7 @@ app.post("/reply", async (c) => {
         return;
       }
 
-      logGemini(event.type, {
+      logAi(event.type, {
         elapsed: sec(event.elapsedMs),
         chars: "chars" in event ? event.chars : undefined,
       });
@@ -143,8 +151,8 @@ app.post("/reply", async (c) => {
       }
 
       const result = await turn.done;
-      logGeminiText("persona reply", result.reply);
-      logGemini("reply_done", {
+      logAiText("persona reply", result.reply);
+      logAi("reply_done", {
         total: sec(performance.now() - requestStartedAt),
         events: tokenCount,
         replyChars: result.reply.length,
@@ -163,7 +171,7 @@ app.post("/reply", async (c) => {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      logGemini("reply_error", {
+      logAi("reply_error", {
         total: sec(performance.now() - requestStartedAt),
         message,
       });
@@ -178,21 +186,32 @@ app.post("/reply", async (c) => {
 app.post("/tts", async (c) => {
   const requestStartedAt = performance.now();
   const requestBody = TtsRequestSchema.parse(await c.req.json());
-  logGeminiText("tts text", requestBody.text);
-  logGemini("tts_received", {
+  logAiText("tts text", requestBody.text);
+  logAi("tts_received", {
     chars: requestBody.text.length,
-    model: config.geminiTtsModel,
-    voice: config.geminiTtsVoice,
+    provider: config.ttsProvider,
+    model:
+      config.ttsProvider === "deepgram"
+        ? config.deepgramTtsModel
+        : config.geminiTtsModel,
+    voice: config.ttsProvider === "gemini" ? config.geminiTtsVoice : undefined,
   });
 
-  const result = await synthesizeGeminiSpeech(requestBody.text, {
-    apiKey: config.geminiApiKey,
-    model: config.geminiTtsModel,
-    voiceName: config.geminiTtsVoice,
-  });
-  logGemini("tts_done", {
+  const result =
+    config.ttsProvider === "deepgram"
+      ? await synthesizeDeepgramSpeech(requestBody.text, {
+          apiKey: requireDeepgramApiKey(),
+          model: config.deepgramTtsModel,
+        })
+      : await synthesizeGeminiSpeech(requestBody.text, {
+          apiKey: config.geminiApiKey,
+          model: config.geminiTtsModel,
+          voiceName: config.geminiTtsVoice,
+        });
+  logAi("tts_done", {
+    provider: config.ttsProvider,
     firstChunk: sec(result.timings.firstChunkMs),
-    gemini: sec(result.timings.totalMs),
+    upstream: sec(result.timings.totalMs),
     total: sec(performance.now() - requestStartedAt),
     chunks: result.timings.chunkCount,
     bytes: result.timings.bytes,

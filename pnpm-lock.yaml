@@ -52,6 +52,28 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  apps/voice-cli:
+    dependencies:
+      '@deepgram/sdk':
+        specifier: ^5.0.0
+        version: 5.0.0
+      '@google/genai':
+        specifier: latest
+        version: 1.50.1
+      dotenv:
+        specifier: ^16
+        version: 16.6.1
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.39
+      tsx:
+        specifier: ^4
+        version: 4.21.0
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
   apps/web:
     devDependencies:
       '@biomejs/biome':

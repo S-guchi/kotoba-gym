@@ -1,5 +1,8 @@
 node_modules/
 dist/
 logs/
+.expo/
+.expo-shared/
+.DS_Store
 .env
 *.log

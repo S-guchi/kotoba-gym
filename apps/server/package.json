@@ -10,7 +10,6 @@
     "format": "biome format --write src"
   },
   "dependencies": {
-    "@deepgram/sdk": "^5.0.0",
     "@google/genai": "latest",
     "@hono/node-server": "^1",
     "@kotoba-gym/core": "workspace:*",

@@ -23,6 +23,7 @@ describe.each([
       "技術領域: モバイル（React Native 中心です）",
       "技術スタック: Expo、TypeScript、Supabase",
       "練習したい場面: 技術説明、報連相",
+      "background は2〜3文で「何が起きたか / 何が問題だったか / 何を変えたか」が伝わる内容",
     ],
   },
 ])("buildPersonalizedPromptsPrompt", ({ expectedSnippets }) => {
@@ -57,6 +58,8 @@ describe.each([
       {
         title: "Expo の強みを説明",
         prompt: "Expo 採用理由を説明してください。",
+        background:
+          "新機能の試作速度を上げたい一方で、iOS と Android の実装差分が負担になっていました。そこで開発体験と保守コストのバランスを見直し、Expo を採用しました。",
         situation: "相手は PM です。",
         goals: ["結論を先に言う", "採用理由を整理する"],
         category: "tech-explanation" as const,
@@ -68,6 +71,8 @@ describe.each([
         id: "personalized-1-9isooc",
         title: "Expo の強みを説明",
         prompt: "Expo 採用理由を説明してください。",
+        background:
+          "新機能の試作速度を上げたい一方で、iOS と Android の実装差分が負担になっていました。そこで開発体験と保守コストのバランスを見直し、Expo を採用しました。",
         situation: "相手は PM です。",
         goals: ["結論を先に言う", "採用理由を整理する"],
         category: "tech-explanation",

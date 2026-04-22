@@ -95,6 +95,9 @@ export function buildEvaluationPrompt(params: {
   previousAttemptSummary?: string;
   previousEvaluation?: PreviousAttemptPayload;
 }): string {
+  const backgroundSection = params.prompt.background
+    ? `\n## 背景\n${params.prompt.background}\n`
+    : "";
   const previousSection = params.previousEvaluation
     ? `
 ## 前回の回答結果
@@ -125,6 +128,7 @@ ${params.prompt.title}
 
 ## お題本文
 ${params.prompt.prompt}
+${backgroundSection}
 
 ## 想定状況
 ${params.prompt.situation}

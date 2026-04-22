@@ -29,6 +29,7 @@ export const PracticePromptSchema = z.object({
   category: PracticePromptCategorySchema,
   title: z.string(),
   prompt: z.string(),
+  background: z.string().min(1),
   situation: z.string(),
   goals: z.array(z.string()).min(2).max(4),
   durationLabel: PracticePromptDurationSchema,

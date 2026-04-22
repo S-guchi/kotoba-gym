@@ -51,6 +51,8 @@ const prompt: PracticePrompt = {
   category: "tech-explanation",
   title: "API キャッシュ戦略の説明",
   prompt: "API レスポンスのキャッシュ戦略を説明してください。",
+  background:
+    "最近アクセス数が増え、一部 API の平均応答時間が悪化していました。特に商品一覧 API はピーク時に 900ms 前後まで遅くなっていたため、キャッシュ対象と TTL を見直しました。",
   situation: "相手は結論先出しで要点を知りたがっています。",
   goals: ["最初に結論を置く", "改善前後を分けて話す"],
   durationLabel: "60〜90秒",
@@ -177,6 +179,15 @@ describe.each([
       previousEvaluation,
     },
     expectedSnippet: "previousAttemptSummary: 前回は冗長でした。",
+  },
+  {
+    name: "prompt includes background context",
+    input: {
+      prompt,
+      attemptNumber: 1,
+      locale: "ja-JP",
+    },
+    expectedSnippet: "## 背景",
   },
 ])("buildEvaluationPrompt", ({ input, expectedSnippet }) => {
   test.each([{ label: "prompt reflects attempt context" }])("$label", () => {

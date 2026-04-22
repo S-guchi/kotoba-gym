@@ -139,6 +139,11 @@ export default function TopicDetailScreen() {
           <Text style={styles.cardBody}>{currentPrompt.prompt}</Text>
         </View>
 
+        <View style={[styles.card, styles.cardContext]}>
+          <Text style={[styles.cardLabel, styles.cardLabelContext]}>背景</Text>
+          <Text style={styles.cardBody}>{currentPrompt.background}</Text>
+        </View>
+
         <View style={[styles.card, styles.cardWarm]}>
           <Text style={[styles.cardLabel, styles.cardLabelWarm]}>
             相手の期待
@@ -265,6 +270,10 @@ function createStyles(palette: ThemePalette) {
       backgroundColor: palette.accentWarmDim,
       borderColor: palette.accentWarm,
     },
+    cardContext: {
+      backgroundColor: palette.surface2,
+      borderColor: palette.borderLight,
+    },
     cardLabel: {
       fontFamily: fonts.monoMedium,
       fontSize: 10,
@@ -276,6 +285,9 @@ function createStyles(palette: ThemePalette) {
     },
     cardLabelWarm: {
       color: palette.accentWarm,
+    },
+    cardLabelContext: {
+      color: palette.accent,
     },
     cardBody: {
       fontFamily: fonts.body,

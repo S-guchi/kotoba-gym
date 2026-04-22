@@ -7,6 +7,8 @@ const personalizedPrompt: PersonalizedPracticePrompt = {
   category: "design-decision",
   title: "Expo 選定理由",
   prompt: "Expo を選んだ理由を説明してください。",
+  background:
+    "新機能の試作速度を上げたい一方で、各 OS の実装差分が負担になっていました。そこで開発体験と保守コストのバランスを見直し、Expo を採用した経緯があります。",
   situation: "PM に意思決定を説明する場面です。",
   goals: ["判断軸を示す", "代替案と比較する"],
   durationLabel: "60〜90秒",

@@ -456,7 +456,14 @@ export default function PracticeScreen() {
             <Text style={styles.promptTitle}>{session.prompt.title}</Text>
             <Text style={styles.promptBody}>{session.prompt.prompt}</Text>
 
-            {recordingState === "idle" && (
+            <View style={styles.contextCard}>
+              <Text style={styles.contextLabel}>背景</Text>
+              <Text style={styles.contextText}>
+                {session.prompt.background}
+              </Text>
+            </View>
+
+            {recordingState === "idle" ? (
               <View style={styles.expectationCard}>
                 <Image
                   contentFit="contain"
@@ -470,7 +477,7 @@ export default function PracticeScreen() {
                   </Text>
                 </View>
               </View>
-            )}
+            ) : null}
           </View>
 
           <View style={styles.characterStage}>
@@ -707,8 +714,30 @@ function createStyles(palette: ThemePalette) {
       color: palette.text2,
       lineHeight: 20,
     },
+    contextCard: {
+      marginTop: 14,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 16,
+      backgroundColor: "#ffffffcc",
+      borderWidth: 1,
+      borderColor: palette.borderLight,
+    },
+    contextLabel: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 10,
+      color: palette.accent,
+      letterSpacing: 0.8,
+      marginBottom: 6,
+    },
+    contextText: {
+      fontFamily: fonts.body,
+      fontSize: 12,
+      color: palette.text,
+      lineHeight: 18,
+    },
     expectationCard: {
-      marginTop: 18,
+      marginTop: 14,
       flexDirection: "row",
       alignItems: "center",
       gap: 10,

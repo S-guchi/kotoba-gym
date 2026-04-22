@@ -17,6 +17,8 @@ const personalizedPrompt: PersonalizedPracticePrompt = {
   category: "interview",
   title: "Expo の強みを説明",
   prompt: "面接で強みを説明してください。",
+  background:
+    "新しい案件で立ち上がりの速さが求められていました。一方で各 OS の実装差分が負担になっていたため、開発体験と保守性の観点で Expo の強みを説明する想定です。",
   situation: "相手は実例を重視しています。",
   goals: ["強みを先に言う", "具体例で裏付ける"],
   durationLabel: "45〜60秒",

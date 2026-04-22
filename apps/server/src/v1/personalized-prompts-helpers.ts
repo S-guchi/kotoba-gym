@@ -11,6 +11,7 @@ import { ApiError } from "./api-error.js";
 const PromptDraftSchema = z.object({
   title: z.string().min(1).max(40),
   prompt: z.string().min(1).max(160),
+  background: z.string().min(1).max(220),
   situation: z.string().min(1).max(120),
   goals: z.array(z.string().min(1)).min(2).max(4),
   category: PracticePromptCategorySchema,
@@ -31,6 +32,7 @@ export const PERSONALIZED_PROMPTS_RESPONSE_SCHEMA = {
         properties: {
           title: { type: Type.STRING },
           prompt: { type: Type.STRING },
+          background: { type: Type.STRING },
           situation: { type: Type.STRING },
           goals: {
             type: Type.ARRAY,
@@ -48,6 +50,7 @@ export const PERSONALIZED_PROMPTS_RESPONSE_SCHEMA = {
         required: [
           "title",
           "prompt",
+          "background",
           "situation",
           "goals",
           "category",
@@ -83,12 +86,13 @@ export function buildPersonalizedPromptsPrompt(
 ## 作成ルール
 1. 5問すべて異なるシチュエーションにしてください。
 2. 技術スタックや役割を具体的に織り込んでください。
-3. title は20文字前後、prompt は1〜2文、situation は相手の期待が伝わる文にしてください。
-4. goals は2〜4個で、口頭説明の改善ポイントになるものだけにしてください。
-5. category は tech-explanation / design-decision / reporting / interview / escalation のいずれかです。
-6. durationLabel は 30〜45秒 / 45〜60秒 / 60〜90秒 のいずれかです。
-7. 実務で起こりうる内容にし、抽象的な一般論だけのお題にしないでください。
-8. 出力は JSON のみで返し、説明文は不要です。`;
+3. title は20文字前後、prompt は1〜2文、background は2〜3文で「何が起きたか / 何が問題だったか / 何を変えたか」が伝わる内容にしてください。
+4. situation は相手の期待が伝わる文にしてください。
+5. goals は2〜4個で、口頭説明の改善ポイントになるものだけにしてください。background の内容を話しやすい骨組みにしてください。
+6. category は tech-explanation / design-decision / reporting / interview / escalation のいずれかです。
+7. durationLabel は 30〜45秒 / 45〜60秒 / 60〜90秒 のいずれかです。
+8. 実務で起こりうる内容にし、抽象的な一般論だけのお題にしないでください。
+9. 出力は JSON のみで返し、説明文は不要です。`;
 }
 
 function hashText(text: string) {

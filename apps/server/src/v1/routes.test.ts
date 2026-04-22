@@ -15,6 +15,8 @@ const prompt: PersonalizedPracticePrompt = {
   category: "tech-explanation",
   title: "API キャッシュ戦略の説明",
   prompt: "API キャッシュ戦略を説明してください。",
+  background:
+    "最近アクセス数が増え、一部 API の平均応答時間が悪化していました。特に商品一覧 API はピーク時に 900ms 前後まで遅くなっていたため、キャッシュ対象と TTL を見直しました。",
   situation: "相手は結論を先に知りたがっています。",
   goals: ["最初に結論を置く", "改善点を分けて話す"],
   durationLabel: "60〜90秒",

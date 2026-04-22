@@ -1,22 +1,23 @@
-import { useEffect, useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import {
   AudioModule,
   RecordingPresets,
   setAudioModeAsync,
   useAudioRecorder,
-  useAudioRecorderState,
 } from "expo-audio";
-import { AppShell, Card, SectionTitle } from "../../src/components/app-shell";
 import { PrimaryButton } from "../../src/components/primary-button";
-import { MobileApiError, submitEvaluation } from "../../src/lib/api";
+import { Tag } from "../../src/components/tag";
+import { Waveform } from "../../src/components/waveform";
+import { useRecordingPayload } from "../../src/lib/recording-context";
 import {
-  appendAttemptToSession,
   getPracticeSession,
   toPreviousAttemptPayload,
 } from "../../src/lib/storage";
-import { palette } from "../../src/lib/theme";
+import { categoryLabels, fonts, palette } from "../../src/lib/theme";
 import type { PracticeSessionRecord } from "../../src/shared/practice";
 
 export default function PracticeScreen() {
@@ -25,261 +26,313 @@ export default function PracticeScreen() {
     sessionId: string;
   }>();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recorderState = useAudioRecorderState(recorder);
   const [session, setSession] = useState<PracticeSessionRecord | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [permissionReady, setPermissionReady] = useState(false);
+  const [recordingState, setRecordingState] = useState<
+    "idle" | "recording" | "paused"
+  >("idle");
+  const [seconds, setSeconds] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingPayload = useRecordingPayload();
 
   async function ensureRecordingPermission() {
     const current = await AudioModule.getRecordingPermissionsAsync();
-    if (current.granted) {
-      return true;
-    }
+    if (current.granted) return true;
 
     const requested = await AudioModule.requestRecordingPermissionsAsync();
     if (!requested.granted) {
-      setPermissionReady(false);
-      setError(
-        "マイク権限がないため録音できません。iPhoneの設定から許可してください。",
-      );
       Alert.alert(
         "マイク権限が必要です",
         "録音するにはマイクを許可してください。設定アプリから変更できます。",
       );
       return false;
     }
-
     return true;
   }
 
   useEffect(() => {
     void (async () => {
       const granted = await ensureRecordingPermission();
-      if (!granted) {
-        return;
-      }
-
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-      });
-      setPermissionReady(true);
+      if (!granted) return;
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
     })();
   }, []);
 
   useEffect(() => {
     void (async () => {
-      if (!params.sessionId) {
-        return;
-      }
-      const loaded = await getPracticeSession(params.sessionId);
-      setSession(loaded);
+      if (!params.sessionId) return;
+      setSession(await getPracticeSession(params.sessionId));
     })();
   }, [params.sessionId]);
 
-  if (!params.sessionId || !session) {
+  // Timer
+  useEffect(() => {
+    if (recordingState === "recording") {
+      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [recordingState]);
+
+  if (!session) {
     return (
-      <AppShell title="録音" subtitle="セッションを準備しています。">
-        <Card>
-          <Text style={styles.text}>読み込み中...</Text>
-        </Card>
-      </AppShell>
+      <SafeAreaView style={styles.safe}>
+        <Text style={styles.loadingText}>読み込み中...</Text>
+      </SafeAreaView>
     );
   }
 
-  const activeSession = session;
-  const currentAttempt = activeSession.attempts.length + 1;
-  const lastAttempt = activeSession.attempts.at(-1);
-  const canRetry = currentAttempt <= 2;
+  const currentAttempt = session.attempts.length + 1;
+  const lastAttempt = session.attempts.at(-1);
 
   async function startRecording() {
-    setError(null);
-
     const granted = await ensureRecordingPermission();
-    if (!granted) {
-      return;
-    }
-
-    await setAudioModeAsync({
-      allowsRecording: true,
-      playsInSilentMode: true,
-    });
-    setPermissionReady(true);
+    if (!granted) return;
+    await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
     await recorder.prepareToRecordAsync();
     recorder.record();
+    setRecordingState("recording");
   }
 
-  async function stopRecording() {
-    if (!canRetry) {
-      return;
-    }
+  async function stopAndSubmit() {
+    setRecordingState("paused");
+    await recorder.stop();
 
-    setSubmitting(true);
-    setError(null);
+    if (!recorder.uri || !session) return;
 
-    try {
-      await recorder.stop();
-      if (!recorder.uri) {
-        throw new Error("録音ファイルの取得に失敗しました。");
-      }
+    // Store payload in context and navigate to analyzing screen
+    recordingPayload.set({
+      sessionId: session.id,
+      promptId: session.prompt.id,
+      attemptNumber: currentAttempt,
+      audioUri: recorder.uri,
+      previousAttemptSummary: lastAttempt?.evaluation.summary,
+      previousEvaluation: lastAttempt
+        ? toPreviousAttemptPayload(
+            lastAttempt.attemptNumber,
+            lastAttempt.evaluation,
+          )
+        : undefined,
+    });
 
-      const response = await submitEvaluation({
-        promptId: activeSession.prompt.id,
-        attemptNumber: currentAttempt,
-        audioUri: recorder.uri,
-        previousAttemptSummary: lastAttempt?.evaluation.summary,
-        previousEvaluation: lastAttempt
-          ? toPreviousAttemptPayload(
-              lastAttempt.attemptNumber,
-              lastAttempt.evaluation,
-            )
-          : undefined,
-      });
-
-      const updated = await appendAttemptToSession({
-        sessionId: activeSession.id,
-        attemptNumber: response.attemptNumber,
-        evaluation: response.evaluation,
-      });
-      setSession(updated);
-      router.push({
-        pathname: "/session/[sessionId]/feedback",
-        params: { sessionId: activeSession.id },
-      });
-    } catch (cause) {
-      if (cause instanceof MobileApiError) {
-        setError(cause.message);
-      } else if (cause instanceof Error) {
-        setError(cause.message);
-      } else {
-        setError("録音の送信に失敗しました。");
-      }
-    } finally {
-      setSubmitting(false);
-    }
+    router.push({
+      pathname: "/session/[sessionId]/analyzing",
+      params: { sessionId: session.id },
+    });
   }
+
+  function resetRecording() {
+    setRecordingState("idle");
+    setSeconds(0);
+  }
+
+  const fmt = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   return (
-    <AppShell
-      title="録音"
-      subtitle={`Attempt ${Math.min(currentAttempt, 2)} / 2`}
-      right={
-        <PrimaryButton variant="ghost" onPress={() => router.replace("/")}>
-          ホーム
-        </PrimaryButton>
-      }
-    >
-      <Card tone="accent">
-        <Text style={styles.promptTitle}>{session.prompt.title}</Text>
-        <Text style={styles.promptBody}>{activeSession.prompt.prompt}</Text>
-        <Text style={styles.promptSituation}>
-          {activeSession.prompt.situation}
-        </Text>
-      </Card>
+    <SafeAreaView style={styles.safe}>
+      {/* Header */}
+      <View style={styles.pageHeader}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={18} color={palette.text2} />
+          <Text style={styles.backText}>戻る</Text>
+        </Pressable>
+        <Tag
+          label={
+            categoryLabels[session.prompt.category] ?? session.prompt.category
+          }
+        />
+      </View>
 
-      <Card>
-        <SectionTitle>今回の狙い</SectionTitle>
-        {activeSession.prompt.goals.map((goal) => (
-          <Text key={goal} style={styles.bullet}>
-            ・{goal}
-          </Text>
-        ))}
-      </Card>
+      <View style={styles.main}>
+        {/* Topic summary */}
+        <View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryTitle}>{session.prompt.title}</Text>
+            <Text style={styles.summaryBody}>{session.prompt.situation}</Text>
+          </View>
 
-      {lastAttempt ? (
-        <Card>
-          <SectionTitle>前回の総評</SectionTitle>
-          <Text style={styles.text}>{lastAttempt.evaluation.summary}</Text>
-          <Text style={styles.focus}>
-            次回の意識点: {lastAttempt.evaluation.nextFocus}
-          </Text>
-        </Card>
-      ) : null}
-
-      {error ? (
-        <Card tone="warning">
-          <Text style={styles.error}>{error}</Text>
-        </Card>
-      ) : null}
-
-      <Card>
-        <SectionTitle>録音操作</SectionTitle>
-        <Text style={styles.status}>
-          {recorderState.isRecording
-            ? "録音中です。話し終わったら停止してください。"
-            : permissionReady
-              ? "ボタンを押して録音を開始します。"
-              : "初回のみマイク権限の確認が入ります。"}
-        </Text>
-        <View style={styles.actions}>
-          <PrimaryButton
-            disabled={submitting || recorderState.isRecording || !canRetry}
-            onPress={() => {
-              void startRecording();
-            }}
-          >
-            録音開始
-          </PrimaryButton>
-          <PrimaryButton
-            variant="ghost"
-            disabled={submitting || !recorderState.isRecording}
-            onPress={() => {
-              void stopRecording();
-            }}
-          >
-            録音停止して送信
-          </PrimaryButton>
+          {recordingState === "idle" && (
+            <View style={styles.tipBanner}>
+              <Text style={styles.tipText}>
+                💡 結論から話すことを意識してみましょう
+              </Text>
+            </View>
+          )}
         </View>
-      </Card>
-    </AppShell>
+
+        {/* Recording center */}
+        <View style={styles.center}>
+          {/* Timer */}
+          <View style={styles.timerSection}>
+            <Text style={styles.timer}>{fmt(seconds)}</Text>
+            <Text style={styles.timerLabel}>
+              {recordingState === "recording"
+                ? "録音中"
+                : recordingState === "paused"
+                  ? "一時停止中"
+                  : "録音待機中"}
+            </Text>
+          </View>
+
+          {/* Waveform */}
+          <Waveform isRecording={recordingState === "recording"} />
+
+          {/* Mic button */}
+          <Pressable
+            style={[
+              styles.micButton,
+              recordingState === "recording" && styles.micButtonRecording,
+            ]}
+            onPress={() => {
+              if (recordingState === "idle") {
+                void startRecording();
+              } else if (recordingState === "recording") {
+                setRecordingState("paused");
+              } else {
+                setRecordingState("recording");
+              }
+            }}
+          >
+            {recordingState === "recording" ? (
+              <Ionicons name="square" size={22} color={palette.background} />
+            ) : (
+              <Ionicons name="mic" size={28} color={palette.background} />
+            )}
+          </Pressable>
+        </View>
+
+        {/* Actions */}
+        <View style={styles.actions}>
+          {(recordingState === "paused" ||
+            (recordingState === "recording" && seconds > 2)) && (
+            <PrimaryButton onPress={() => void stopAndSubmit()}>
+              回答を送信する
+            </PrimaryButton>
+          )}
+          {recordingState !== "idle" && (
+            <PrimaryButton variant="ghost" onPress={resetRecording}>
+              撮り直す
+            </PrimaryButton>
+          )}
+          {recordingState === "idle" && (
+            <Text style={styles.idleHint}>ボタンを押して録音を開始</Text>
+          )}
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  promptTitle: {
-    color: palette.ink,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: "800",
+  safe: {
+    flex: 1,
+    backgroundColor: palette.background,
   },
-  promptBody: {
-    color: palette.ink,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  promptSituation: {
-    color: palette.muted,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  bullet: {
-    color: palette.ink,
+  loadingText: {
+    fontFamily: fonts.body,
+    color: palette.text2,
     fontSize: 14,
-    lineHeight: 22,
+    textAlign: "center",
+    marginTop: 40,
   },
-  text: {
-    color: palette.ink,
+  pageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 6,
+  },
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  backText: {
+    fontFamily: fonts.body,
     fontSize: 14,
-    lineHeight: 22,
+    color: palette.text2,
   },
-  focus: {
+  main: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 20,
+    justifyContent: "space-between",
+  },
+  summaryCard: {
+    backgroundColor: palette.surface,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+  },
+  summaryTitle: {
+    fontFamily: fonts.heading,
+    fontSize: 17,
+    color: palette.text,
+    marginBottom: 8,
+  },
+  summaryBody: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: palette.text2,
+    lineHeight: 18,
+  },
+  tipBanner: {
+    backgroundColor: palette.accentDim,
+    borderWidth: 1,
+    borderColor: "rgba(110,184,154,0.2)",
+    borderRadius: 10,
+    padding: 12,
+  },
+  tipText: {
+    fontFamily: fonts.body,
+    fontSize: 12,
     color: palette.accent,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "700",
+    lineHeight: 18,
   },
-  status: {
-    color: palette.muted,
-    fontSize: 14,
-    lineHeight: 20,
+  center: {
+    alignItems: "center",
+    gap: 24,
+  },
+  timerSection: {
+    alignItems: "center",
+  },
+  timer: {
+    fontFamily: fonts.mono,
+    fontSize: 44,
+    color: palette.text,
+    letterSpacing: -1,
+  },
+  timerLabel: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: palette.text3,
+    marginTop: 4,
+  },
+  micButton: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: palette.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  micButtonRecording: {
+    backgroundColor: palette.danger,
   },
   actions: {
     gap: 10,
   },
-  error: {
-    color: palette.warning,
-    fontSize: 14,
-    fontWeight: "700",
+  idleHint: {
+    fontFamily: fonts.body,
+    textAlign: "center",
+    fontSize: 12,
+    color: palette.text3,
   },
 });

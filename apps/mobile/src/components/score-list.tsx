@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { palette } from "../lib/theme";
+import { fonts, palette } from "../lib/theme";
 import type { AttemptEvaluation } from "../shared/practice";
 
 export function ScoreList({
@@ -9,7 +9,7 @@ export function ScoreList({
 }) {
   return (
     <View style={styles.list}>
-      {evaluation.scores.map((score, index) => (
+      {evaluation.scores.map((score) => (
         <View key={score.axis} style={styles.row}>
           <View style={styles.labelRow}>
             <Text style={styles.axis}>{score.axis}</Text>
@@ -19,10 +19,7 @@ export function ScoreList({
             <View
               style={[
                 styles.fill,
-                {
-                  width: `${(score.score / 5) * 100}%`,
-                  backgroundColor: palette.score[index] ?? palette.accent,
-                },
+                { width: `${(score.score / 5) * 100}%` },
               ]}
             />
           </View>
@@ -35,7 +32,7 @@ export function ScoreList({
 
 const styles = StyleSheet.create({
   list: {
-    gap: 12,
+    gap: 14,
   },
   row: {
     gap: 6,
@@ -46,28 +43,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   axis: {
-    color: palette.ink,
-    fontSize: 14,
-    fontWeight: "700",
+    fontFamily: fonts.bodyMedium,
+    color: palette.text,
+    fontSize: 12,
+    fontWeight: "500",
   },
   value: {
-    color: palette.muted,
-    fontSize: 13,
-    fontWeight: "700",
+    fontFamily: fonts.mono,
+    color: palette.text2,
+    fontSize: 12,
   },
   track: {
-    height: 10,
-    backgroundColor: "#e5ded2",
-    borderRadius: 999,
+    height: 4,
+    backgroundColor: palette.borderLight,
+    borderRadius: 2,
     overflow: "hidden",
   },
   fill: {
     height: "100%",
-    borderRadius: 999,
+    borderRadius: 2,
+    backgroundColor: palette.accent,
   },
   comment: {
-    color: palette.muted,
-    fontSize: 13,
-    lineHeight: 18,
+    fontFamily: fonts.body,
+    color: palette.text3,
+    fontSize: 11,
+    lineHeight: 16,
   },
 });

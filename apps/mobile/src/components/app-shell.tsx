@@ -1,7 +1,7 @@
 import type { PropsWithChildren, ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { palette } from "../lib/theme";
+import { fonts, palette } from "../lib/theme";
 
 export function AppShell({
   title,
@@ -35,14 +35,17 @@ export function AppShell({
 
 export function Card({
   children,
-  tone = "paper",
-}: PropsWithChildren<{ tone?: "paper" | "accent" | "warning" }>) {
+  tone = "surface",
+}: PropsWithChildren<{
+  tone?: "surface" | "accent" | "warm" | "danger";
+}>) {
   return (
     <View
       style={[
         styles.card,
-        tone === "accent" ? styles.cardAccent : undefined,
-        tone === "warning" ? styles.cardWarning : undefined,
+        tone === "accent" && styles.cardAccent,
+        tone === "warm" && styles.cardWarm,
+        tone === "danger" && styles.cardDanger,
       ]}
     >
       {children}
@@ -72,42 +75,52 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   eyebrow: {
+    fontFamily: fonts.mono,
     color: palette.accent,
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 2.2,
+    fontSize: 10,
+    fontWeight: "500",
+    letterSpacing: 1.5,
   },
   title: {
-    color: palette.ink,
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: "800",
+    fontFamily: fonts.heading,
+    color: palette.text,
+    fontSize: 26,
+    lineHeight: 30,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    color: palette.muted,
-    fontSize: 15,
-    lineHeight: 22,
+    fontFamily: fonts.body,
+    color: palette.text2,
+    fontSize: 13,
+    lineHeight: 20,
   },
   card: {
-    backgroundColor: palette.paper,
-    borderRadius: 24,
+    backgroundColor: palette.surface,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: palette.border,
-    padding: 18,
+    padding: 16,
     gap: 10,
   },
   cardAccent: {
-    backgroundColor: palette.accentSoft,
-    borderColor: palette.accent,
+    backgroundColor: palette.accentDim,
+    borderColor: "rgba(110,184,154,0.2)",
   },
-  cardWarning: {
-    backgroundColor: palette.warningSoft,
-    borderColor: palette.warning,
+  cardWarm: {
+    backgroundColor: palette.accentWarmDim,
+    borderColor: "rgba(196,164,107,0.25)",
+  },
+  cardDanger: {
+    backgroundColor: palette.dangerDim,
+    borderColor: "rgba(196,122,107,0.2)",
   },
   sectionTitle: {
-    color: palette.ink,
-    fontSize: 18,
-    fontWeight: "700",
+    fontFamily: fonts.monoMedium,
+    color: palette.text3,
+    fontSize: 10,
+    fontWeight: "500",
+    letterSpacing: 1,
+    textTransform: "uppercase",
     marginBottom: 4,
   },
 });

@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { palette } from "../lib/theme";
+import { fonts, palette } from "../lib/theme";
 
 export function PrimaryButton({
   children,
@@ -20,8 +20,8 @@ export function PrimaryButton({
       style={({ pressed }) => [
         styles.button,
         variant === "ghost" ? styles.ghost : styles.solid,
-        disabled ? styles.disabled : undefined,
-        pressed && !disabled ? styles.pressed : undefined,
+        disabled && styles.disabled,
+        pressed && !disabled && styles.pressed,
       ]}
     >
       <Text
@@ -39,29 +39,31 @@ export function PrimaryButton({
 const styles = StyleSheet.create({
   button: {
     minHeight: 52,
-    borderRadius: 18,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
+    paddingHorizontal: 24,
     borderWidth: 1,
   },
   solid: {
-    backgroundColor: palette.ink,
-    borderColor: palette.ink,
+    backgroundColor: palette.accent,
+    borderColor: palette.accent,
   },
   ghost: {
-    backgroundColor: "transparent",
-    borderColor: palette.border,
+    backgroundColor: palette.surface2,
+    borderColor: palette.borderLight,
   },
   label: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
   solidLabel: {
-    color: palette.white,
+    color: palette.background,
   },
   ghostLabel: {
-    color: palette.ink,
+    color: palette.text,
   },
   disabled: {
     opacity: 0.45,

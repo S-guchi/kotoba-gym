@@ -13,16 +13,13 @@ import {
   isPersonalizedPrompt,
   type HomePrompt,
 } from "../../src/lib/home-screen-helpers";
-import {
-  getPersonalizationProfile,
-  getPersonalizedPrompts,
-} from "../../src/lib/personalization-storage";
+import { getPersonalizationProfile } from "../../src/lib/personalization-storage";
 import { listPracticeSessions } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
 import type {
   PersonalizationProfile,
-  PracticePrompt,
+  PersonalizedPracticePrompt,
   PracticeSessionRecord,
 } from "@kotoba-gym/core";
 
@@ -116,12 +113,9 @@ export default function HomeScreen() {
   const palette = useThemePalette();
   const styles = createStyles(palette);
   const isFocused = useIsFocused();
-  const [prompts, setPrompts] = useState<PracticePrompt[]>([]);
+  const [prompts, setPrompts] = useState<PersonalizedPracticePrompt[]>([]);
   const [sessions, setSessions] = useState<PracticeSessionRecord[]>([]);
   const [profile, setProfile] = useState<PersonalizationProfile | null>(null);
-  const [personalizedPrompts, setPersonalizedPrompts] = useState<HomePrompt[]>(
-    [],
-  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -131,22 +125,16 @@ export default function HomeScreen() {
 
     void (async () => {
       try {
-        const [
-          promptList,
-          sessionList,
-          personalizationProfile,
-          generatedPrompts,
-        ] = await Promise.all([
-          fetchPrompts(),
-          listPracticeSessions(),
-          getPersonalizationProfile(),
-          getPersonalizedPrompts(),
-        ]);
+        const [promptList, sessionList, personalizationProfile] =
+          await Promise.all([
+            fetchPrompts(),
+            listPracticeSessions(),
+            getPersonalizationProfile(),
+          ]);
 
         setPrompts(promptList);
         setSessions(sessionList);
         setProfile(personalizationProfile);
-        setPersonalizedPrompts(generatedPrompts ?? []);
         setError(null);
       } catch (cause) {
         setError(
@@ -174,8 +162,7 @@ export default function HomeScreen() {
     : "—";
 
   const homeFeed = buildHomeFeed({
-    defaultPrompts: prompts,
-    personalizedPrompts: personalizedPrompts.filter(isPersonalizedPrompt),
+    prompts: prompts.filter(isPersonalizedPrompt),
     sessions,
     profile,
   });
@@ -250,17 +237,25 @@ export default function HomeScreen() {
               <Text style={styles.onboardingIcon}>🏋️</Text>
               <View style={styles.onboardingCopy}>
                 <Text style={styles.onboardingTitle}>
-                  あなた向けのお題を生成しませんか
+                  {profile
+                    ? "お題を再生成しませんか"
+                    : "あなた向けのお題を生成しませんか"}
                 </Text>
                 <Text style={styles.onboardingDescription}>
-                  4問答えるだけで、専用のお題が届きます
+                  {profile
+                    ? "プロフィールに合わせて、新しいお題を作り直せます"
+                    : "4問答えるだけで、専用のお題が届きます"}
                 </Text>
               </View>
               <Pressable
                 style={styles.onboardingButton}
-                onPress={() => router.push("/onboarding")}
+                onPress={() =>
+                  router.push(profile ? "/profile" : "/onboarding")
+                }
               >
-                <Text style={styles.onboardingButtonText}>試す</Text>
+                <Text style={styles.onboardingButtonText}>
+                  {profile ? "見る" : "試す"}
+                </Text>
               </Pressable>
             </View>
           ) : null}

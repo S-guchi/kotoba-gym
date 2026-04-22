@@ -3,11 +3,14 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "wrangler dev --local",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check src",
-    "format": "biome format --write src"
+    "format": "biome format --write src",
+    "cf:typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply kotoba-gym --local",
+    "db:migrate:remote": "wrangler d1 migrations apply kotoba-gym --remote"
   },
   "dependencies": {
     "@google/genai": "latest",
@@ -19,8 +22,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1",
+    "@cloudflare/workers-types": "^4.20260422.1",
     "@types/node": "^20",
     "tsx": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.84.1"
   }
 }

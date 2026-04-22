@@ -6,7 +6,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { PrimaryButton } from "../../../src/components/primary-button";
 import { MobileApiError, submitEvaluation } from "../../../src/lib/api";
 import { useRecordingPayload } from "../../../src/lib/recording-context";
-import { appendAttemptToSession } from "../../../src/lib/storage";
 import { useThemePalette } from "../../../src/lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../../../src/lib/theme";
 
@@ -38,18 +37,11 @@ export default function AnalyzingScreen() {
 
     void (async () => {
       try {
-        const response = await submitEvaluation({
+        await submitEvaluation({
+          sessionId: payload.sessionId,
           promptId: payload.promptId,
           attemptNumber: payload.attemptNumber,
           audioUri: payload.audioUri,
-          previousAttemptSummary: payload.previousAttemptSummary,
-          previousEvaluation: payload.previousEvaluation,
-        });
-
-        await appendAttemptToSession({
-          sessionId: payload.sessionId,
-          attemptNumber: response.attemptNumber,
-          evaluation: response.evaluation,
         });
 
         setTimeout(() => {

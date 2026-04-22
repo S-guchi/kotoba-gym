@@ -1,11 +1,10 @@
 import type {
   PersonalizationProfile,
   PersonalizedPracticePrompt,
-  PracticePrompt,
   PracticeSessionRecord,
 } from "@kotoba-gym/core";
 
-export type HomePrompt = PracticePrompt | PersonalizedPracticePrompt;
+export type HomePrompt = PersonalizedPracticePrompt;
 
 export function isPersonalizedPrompt(
   prompt: HomePrompt,
@@ -39,40 +38,21 @@ export function buildResumeProgress(session: PracticeSessionRecord) {
 }
 
 export function buildHomeFeed(params: {
-  defaultPrompts: PracticePrompt[];
-  personalizedPrompts: PersonalizedPracticePrompt[];
+  prompts: HomePrompt[];
   sessions: PracticeSessionRecord[];
   profile: PersonalizationProfile | null;
 }) {
-  const heroPrompt =
-    params.personalizedPrompts[0] ?? params.defaultPrompts[0] ?? null;
-
-  const seen = new Set<string>();
-  if (heroPrompt) {
-    seen.add(heroPrompt.id);
-  }
-
-  const candidatePrompts = [
-    ...params.personalizedPrompts.slice(
-      heroPrompt?.id === params.personalizedPrompts[0]?.id ? 1 : 0,
-    ),
-    ...params.defaultPrompts,
-  ].filter((prompt) => {
-    if (seen.has(prompt.id)) {
-      return false;
-    }
-    seen.add(prompt.id);
-    return true;
-  });
+  const heroPrompt = params.prompts[0] ?? null;
+  const candidatePrompts = params.prompts.slice(1, 9);
 
   return {
     heroPrompt,
-    candidatePrompts: candidatePrompts.slice(0, 8),
+    candidatePrompts,
     resumeSession: getResumeSession(params.sessions),
-    showOnboardingCta: params.profile === null,
+    showOnboardingCta: params.prompts.length === 0,
     profileHighlights: buildProfileHighlights(params.profile),
     heroSectionLabel:
-      params.profile && params.personalizedPrompts.length > 0
+      params.profile && params.prompts.length > 0
         ? "あなた向けのおすすめ"
         : "おすすめのお題",
   };

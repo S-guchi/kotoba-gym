@@ -2,7 +2,6 @@ import { describe, expect, test } from "vitest";
 import type {
   PersonalizationProfile,
   PersonalizedPracticePrompt,
-  PracticePrompt,
   PracticeSessionRecord,
 } from "@kotoba-gym/core";
 import {
@@ -13,20 +12,14 @@ import {
   isPersonalizedPrompt,
 } from "./home-screen-helpers";
 
-const basePrompt: PracticePrompt = {
-  id: "base-1",
+const personalizedPrompt: PersonalizedPracticePrompt = {
+  id: "personalized-1",
   category: "interview",
-  title: "自分の強みの説明",
+  title: "Expo の強みを説明",
   prompt: "面接で強みを説明してください。",
   situation: "相手は実例を重視しています。",
   goals: ["強みを先に言う", "具体例で裏付ける"],
   durationLabel: "45〜60秒",
-};
-
-const personalizedPrompt: PersonalizedPracticePrompt = {
-  ...basePrompt,
-  id: "personalized-1",
-  title: "Expo の強みを説明",
   personalized: true,
 };
 
@@ -42,7 +35,7 @@ const profile: PersonalizationProfile = {
 
 const resumeSession: PracticeSessionRecord = {
   id: "session-1",
-  prompt: basePrompt,
+  prompt: personalizedPrompt,
   attempts: [
     {
       attemptNumber: 1,
@@ -138,11 +131,6 @@ describe.each([
     prompt: personalizedPrompt,
     expected: true,
   },
-  {
-    name: "base prompt is not personalized",
-    prompt: basePrompt,
-    expected: false,
-  },
 ])("isPersonalizedPrompt", ({ prompt, expected }) => {
   test.each([{ label: "personalization badge source is stable" }])(
     "$label",
@@ -154,38 +142,33 @@ describe.each([
 
 describe.each([
   {
-    name: "profile and personalized prompts drive hero section",
+    name: "profile and prompts drive hero section",
     input: {
-      defaultPrompts: [
-        basePrompt,
-        { ...basePrompt, id: "base-2", title: "別のお題" },
+      prompts: [
+        personalizedPrompt,
+        { ...personalizedPrompt, id: "personalized-2", title: "別のお題" },
       ],
-      personalizedPrompts: [personalizedPrompt],
       sessions: [resumeSession],
       profile,
     },
     expected: {
       heroPromptId: "personalized-1",
-      candidatePromptIds: ["base-1", "base-2"],
+      candidatePromptIds: ["personalized-2"],
       heroSectionLabel: "あなた向けのおすすめ",
       showOnboardingCta: false,
       resumeSessionId: "session-1",
     },
   },
   {
-    name: "fallback uses base prompts when profile is missing",
+    name: "empty prompt list shows onboarding state",
     input: {
-      defaultPrompts: [
-        basePrompt,
-        { ...basePrompt, id: "base-2", title: "別のお題" },
-      ],
-      personalizedPrompts: [],
+      prompts: [],
       sessions: [],
       profile: null,
     },
     expected: {
-      heroPromptId: "base-1",
-      candidatePromptIds: ["base-2"],
+      heroPromptId: null,
+      candidatePromptIds: [],
       heroSectionLabel: "おすすめのお題",
       showOnboardingCta: true,
       resumeSessionId: null,

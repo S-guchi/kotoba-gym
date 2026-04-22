@@ -1,5 +1,6 @@
 import type {
   AttemptEvaluation,
+  PracticePrompt,
   PreviousAttemptPayload,
 } from "@kotoba-gym/core";
 import { scoreAxes } from "@kotoba-gym/core";
@@ -43,6 +44,16 @@ const previousEvaluation: PreviousAttemptPayload = {
   goodPoints: ["結論を出せた", "短かった"],
   improvementPoints: ["具体性不足", "理由が弱い"],
   nextFocus: "数字を入れる",
+};
+
+const prompt: PracticePrompt = {
+  id: "personalized-1",
+  category: "tech-explanation",
+  title: "API キャッシュ戦略の説明",
+  prompt: "API レスポンスのキャッシュ戦略を説明してください。",
+  situation: "相手は結論先出しで要点を知りたがっています。",
+  goals: ["最初に結論を置く", "改善前後を分けて話す"],
+  durationLabel: "60〜90秒",
 };
 
 describe.each([
@@ -150,7 +161,7 @@ describe.each([
   {
     name: "initial prompt mentions null comparison",
     input: {
-      promptId: "tech-api-cache",
+      prompt,
       attemptNumber: 1,
       locale: "ja-JP",
     },
@@ -159,7 +170,7 @@ describe.each([
   {
     name: "retry prompt includes previous attempt summary",
     input: {
-      promptId: "tech-api-cache",
+      prompt,
       attemptNumber: 2,
       locale: "ja-JP",
       previousAttemptSummary: "前回は冗長でした。",

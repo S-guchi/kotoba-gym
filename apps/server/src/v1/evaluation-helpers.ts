@@ -2,8 +2,8 @@ import { Type } from "@google/genai";
 import {
   type AttemptEvaluation,
   type EvaluationScore,
+  type PracticePrompt,
   type PreviousAttemptPayload,
-  getPracticePromptById,
   scoreAxes,
 } from "@kotoba-gym/core";
 import { ApiError } from "./api-error.js";
@@ -89,13 +89,12 @@ export const EVALUATION_RESPONSE_SCHEMA = {
 };
 
 export function buildEvaluationPrompt(params: {
-  promptId: string;
+  prompt: PracticePrompt;
   attemptNumber: number;
   locale: string;
   previousAttemptSummary?: string;
   previousEvaluation?: PreviousAttemptPayload;
 }): string {
-  const prompt = getPracticePromptById(params.promptId);
   const previousSection = params.previousEvaluation
     ? `
 ## 前回の回答結果
@@ -113,25 +112,25 @@ ${params.previousEvaluation.scores
 ${params.previousAttemptSummary ? `- previousAttemptSummary: ${params.previousAttemptSummary}` : ""}`
     : "\n## 前回の回答結果\n今回は初回回答です。comparison は null を返してください。";
 
-  return `あなたはエンジニア向け口頭説明トレーニングの評価者です。添付された音声を聞いて、回答を日本語で評価してください。
+  return `あなたはエンジニア向け口頭コミュニケーション練習コーチです。添付された音声を聞いて、回答を日本語で評価してください。
 
 ## 回答言語
 ${params.locale}
 
 ## お題カテゴリ
-${prompt.category}
+${params.prompt.category}
 
 ## お題タイトル
-${prompt.title}
+${params.prompt.title}
 
 ## お題本文
-${prompt.prompt}
+${params.prompt.prompt}
 
 ## 想定状況
-${prompt.situation}
+${params.prompt.situation}
 
 ## この回答で確認したいこと
-${prompt.goals.map((item) => `- ${item}`).join("\n")}
+${params.prompt.goals.map((item) => `- ${item}`).join("\n")}
 
 ## 評価軸
 - conclusion: 結論が先に出ているか

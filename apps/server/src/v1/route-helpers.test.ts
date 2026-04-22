@@ -3,7 +3,8 @@ import { ApiError } from "./api-error.js";
 import {
   assertSupportedAudioMimeType,
   parseEvaluationFields,
-  parsePreviousEvaluation,
+  parseOwnerKey,
+  parseProfilePayload,
   resolveAudioMimeType,
   toRouteApiError,
 } from "./route-helpers.js";
@@ -42,28 +43,33 @@ describe.each([
   {
     name: "valid fields keep explicit values",
     form: createFormData({
+      ownerKey: "owner-1",
+      sessionId: "session-1",
       promptId: "tech-api-cache",
       attemptNumber: "2",
       locale: "en-US",
-      previousAttemptSummary: "summary",
     }),
     expected: {
+      ownerKey: "owner-1",
+      sessionId: "session-1",
       promptId: "tech-api-cache",
       attemptNumber: 2,
       locale: "en-US",
-      previousAttemptSummary: "summary",
     },
   },
   {
     name: "defaults are filled",
     form: createFormData({
+      ownerKey: "owner-1",
+      sessionId: "session-1",
       promptId: "tech-api-cache",
     }),
     expected: {
+      ownerKey: "owner-1",
+      sessionId: "session-1",
       promptId: "tech-api-cache",
       attemptNumber: 1,
       locale: "ja-JP",
-      previousAttemptSummary: undefined,
     },
   },
 ])("parseEvaluationFields", ({ form, expected }) => {
@@ -74,50 +80,37 @@ describe.each([
 
 describe.each([
   {
-    name: "empty previous evaluation returns undefined",
-    raw: "",
-    expected: undefined,
+    name: "owner key is trimmed",
+    raw: " owner-1 ",
+    expected: "owner-1",
   },
+])("parseOwnerKey", ({ raw, expected }) => {
+  test.each([{ label: "owner key parsing is stable" }])("$label", () => {
+    expect(parseOwnerKey(raw)).toBe(expected);
+  });
+});
+
+describe.each([
   {
-    name: "valid previous evaluation parses json",
-    raw: JSON.stringify({
-      attemptNumber: 1,
-      transcript: "text",
-      summary: "summary",
-      scores: [
-        { axis: "conclusion", score: 3, comment: "a" },
-        { axis: "structure", score: 3, comment: "b" },
-        { axis: "specificity", score: 3, comment: "c" },
-        { axis: "technicalValidity", score: 3, comment: "d" },
-        { axis: "brevity", score: 3, comment: "e" },
-      ],
-      goodPoints: ["g1", "g2"],
-      improvementPoints: ["i1", "i2"],
-      nextFocus: "next",
-    }),
-    expected: {
-      attemptNumber: 1,
-      transcript: "text",
-      summary: "summary",
-      scores: [
-        { axis: "conclusion", score: 3, comment: "a" },
-        { axis: "structure", score: 3, comment: "b" },
-        { axis: "specificity", score: 3, comment: "c" },
-        { axis: "technicalValidity", score: 3, comment: "d" },
-        { axis: "brevity", score: 3, comment: "e" },
-      ],
-      goodPoints: ["g1", "g2"],
-      improvementPoints: ["i1", "i2"],
-      nextFocus: "next",
+    name: "profile payload is parsed",
+    raw: {
+      ownerKey: "owner-1",
+      profile: {
+        role: "モバイル",
+        roleText: "",
+        strengths: ["実装速度"],
+        strengthsText: "",
+        techStack: ["Expo"],
+        techStackText: "",
+        scenarios: ["技術説明"],
+      },
     },
+    expectedOwnerKey: "owner-1",
   },
-])("parsePreviousEvaluation", ({ raw, expected }) => {
-  test.each([{ label: "previous evaluation parsing is stable" }])(
-    "$label",
-    () => {
-      expect(parsePreviousEvaluation(raw)).toEqual(expected);
-    },
-  );
+])("parseProfilePayload", ({ raw, expectedOwnerKey }) => {
+  test.each([{ label: "profile payload is validated" }])("$label", () => {
+    expect(parseProfilePayload(raw).ownerKey).toBe(expectedOwnerKey);
+  });
 });
 
 describe.each([
@@ -148,11 +141,6 @@ describe.each([
     name: "explicit api error is preserved",
     error: new ApiError("bad request", 400, "bad_request"),
     expected: { status: 400, code: "bad_request" },
-  },
-  {
-    name: "prompt lookup error becomes not found",
-    error: new Error("Practice prompt not found: missing"),
-    expected: { status: 404, code: "prompt_not_found" },
   },
   {
     name: "generic error becomes evaluation failed",

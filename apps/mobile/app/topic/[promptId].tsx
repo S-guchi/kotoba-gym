@@ -6,17 +6,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { PrimaryButton } from "../../src/components/primary-button";
 import { Tag } from "../../src/components/tag";
 import { fetchPrompts } from "../../src/lib/api";
-import { getPersonalizedPrompts } from "../../src/lib/personalization-storage";
 import { findPromptById } from "../../src/lib/prompt-catalog";
 import { createPracticeSession } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
-import type {
-  PersonalizedPracticePrompt,
-  PracticePrompt,
-} from "@kotoba-gym/core";
+import type { PersonalizedPracticePrompt } from "@kotoba-gym/core";
 
-type TopicPrompt = PracticePrompt | PersonalizedPracticePrompt;
+type TopicPrompt = PersonalizedPracticePrompt;
 
 export default function TopicDetailScreen() {
   const palette = useThemePalette();
@@ -30,15 +26,11 @@ export default function TopicDetailScreen() {
     void (async () => {
       try {
         setIsLoading(true);
-        const [defaultPrompts, personalizedPrompts] = await Promise.all([
-          fetchPrompts(),
-          getPersonalizedPrompts(),
-        ]);
+        const prompts = await fetchPrompts();
 
         setPrompt(
           findPromptById({
-            defaultPrompts,
-            personalizedPrompts: personalizedPrompts ?? [],
+            prompts,
             promptId: promptId ?? "",
           }),
         );

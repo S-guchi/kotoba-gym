@@ -20,10 +20,7 @@ import {
   STRENGTH_OPTIONS,
   TECH_STACK_OPTIONS,
 } from "../src/lib/personalization-options";
-import {
-  savePersonalizationProfile,
-  savePersonalizedPrompts,
-} from "../src/lib/personalization-storage";
+import { savePersonalizationProfile } from "../src/lib/personalization-storage";
 import { generatePersonalizedPrompts } from "../src/lib/api";
 import { useThemePalette } from "../src/lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../src/lib/theme";
@@ -157,12 +154,8 @@ export default function OnboardingScreen() {
       timers.push(setTimeout(() => setGenerationStep(1), 600));
       timers.push(setTimeout(() => setGenerationStep(2), 1400));
 
-      const prompts = await generatePersonalizedPrompts(profile);
-
-      await Promise.all([
-        savePersonalizationProfile(profile),
-        savePersonalizedPrompts(prompts),
-      ]);
+      await savePersonalizationProfile(profile);
+      await generatePersonalizedPrompts(profile);
 
       setGenerationStep(3);
       timers.push(setTimeout(() => router.replace("/"), 350));

@@ -17,7 +17,6 @@ import {
   getPersonalizationProfile,
   getPersonalizedPrompts,
   resetPersonalization,
-  savePersonalizedPrompts,
 } from "../../src/lib/personalization-storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../../src/lib/theme";
@@ -122,7 +121,6 @@ export default function ProfileScreen() {
       setIsRegenerating(true);
       setError(null);
       const prompts = await generatePersonalizedPrompts(profile);
-      await savePersonalizedPrompts(prompts);
       setPersonalizedCount(prompts.length);
     } catch (cause) {
       setError(

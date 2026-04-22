@@ -8,7 +8,9 @@
     "skipLibCheck": true,
     "outDir": "./dist",
     "rootDir": "../..",
+    "lib": ["ES2022", "WebWorker"],
     "baseUrl": ".",
+    "types": ["@cloudflare/workers-types"],
     "paths": {
       "@kotoba-gym/core": ["../../packages/core/src/index.ts"]
     },

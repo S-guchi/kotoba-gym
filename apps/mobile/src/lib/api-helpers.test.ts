@@ -1,27 +1,10 @@
 import { describe, expect, test } from "vitest";
-import type { PreviousAttemptPayload } from "@kotoba-gym/core";
 import {
   buildEvaluationRequestFields,
   createAudioUploadDescriptor,
   resolveApiBaseUrl,
   toMobileApiErrorData,
 } from "./api-helpers";
-
-const previousEvaluation: PreviousAttemptPayload = {
-  attemptNumber: 1,
-  transcript: "text",
-  summary: "summary",
-  scores: [
-    { axis: "conclusion", score: 3, comment: "a" },
-    { axis: "structure", score: 3, comment: "b" },
-    { axis: "specificity", score: 3, comment: "c" },
-    { axis: "technicalValidity", score: 3, comment: "d" },
-    { axis: "brevity", score: 3, comment: "e" },
-  ],
-  goodPoints: ["g1", "g2"],
-  improvementPoints: ["i1", "i2"],
-  nextFocus: "next",
-};
 
 describe.each([
   {
@@ -38,12 +21,12 @@ describe.each([
       envUrl: "",
       hostUri: "192.168.0.2:8081",
     },
-    expected: "http://192.168.0.2:3000",
+    expected: "http://192.168.0.2:8787",
   },
   {
     name: "localhost default",
     input: {},
-    expected: "http://127.0.0.1:3000",
+    expected: "http://127.0.0.1:8787",
   },
 ])("resolveApiBaseUrl", ({ input, expected }) => {
   test.each([{ label: "base url resolves deterministically" }])(
@@ -87,34 +70,19 @@ describe.each([
 
 describe.each([
   {
-    name: "first attempt payload omits previous fields",
+    name: "evaluation payload includes owner and session",
     input: {
+      ownerKey: "owner-1",
+      sessionId: "session-1",
       promptId: "tech-api-cache",
       attemptNumber: 1,
     },
     expected: {
+      ownerKey: "owner-1",
+      sessionId: "session-1",
       promptId: "tech-api-cache",
       attemptNumber: "1",
       locale: "ja-JP",
-      previousAttemptSummary: undefined,
-      previousEvaluation: undefined,
-    },
-  },
-  {
-    name: "second attempt payload includes serialized previous evaluation",
-    input: {
-      promptId: "tech-api-cache",
-      attemptNumber: 2,
-      previousAttemptSummary: "前回は抽象的でした。",
-      previousEvaluation,
-    },
-    expected: {
-      promptId: "tech-api-cache",
-      attemptNumber: "2",
-      locale: "ja-JP",
-      previousAttemptSummary: "前回は抽象的でした。",
-      previousEvaluation:
-        '{"attemptNumber":1,"transcript":"text","summary":"summary","scores":[{"axis":"conclusion","score":3,"comment":"a"},{"axis":"structure","score":3,"comment":"b"},{"axis":"specificity","score":3,"comment":"c"},{"axis":"technicalValidity","score":3,"comment":"d"},{"axis":"brevity","score":3,"comment":"e"}],"goodPoints":["g1","g2"],"improvementPoints":["i1","i2"],"nextFocus":"next"}',
     },
   },
 ])("buildEvaluationRequestFields", ({ input, expected }) => {

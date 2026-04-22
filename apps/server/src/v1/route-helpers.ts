@@ -1,6 +1,65 @@
-import { PreviousAttemptPayloadSchema } from "@kotoba-gym/core";
+import { PersonalizationProfileSchema } from "@kotoba-gym/core";
 import { z } from "zod";
 import { ApiError } from "./api-error.js";
+
+const OwnerKeySchema = z.string().trim().min(1).max(120);
+
+const SessionCreateRequestSchema = z.object({
+  ownerKey: OwnerKeySchema,
+  promptId: z.string().trim().min(1),
+});
+
+const EvaluationFieldsSchema = z.object({
+  ownerKey: OwnerKeySchema,
+  sessionId: z.string().trim().min(1),
+  promptId: z.string().trim().min(1),
+  attemptNumber: z.coerce.number().int().min(1).max(2).default(1),
+  locale: z.string().min(2).default("ja-JP"),
+});
+
+export function jsonApiError(error: ApiError) {
+  return Response.json(
+    {
+      error: {
+        code: error.code,
+        message: error.message,
+        retryable: error.retryable,
+      },
+    },
+    { status: error.status },
+  );
+}
+
+export function parseOwnerKey(raw: unknown) {
+  return OwnerKeySchema.parse(raw);
+}
+
+export function parseProfilePayload(raw: unknown) {
+  return z
+    .object({
+      ownerKey: OwnerKeySchema,
+      profile: PersonalizationProfileSchema,
+    })
+    .parse(raw);
+}
+
+export function parsePromptGenerationPayload(raw: unknown) {
+  return parseProfilePayload(raw);
+}
+
+export function parseSessionCreatePayload(raw: unknown) {
+  return SessionCreateRequestSchema.parse(raw);
+}
+
+export function parseEvaluationFields(form: FormData) {
+  return EvaluationFieldsSchema.parse({
+    ownerKey: form.get("ownerKey"),
+    sessionId: form.get("sessionId"),
+    promptId: form.get("promptId"),
+    attemptNumber: form.get("attemptNumber") ?? "1",
+    locale: form.get("locale") ?? "ja-JP",
+  });
+}
 
 export interface AudioFileLike {
   name: string;
@@ -25,43 +84,6 @@ const MIME_TYPE_ALIASES: Record<string, string> = {
   "audio/x-m4a": "audio/m4a",
   "audio/x-wav": "audio/wav",
 };
-
-const EvaluationFieldsSchema = z.object({
-  promptId: z.string().min(1),
-  attemptNumber: z.coerce.number().int().min(1).max(2).default(1),
-  locale: z.string().min(2).default("ja-JP"),
-  previousAttemptSummary: z.string().optional(),
-});
-
-export function jsonApiError(error: ApiError) {
-  return Response.json(
-    {
-      error: {
-        code: error.code,
-        message: error.message,
-        retryable: error.retryable,
-      },
-    },
-    { status: error.status },
-  );
-}
-
-export function parseEvaluationFields(form: FormData) {
-  return EvaluationFieldsSchema.parse({
-    promptId: form.get("promptId"),
-    attemptNumber: form.get("attemptNumber") ?? "1",
-    locale: form.get("locale") ?? "ja-JP",
-    previousAttemptSummary: form.get("previousAttemptSummary") ?? undefined,
-  });
-}
-
-export function parsePreviousEvaluation(raw: FormDataEntryValue | null) {
-  if (typeof raw !== "string" || raw.trim() === "") {
-    return undefined;
-  }
-
-  return PreviousAttemptPayloadSchema.parse(JSON.parse(raw));
-}
 
 export function resolveAudioMimeType(file: AudioFileLike): string {
   const lowerName = file.name.toLowerCase();
@@ -121,14 +143,10 @@ export function toRouteApiError(
 ): ApiError {
   if (error instanceof z.ZodError) {
     return new ApiError(
-      "入力が不正です。録音データを確認して再試行してください。",
+      "入力が不正です。内容を確認して再試行してください。",
       400,
       "invalid_request",
     );
-  }
-
-  if (error instanceof Error && error.message.includes("Practice prompt")) {
-    return new ApiError("お題が見つかりません。", 404, "prompt_not_found");
   }
 
   if (error instanceof ApiError) {

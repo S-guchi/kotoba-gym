@@ -33,10 +33,7 @@ import {
   type RecordingUiState,
 } from "../../src/lib/recording-screen-helpers";
 import { useRecordingPayload } from "../../src/lib/recording-context";
-import {
-  getPracticeSession,
-  toPreviousAttemptPayload,
-} from "../../src/lib/storage";
+import { getPracticeSession } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
 import type { PracticeSessionRecord } from "@kotoba-gym/core";
@@ -258,7 +255,6 @@ export default function PracticeScreen() {
   }
 
   const currentAttempt = session.attempts.length + 1;
-  const lastAttempt = session.attempts.at(-1);
 
   async function startRecording() {
     const granted = await ensureRecordingPermission();
@@ -312,13 +308,6 @@ export default function PracticeScreen() {
         promptId: session.prompt.id,
         attemptNumber: currentAttempt,
         audioUri: recorder.uri,
-        previousAttemptSummary: lastAttempt?.evaluation.summary,
-        previousEvaluation: lastAttempt
-          ? toPreviousAttemptPayload(
-              lastAttempt.attemptNumber,
-              lastAttempt.evaluation,
-            )
-          : undefined,
       });
 
       setIsSubmitting(false);

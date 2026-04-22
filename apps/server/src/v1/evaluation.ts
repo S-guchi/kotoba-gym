@@ -1,7 +1,9 @@
 import {
   AttemptEvaluationSchema,
+  type PracticePrompt,
   type PreviousAttemptPayload,
 } from "@kotoba-gym/core";
+import type { ServerConfig } from "../config.js";
 import { createLLMClient } from "../lib/gemini-client.js";
 import { ApiError } from "./api-error.js";
 import {
@@ -27,23 +29,25 @@ function logGeminiEvaluation(params: {
 }
 
 export async function evaluateAttempt(params: {
-  apiKey: string;
-  model: string;
-  promptId: string;
+  config: ServerConfig;
+  prompt: PracticePrompt;
   attemptNumber: number;
-  audio: Buffer;
+  audio: Uint8Array;
   mimeType: string;
   locale: string;
   previousAttemptSummary?: string;
   previousEvaluation?: PreviousAttemptPayload;
 }) {
   try {
-    const client = createLLMClient(params.apiKey, params.model);
+    const client = createLLMClient(
+      params.config.geminiApiKey,
+      params.config.geminiModel,
+    );
     const raw = await client.generateParts(
       [
         {
           text: buildEvaluationPrompt({
-            promptId: params.promptId,
+            prompt: params.prompt,
             attemptNumber: params.attemptNumber,
             locale: params.locale,
             previousAttemptSummary: params.previousAttemptSummary,
@@ -53,7 +57,7 @@ export async function evaluateAttempt(params: {
         {
           inlineData: {
             mimeType: params.mimeType,
-            data: params.audio.toString("base64"),
+            data: toBase64(params.audio),
           },
         },
       ],
@@ -64,7 +68,7 @@ export async function evaluateAttempt(params: {
       },
     );
     logGeminiEvaluation({
-      promptId: params.promptId,
+      promptId: params.prompt.id,
       attemptNumber: params.attemptNumber,
       mimeType: params.mimeType,
       raw,
@@ -83,4 +87,15 @@ export async function evaluateAttempt(params: {
   } catch (error) {
     throw inferApiError(error);
   }
+}
+
+function toBase64(bytes: Uint8Array) {
+  let binary = "";
+  const chunkSize = 0x8000;
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.slice(index, index + chunkSize));
+  }
+
+  return btoa(binary);
 }

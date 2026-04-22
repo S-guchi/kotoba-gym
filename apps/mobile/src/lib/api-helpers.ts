@@ -1,5 +1,3 @@
-import type { PreviousAttemptPayload } from "@kotoba-gym/core";
-
 export interface ApiErrorPayload {
   error?: {
     code?: string;
@@ -26,10 +24,10 @@ export function resolveApiBaseUrl(params: {
   const hostUri = params.hostUri?.trim();
   if (hostUri) {
     const host = hostUri.split(":")[0];
-    return `http://${host}:3000`;
+    return `http://${host}:8787`;
   }
 
-  return "http://127.0.0.1:3000";
+  return "http://127.0.0.1:8787";
 }
 
 export function toMobileApiErrorData(
@@ -43,20 +41,18 @@ export function toMobileApiErrorData(
 }
 
 export function buildEvaluationRequestFields(params: {
+  ownerKey: string;
+  sessionId: string;
   promptId: string;
   attemptNumber: number;
   locale?: string;
-  previousAttemptSummary?: string;
-  previousEvaluation?: PreviousAttemptPayload;
 }) {
   return {
+    ownerKey: params.ownerKey,
+    sessionId: params.sessionId,
     promptId: params.promptId,
     attemptNumber: String(params.attemptNumber),
     locale: params.locale ?? "ja-JP",
-    previousAttemptSummary: params.previousAttemptSummary,
-    previousEvaluation: params.previousEvaluation
-      ? JSON.stringify(params.previousEvaluation)
-      : undefined,
   };
 }
 

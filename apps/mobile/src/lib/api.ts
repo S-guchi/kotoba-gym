@@ -1,11 +1,9 @@
 import Constants from "expo-constants";
 import type {
-  GeneratePersonalizedPromptsResponse,
   PersonalizationProfile,
   PersonalizedPracticePrompt,
+  PracticeSessionRecord,
   AttemptEvaluation,
-  PracticePrompt,
-  PreviousAttemptPayload,
 } from "@kotoba-gym/core";
 import {
   buildEvaluationRequestFields,
@@ -14,6 +12,7 @@ import {
   resolveApiBaseUrl,
   toMobileApiErrorData,
 } from "./api-helpers";
+import { getOwnerKey } from "./device-identity";
 
 export class MobileApiError extends Error {
   constructor(
@@ -28,7 +27,7 @@ export class MobileApiError extends Error {
 interface EvaluationResponse {
   attemptNumber: number;
   evaluation: AttemptEvaluation;
-  prompt: PracticePrompt;
+  session: PracticeSessionRecord;
 }
 
 type ReactNativeAudioFile = Blob & {
@@ -57,59 +56,142 @@ async function parseApiError(response: Response): Promise<MobileApiError> {
   }
 }
 
-export async function fetchPrompts(): Promise<PracticePrompt[]> {
-  const response = await fetch(`${API_BASE_URL}/v1/prompts`);
+async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(input, init);
   if (!response.ok) {
     throw await parseApiError(response);
   }
+  return (await response.json()) as T;
+}
 
-  const payload = (await response.json()) as { prompts: PracticePrompt[] };
+export async function fetchPrompts(): Promise<PersonalizedPracticePrompt[]> {
+  const ownerKey = await getOwnerKey();
+  const payload = await fetchJson<{ prompts: PersonalizedPracticePrompt[] }>(
+    `${API_BASE_URL}/v1/prompts?ownerKey=${encodeURIComponent(ownerKey)}`,
+  );
   return payload.prompts;
+}
+
+export async function fetchPersonalizationProfile(): Promise<PersonalizationProfile | null> {
+  const ownerKey = await getOwnerKey();
+  const payload = await fetchJson<{
+    profile: PersonalizationProfile | null;
+  }>(`${API_BASE_URL}/v1/profile?ownerKey=${encodeURIComponent(ownerKey)}`);
+  return payload.profile;
+}
+
+export async function savePersonalizationProfile(
+  profile: PersonalizationProfile,
+): Promise<PersonalizationProfile> {
+  const ownerKey = await getOwnerKey();
+  const payload = await fetchJson<{ profile: PersonalizationProfile }>(
+    `${API_BASE_URL}/v1/profile`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ownerKey, profile }),
+    },
+  );
+  return payload.profile;
+}
+
+export async function resetPersonalization(): Promise<void> {
+  const ownerKey = await getOwnerKey();
+  const response = await fetch(
+    `${API_BASE_URL}/v1/personalization?ownerKey=${encodeURIComponent(ownerKey)}`,
+    {
+      method: "DELETE",
+    },
+  );
+  if (!response.ok) {
+    throw await parseApiError(response);
+  }
 }
 
 export async function generatePersonalizedPrompts(
   profile: PersonalizationProfile,
 ): Promise<PersonalizedPracticePrompt[]> {
-  const response = await fetch(`${API_BASE_URL}/v1/personalized-prompts`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  const ownerKey = await getOwnerKey();
+  const payload = await fetchJson<{ prompts: PersonalizedPracticePrompt[] }>(
+    `${API_BASE_URL}/v1/personalized-prompts`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ownerKey, profile }),
     },
-    body: JSON.stringify(profile),
-  });
+  );
 
-  if (!response.ok) {
-    throw await parseApiError(response);
-  }
-
-  const payload =
-    (await response.json()) as GeneratePersonalizedPromptsResponse;
   return payload.prompts;
 }
 
+export async function createRemotePracticeSession(
+  promptId: string,
+): Promise<PracticeSessionRecord> {
+  const ownerKey = await getOwnerKey();
+  const payload = await fetchJson<{ session: PracticeSessionRecord }>(
+    `${API_BASE_URL}/v1/sessions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ownerKey, promptId }),
+    },
+  );
+
+  return payload.session;
+}
+
+export async function fetchPracticeSession(
+  sessionId: string,
+): Promise<PracticeSessionRecord | null> {
+  const ownerKey = await getOwnerKey();
+  try {
+    const payload = await fetchJson<{ session: PracticeSessionRecord }>(
+      `${API_BASE_URL}/v1/sessions/${encodeURIComponent(sessionId)}?ownerKey=${encodeURIComponent(ownerKey)}`,
+    );
+    return payload.session;
+  } catch (cause) {
+    if (cause instanceof MobileApiError && cause.code === "session_not_found") {
+      return null;
+    }
+    throw cause;
+  }
+}
+
+export async function fetchPracticeSessions(): Promise<
+  PracticeSessionRecord[]
+> {
+  const ownerKey = await getOwnerKey();
+  const payload = await fetchJson<{ sessions: PracticeSessionRecord[] }>(
+    `${API_BASE_URL}/v1/sessions?ownerKey=${encodeURIComponent(ownerKey)}`,
+  );
+  return payload.sessions;
+}
+
 export async function submitEvaluation(params: {
+  sessionId: string;
   promptId: string;
   attemptNumber: number;
   audioUri: string;
-  previousAttemptSummary?: string;
-  previousEvaluation?: PreviousAttemptPayload;
 }): Promise<EvaluationResponse> {
+  const ownerKey = await getOwnerKey();
   const fields = buildEvaluationRequestFields({
+    ownerKey,
+    sessionId: params.sessionId,
     promptId: params.promptId,
     attemptNumber: params.attemptNumber,
-    previousAttemptSummary: params.previousAttemptSummary,
-    previousEvaluation: params.previousEvaluation,
   });
   const form = new FormData();
+  form.append("ownerKey", fields.ownerKey);
+  form.append("sessionId", fields.sessionId);
   form.append("promptId", fields.promptId);
   form.append("attemptNumber", fields.attemptNumber);
   form.append("locale", fields.locale);
-  if (fields.previousAttemptSummary) {
-    form.append("previousAttemptSummary", fields.previousAttemptSummary);
-  }
-  if (fields.previousEvaluation) {
-    form.append("previousEvaluation", fields.previousEvaluation);
-  }
 
   const audioFile = createAudioUploadDescriptor(
     params.audioUri,

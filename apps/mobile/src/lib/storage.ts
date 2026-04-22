@@ -1,57 +1,22 @@
-import { Directory, File, Paths } from "expo-file-system";
-import {
+import type {
   AttemptEvaluation,
   PracticePrompt,
   PracticeSessionRecord,
 } from "@kotoba-gym/core";
 import {
-  createPracticeSessionRecord,
-  createSessionId,
-  parseStoredPracticeSession,
-  sortPracticeSessions,
-  upsertPracticeSessionAttempt,
-} from "./storage-helpers";
+  createRemotePracticeSession,
+  fetchPracticeSession,
+  fetchPracticeSessions,
+} from "./api";
 
 const sessionCache = new Map<string, PracticeSessionRecord>();
-
-function rootDirectory() {
-  const dir = new Directory(Paths.document, "kotoba-gym");
-  if (!dir.exists) {
-    dir.create({ intermediates: true });
-  }
-  return dir;
-}
-
-function sessionDirectory() {
-  const dir = new Directory(rootDirectory(), "sessions");
-  if (!dir.exists) {
-    dir.create({ intermediates: true });
-  }
-  return dir;
-}
-
-function sessionFile(sessionId: string) {
-  return new File(sessionDirectory(), `${sessionId}.json`);
-}
-
-async function persistSession(record: PracticeSessionRecord) {
-  const file = sessionFile(record.id);
-  await file.write(JSON.stringify(record, null, 2));
-  sessionCache.set(record.id, record);
-}
 
 export async function createPracticeSession(
   prompt: PracticePrompt,
 ): Promise<PracticeSessionRecord> {
-  const now = new Date().toISOString();
-  const record = createPracticeSessionRecord({
-    id: createSessionId(),
-    prompt,
-    now,
-  });
-
-  await persistSession(record);
-  return record;
+  const session = await createRemotePracticeSession(prompt.id);
+  sessionCache.set(session.id, session);
+  return session;
 }
 
 export async function getPracticeSession(sessionId: string) {
@@ -60,45 +25,21 @@ export async function getPracticeSession(sessionId: string) {
     return cached;
   }
 
-  const file = sessionFile(sessionId);
-  if (!file.exists) {
+  const session = await fetchPracticeSession(sessionId);
+  if (!session) {
     return null;
   }
 
-  const parsed = parseStoredPracticeSession(JSON.parse(await file.text()));
-  if (!parsed) {
-    file.delete();
-    return null;
-  }
-  sessionCache.set(parsed.id, parsed);
-  return parsed;
+  sessionCache.set(session.id, session);
+  return session;
 }
 
 export async function listPracticeSessions() {
-  const entries = sessionDirectory().list();
-  const files = entries.filter((entry): entry is File => entry instanceof File);
-  const sessions = (
-    await Promise.all(
-      files
-        .filter((file) => file.name.endsWith(".json"))
-        .map(async (file) => {
-          const parsed = parseStoredPracticeSession(
-            JSON.parse(await file.text()),
-          );
-          if (!parsed) {
-            file.delete();
-            return null;
-          }
-          return parsed;
-        }),
-    )
-  ).filter((session): session is PracticeSessionRecord => session !== null);
-
-  const sortedSessions = sortPracticeSessions(sessions);
-  for (const session of sortedSessions) {
+  const sessions = await fetchPracticeSessions();
+  for (const session of sessions) {
     sessionCache.set(session.id, session);
   }
-  return sortedSessions;
+  return sessions;
 }
 
 export async function appendAttemptToSession(params: {
@@ -106,22 +47,24 @@ export async function appendAttemptToSession(params: {
   attemptNumber: number;
   evaluation: AttemptEvaluation;
 }) {
-  const record = await getPracticeSession(params.sessionId);
-  if (!record) {
-    throw new Error("session not found");
+  const cached = sessionCache.get(params.sessionId);
+  if (cached) {
+    sessionCache.set(params.sessionId, {
+      ...cached,
+      attempts: [
+        ...cached.attempts.filter(
+          (attempt) => attempt.attemptNumber !== params.attemptNumber,
+        ),
+        {
+          attemptNumber: params.attemptNumber,
+          recordedAt: new Date().toISOString(),
+          evaluation: params.evaluation,
+        },
+      ].sort((left, right) => left.attemptNumber - right.attemptNumber),
+    });
   }
 
-  const now = new Date().toISOString();
-  const updated = upsertPracticeSessionAttempt({
-    record,
-    attemptNumber: params.attemptNumber,
-    evaluation: params.evaluation,
-    recordedAt: now,
-    updatedAt: now,
-  });
-
-  await persistSession(updated);
-  return updated;
+  return getPracticeSession(params.sessionId);
 }
 
 export { toPreviousAttemptPayload } from "./storage-helpers";

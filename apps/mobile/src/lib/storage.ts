@@ -67,4 +67,9 @@ export async function appendAttemptToSession(params: {
   return getPracticeSession(params.sessionId);
 }
 
+export function cachePracticeSession(session: PracticeSessionRecord) {
+  sessionCache.set(session.id, session);
+  return session;
+}
+
 export { toPreviousAttemptPayload } from "./storage-helpers";

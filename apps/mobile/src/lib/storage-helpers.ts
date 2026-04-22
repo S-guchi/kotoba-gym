@@ -1,5 +1,6 @@
 import {
   PreviousAttemptPayloadSchema,
+  PracticeSessionRecordSchema,
   type AttemptEvaluation,
   type PracticePrompt,
   type PracticeSessionRecord,
@@ -51,6 +52,16 @@ export function sortPracticeSessions(sessions: PracticeSessionRecord[]) {
   return [...sessions].sort((left, right) =>
     right.updatedAt.localeCompare(left.updatedAt),
   );
+}
+
+export function parseStoredPracticeSession(
+  input: unknown,
+): PracticeSessionRecord | null {
+  const parsed = PracticeSessionRecordSchema.safeParse(input);
+  if (!parsed.success) {
+    return null;
+  }
+  return parsed.data;
 }
 
 export function toPreviousAttemptPayload(

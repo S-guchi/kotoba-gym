@@ -206,13 +206,13 @@ export default function HomeScreen() {
             <View style={styles.headerActions}>
               <Pressable
                 style={styles.headerIconButton}
-                onPress={() => router.push("/(tabs)/history")}
+                onPress={() => router.push("/history")}
               >
                 <Ionicons name="time-outline" size={18} color={palette.text2} />
               </Pressable>
               <Pressable
                 style={styles.headerIconButton}
-                onPress={() => router.push("/(tabs)/profile")}
+                onPress={() => router.push("/profile")}
               >
                 <Ionicons
                   name="person-outline"
@@ -270,7 +270,7 @@ export default function HomeScreen() {
               actionLabel={profile ? "プロフィールを見る →" : "設定する →"}
               label={homeFeed.heroSectionLabel}
               onActionPress={() =>
-                router.push(profile ? "/(tabs)/profile" : "/onboarding")
+                router.push(profile ? "/profile" : "/onboarding")
               }
               prompt={homeFeed.heroPrompt}
             />

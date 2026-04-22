@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScoreDonut } from "../../src/components/score-donut";
 import { Tag } from "../../src/components/tag";
@@ -32,6 +33,16 @@ export default function HistoryScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable
+          style={styles.backBtn}
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace("/")
+          }
+        >
+          <Ionicons name="chevron-back" size={18} color={palette.text2} />
+          <Text style={styles.backText}>ホーム</Text>
+        </Pressable>
+
         <View style={styles.headerSection}>
           <Text style={styles.title}>練習の記録</Text>
           <Text style={styles.subtitle}>あなたの積み上げ</Text>
@@ -120,6 +131,19 @@ function createStyles(palette: ThemePalette) {
       paddingBottom: 24,
       paddingHorizontal: 20,
       gap: 16,
+    },
+    backBtn: {
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 6,
+    },
+    backText: {
+      fontFamily: fonts.mono,
+      fontSize: 11,
+      color: palette.text2,
+      letterSpacing: 0.4,
     },
     headerSection: {
       marginBottom: 2,

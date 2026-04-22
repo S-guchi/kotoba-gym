@@ -1,6 +1,5 @@
 import { Directory, File, Paths } from "expo-file-system";
 import {
-  PracticeSessionRecordSchema,
   AttemptEvaluation,
   PracticePrompt,
   PracticeSessionRecord,
@@ -8,6 +7,7 @@ import {
 import {
   createPracticeSessionRecord,
   createSessionId,
+  parseStoredPracticeSession,
   sortPracticeSessions,
   upsertPracticeSessionAttempt,
 } from "./storage-helpers";
@@ -65,9 +65,11 @@ export async function getPracticeSession(sessionId: string) {
     return null;
   }
 
-  const parsed = PracticeSessionRecordSchema.parse(
-    JSON.parse(await file.text()),
-  );
+  const parsed = parseStoredPracticeSession(JSON.parse(await file.text()));
+  if (!parsed) {
+    file.delete();
+    return null;
+  }
   sessionCache.set(parsed.id, parsed);
   return parsed;
 }
@@ -75,13 +77,22 @@ export async function getPracticeSession(sessionId: string) {
 export async function listPracticeSessions() {
   const entries = sessionDirectory().list();
   const files = entries.filter((entry): entry is File => entry instanceof File);
-  const sessions = await Promise.all(
-    files
-      .filter((file) => file.name.endsWith(".json"))
-      .map(async (file) =>
-        PracticeSessionRecordSchema.parse(JSON.parse(await file.text())),
-      ),
-  );
+  const sessions = (
+    await Promise.all(
+      files
+        .filter((file) => file.name.endsWith(".json"))
+        .map(async (file) => {
+          const parsed = parseStoredPracticeSession(
+            JSON.parse(await file.text()),
+          );
+          if (!parsed) {
+            file.delete();
+            return null;
+          }
+          return parsed;
+        }),
+    )
+  ).filter((session): session is PracticeSessionRecord => session !== null);
 
   const sortedSessions = sortPracticeSessions(sessions);
   for (const session of sortedSessions) {

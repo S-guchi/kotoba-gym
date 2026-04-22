@@ -161,6 +161,16 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        <Pressable
+          style={styles.backBtn}
+          onPress={() =>
+            router.canGoBack() ? router.back() : router.replace("/")
+          }
+        >
+          <Ionicons name="chevron-back" size={18} color={palette.text2} />
+          <Text style={styles.backText}>ホーム</Text>
+        </Pressable>
+
         <View style={styles.avatarSection}>
           <View style={styles.avatarGlow} />
           <View style={styles.avatar}>
@@ -300,6 +310,20 @@ function createStyles(palette: ThemePalette) {
       paddingHorizontal: 20,
       paddingTop: 20,
       paddingBottom: 40,
+    },
+    backBtn: {
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 6,
+      marginBottom: 12,
+    },
+    backText: {
+      fontFamily: fonts.mono,
+      fontSize: 11,
+      color: palette.text2,
+      letterSpacing: 0.4,
     },
     avatarSection: {
       alignItems: "center",

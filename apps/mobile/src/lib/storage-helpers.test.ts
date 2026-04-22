@@ -4,6 +4,7 @@ import type { AttemptEvaluation } from "@kotoba-gym/core";
 import {
   createPracticeSessionRecord,
   createSessionId,
+  parseStoredPracticeSession,
   sortPracticeSessions,
   toPreviousAttemptPayload,
   upsertPracticeSessionAttempt,
@@ -147,6 +148,39 @@ describe.each([
       expected,
     );
   });
+});
+
+describe.each([
+  {
+    name: "valid stored session parses",
+    input: createPracticeSessionRecord({
+      id: "session-1",
+      prompt,
+      now: "2026-04-22T00:00:00.000Z",
+    }),
+    expectedId: "session-1",
+  },
+  {
+    name: "invalid stored session returns null",
+    input: {
+      id: "session-legacy",
+      prompt: {
+        ...prompt,
+        durationLabel: undefined,
+      },
+      attempts: [],
+      createdAt: "2026-04-22T00:00:00.000Z",
+      updatedAt: "2026-04-22T00:00:00.000Z",
+    },
+    expectedId: null,
+  },
+])("parseStoredPracticeSession", ({ input, expectedId }) => {
+  test.each([{ label: "storage payload validity is checked safely" }])(
+    "$label",
+    () => {
+      expect(parseStoredPracticeSession(input)?.id ?? null).toBe(expectedId);
+    },
+  );
 });
 
 describe.each([

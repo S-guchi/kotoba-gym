@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 import {
   AttemptEvaluationSchema,
+  GeneratePersonalizedPromptsResponseSchema,
+  PersonalizationProfileSchema,
   PracticePromptSchema,
   PracticeSessionRecordSchema,
   PreviousAttemptPayloadSchema,
@@ -101,6 +103,47 @@ describe.each([
   test.each([{ label: "payload parse succeeds" }])("$label", () => {
     expect(PreviousAttemptPayloadSchema.parse(input)).toEqual(input);
   });
+});
+
+describe.each([
+  {
+    name: "personalization profile parses with free text",
+    input: {
+      role: "モバイル",
+      roleText: "React Native 中心です",
+      strengths: ["実装速度"],
+      strengthsText: "試作が速い",
+      techStack: ["Expo", "TypeScript"],
+      techStackText: "Supabase",
+      scenarios: ["技術説明", "報連相"],
+    },
+  },
+])("PersonalizationProfileSchema", ({ input }) => {
+  test.each([{ label: "profile schema parse succeeds" }])("$label", () => {
+    expect(PersonalizationProfileSchema.parse(input)).toEqual(input);
+  });
+});
+
+describe.each([
+  {
+    name: "personalized prompts response parses",
+    input: {
+      prompts: Array.from({ length: 5 }, (_, index) => ({
+        ...firstPrompt,
+        id: `personalized-${index + 1}`,
+        personalized: true as const,
+      })),
+    },
+  },
+])("GeneratePersonalizedPromptsResponseSchema", ({ input }) => {
+  test.each([{ label: "personalized prompt schema parse succeeds" }])(
+    "$label",
+    () => {
+      expect(GeneratePersonalizedPromptsResponseSchema.parse(input)).toEqual(
+        input,
+      );
+    },
+  );
 });
 
 describe.each([

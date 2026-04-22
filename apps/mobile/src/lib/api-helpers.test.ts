@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import type { PreviousAttemptPayload } from "../shared/practice";
+import type { PreviousAttemptPayload } from "@kotoba-gym/core";
 import {
   buildEvaluationRequestFields,
   createAudioUploadDescriptor,

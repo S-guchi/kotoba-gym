@@ -17,6 +17,7 @@
     "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo-google-fonts/instrument-serif": "^0.4.1",
     "@expo/vector-icons": "^15.0.3",
+    "@kotoba-gym/core": "workspace:*",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",

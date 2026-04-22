@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { useThemePalette } from "../lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../lib/theme";
-import type { AttemptEvaluation } from "../shared/practice";
+import type { AttemptEvaluation } from "@kotoba-gym/core";
 
 export function ScoreList({
   evaluation,

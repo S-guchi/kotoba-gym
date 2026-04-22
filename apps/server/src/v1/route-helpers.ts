@@ -112,7 +112,13 @@ export function assertSupportedAudioMimeType(mimeType: string) {
   return mimeType;
 }
 
-export function toRouteApiError(error: unknown): ApiError {
+export function toRouteApiError(
+  error: unknown,
+  fallback?: {
+    message: string;
+    code: string;
+  },
+): ApiError {
   if (error instanceof z.ZodError) {
     return new ApiError(
       "入力が不正です。録音データを確認して再試行してください。",
@@ -129,5 +135,9 @@ export function toRouteApiError(error: unknown): ApiError {
     return error;
   }
 
-  return new ApiError("評価の生成に失敗しました。", 500, "evaluation_failed");
+  return new ApiError(
+    fallback?.message ?? "評価の生成に失敗しました。",
+    500,
+    fallback?.code ?? "evaluation_failed",
+  );
 }

@@ -1,9 +1,6 @@
 import { describe, expect, test } from "vitest";
-import {
-  getPracticePromptById,
-  scoreAxes,
-} from "../../../../packages/core/src/index";
-import type { AttemptEvaluation } from "../shared/practice";
+import { getPracticePromptById, scoreAxes } from "@kotoba-gym/core";
+import type { AttemptEvaluation } from "@kotoba-gym/core";
 import {
   createPracticeSessionRecord,
   createSessionId,

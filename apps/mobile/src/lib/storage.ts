@@ -1,10 +1,10 @@
 import { Directory, File, Paths } from "expo-file-system";
-import type {
+import {
+  PracticeSessionRecordSchema,
   AttemptEvaluation,
   PracticePrompt,
   PracticeSessionRecord,
-} from "../shared/practice";
-import { PracticeSessionRecordSchema } from "../shared/practice";
+} from "@kotoba-gym/core";
 import {
   createPracticeSessionRecord,
   createSessionId,

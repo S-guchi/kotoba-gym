@@ -1,9 +1,12 @@
 import Constants from "expo-constants";
 import type {
+  GeneratePersonalizedPromptsResponse,
+  PersonalizationProfile,
+  PersonalizedPracticePrompt,
   AttemptEvaluation,
   PracticePrompt,
   PreviousAttemptPayload,
-} from "../shared/practice";
+} from "@kotoba-gym/core";
 import {
   buildEvaluationRequestFields,
   createAudioUploadDescriptor,
@@ -61,6 +64,26 @@ export async function fetchPrompts(): Promise<PracticePrompt[]> {
   }
 
   const payload = (await response.json()) as { prompts: PracticePrompt[] };
+  return payload.prompts;
+}
+
+export async function generatePersonalizedPrompts(
+  profile: PersonalizationProfile,
+): Promise<PersonalizedPracticePrompt[]> {
+  const response = await fetch(`${API_BASE_URL}/v1/personalized-prompts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(profile),
+  });
+
+  if (!response.ok) {
+    throw await parseApiError(response);
+  }
+
+  const payload =
+    (await response.json()) as GeneratePersonalizedPromptsResponse;
   return payload.prompts;
 }
 

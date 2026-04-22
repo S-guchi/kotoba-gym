@@ -15,6 +15,13 @@ export const PracticePromptCategorySchema = z.enum([
   "design-decision",
   "reporting",
   "interview",
+  "escalation",
+]);
+
+export const PracticePromptDurationSchema = z.enum([
+  "30〜45秒",
+  "45〜60秒",
+  "60〜90秒",
 ]);
 
 export const PracticePromptSchema = z.object({
@@ -24,6 +31,7 @@ export const PracticePromptSchema = z.object({
   prompt: z.string(),
   situation: z.string(),
   goals: z.array(z.string()).min(2).max(4),
+  durationLabel: PracticePromptDurationSchema,
 });
 
 export const EvaluationScoreSchema = z.object({
@@ -85,6 +93,9 @@ export const PracticeSessionRecordSchema = z.object({
 export type ScoreAxis = z.infer<typeof ScoreAxisSchema>;
 export type PracticePromptCategory = z.infer<
   typeof PracticePromptCategorySchema
+>;
+export type PracticePromptDuration = z.infer<
+  typeof PracticePromptDurationSchema
 >;
 export type PracticePrompt = z.infer<typeof PracticePromptSchema>;
 export type EvaluationScore = z.infer<typeof EvaluationScoreSchema>;

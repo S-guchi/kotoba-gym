@@ -7,7 +7,7 @@ import { Tag } from "../../src/components/tag";
 import { listPracticeSessions } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
-import type { PracticeSessionRecord } from "../../src/shared/practice";
+import type { PracticeSessionRecord } from "@kotoba-gym/core";
 
 function formatDate(iso: string) {
   const d = new Date(iso);

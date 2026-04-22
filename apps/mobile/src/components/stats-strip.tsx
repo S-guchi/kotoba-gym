@@ -5,7 +5,7 @@ import { fonts, type ThemePalette } from "../lib/theme";
 export function StatsStrip({
   items,
 }: {
-  items: { label: string; value: string; unit?: string }[];
+  items: { label: string; value: string; unit?: string; icon?: string }[];
 }) {
   const palette = useThemePalette();
   const styles = createStyles(palette);
@@ -22,6 +22,7 @@ export function StatsStrip({
             {item.unit ? <Text style={styles.unit}>{item.unit}</Text> : null}
           </Text>
           <Text style={styles.label}>{item.label}</Text>
+          {item.icon ? <Text style={styles.icon}>{item.icon}</Text> : null}
         </View>
       ))}
     </View>
@@ -63,6 +64,11 @@ function createStyles(palette: ThemePalette) {
       fontSize: 10,
       color: palette.text3,
       marginTop: 2,
+    },
+    icon: {
+      fontSize: 15,
+      marginTop: 4,
+      opacity: 0.55,
     },
   });
 }

@@ -1,38 +1,42 @@
 export {
-  type AttemptComparison,
   AttemptComparisonSchema,
-  type AttemptEvaluation,
   AttemptEvaluationSchema,
-  type EvaluationScore,
   EvaluationScoreSchema,
-  type PracticePrompt,
   PracticePromptCategorySchema,
-  type PracticePromptCategory,
   PracticePromptDurationSchema,
-  type PracticePromptDuration,
   PracticePromptSchema,
-  type PracticeSessionAttempt,
   PracticeSessionAttemptSchema,
-  type PracticeSessionRecord,
   PracticeSessionRecordSchema,
-  type PreviousAttemptPayload,
   PreviousAttemptPayloadSchema,
-  type ScoreAxis,
   ScoreAxisSchema,
   scoreAxes,
-} from "./practice.js";
+} from "./src/practice";
+export type {
+  AttemptComparison,
+  AttemptEvaluation,
+  EvaluationScore,
+  PracticePrompt,
+  PracticePromptCategory,
+  PracticePromptDuration,
+  PracticeSessionAttempt,
+  PracticeSessionRecord,
+  PreviousAttemptPayload,
+  ScoreAxis,
+} from "./src/practice";
 export {
   GeneratePersonalizedPromptsRequestSchema,
   GeneratePersonalizedPromptsResponseSchema,
-  type GeneratePersonalizedPromptsRequest,
-  type GeneratePersonalizedPromptsResponse,
   PersonalizationProfileSchema,
-  type PersonalizationProfile,
   PersonalizedPracticePromptSchema,
-  type PersonalizedPracticePrompt,
-} from "./personalization.js";
+} from "./personalization.react-native";
+export type {
+  GeneratePersonalizedPromptsRequest,
+  GeneratePersonalizedPromptsResponse,
+  PersonalizationProfile,
+  PersonalizedPracticePrompt,
+} from "./personalization.react-native";
 export {
   getPracticePromptById,
   getPracticePrompts,
   practicePrompts,
-} from "./prompts.js";
+} from "./src/prompts";

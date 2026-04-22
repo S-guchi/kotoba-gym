@@ -4,6 +4,7 @@
     "strict": true,
     "moduleResolution": "bundler",
     "paths": {
+      "@kotoba-gym/core": ["../../packages/core/react-native.ts"],
       "@/*": ["./*"]
     }
   },

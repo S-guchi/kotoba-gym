@@ -10,6 +10,10 @@
 
 新規実装は、可能な限り `apps/mobile`, `apps/server`, `packages/core` に寄せてください。
 
+- `apps/mobile` から `packages/core/src/*` を直接 import しない
+- 共有型・schema は `@kotoba-gym/core` から import する
+- mobile は `packages/core/package.json` の `react-native` entry を使う前提なので、`apps/mobile/tsconfig.json` の `paths` もそれに合わせる
+
 ## Build, Test, and Development Commands
 ルートで実行します。
 

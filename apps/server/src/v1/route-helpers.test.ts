@@ -157,11 +157,24 @@ describe.each([
   {
     name: "generic error becomes evaluation failed",
     error: new Error("boom"),
+    fallback: undefined,
     expected: { status: 500, code: "evaluation_failed" },
   },
-])("toRouteApiError", ({ error, expected }) => {
+  {
+    name: "generic error can use custom fallback",
+    error: new Error("boom"),
+    fallback: {
+      message: "個人化お題の生成に失敗しました。",
+      code: "personalized_prompt_generation_failed",
+    },
+    expected: {
+      status: 500,
+      code: "personalized_prompt_generation_failed",
+    },
+  },
+])("toRouteApiError", ({ error, expected, fallback }) => {
   test.each([{ label: "route error is normalized" }])("$label", () => {
-    const apiError = toRouteApiError(error);
+    const apiError = toRouteApiError(error, fallback);
     expect({ status: apiError.status, code: apiError.code }).toEqual(expected);
   });
 });

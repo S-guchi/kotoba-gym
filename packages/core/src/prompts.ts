@@ -14,6 +14,7 @@ export const practicePrompts: PracticePrompt[] = [
       "現状の問題と改善後の違いを分けて話す",
       "数字や実例を1つ入れる",
     ],
+    durationLabel: "60〜90秒",
   },
   {
     id: "tech-batch-delay",
@@ -28,6 +29,7 @@ export const practicePrompts: PracticePrompt[] = [
       "技術的な根拠を短く添える",
       "再発防止を具体化する",
     ],
+    durationLabel: "45〜60秒",
   },
   {
     id: "design-read-model",
@@ -42,6 +44,7 @@ export const practicePrompts: PracticePrompt[] = [
       "トレードオフを隠さない",
       "採用理由を最後まで一貫させる",
     ],
+    durationLabel: "60〜90秒",
   },
   {
     id: "design-mobile-offline",
@@ -55,6 +58,7 @@ export const practicePrompts: PracticePrompt[] = [
       "対象ユーザーへの影響を示す",
       "見送る場合も代替策を述べる",
     ],
+    durationLabel: "45〜60秒",
   },
   {
     id: "report-delay-stakeholder",
@@ -69,10 +73,11 @@ export const practicePrompts: PracticePrompt[] = [
       "影響範囲を具体化する",
       "次のアクションを明確にする",
     ],
+    durationLabel: "30〜45秒",
   },
   {
     id: "report-risk-escalation",
-    category: "reporting",
+    category: "escalation",
     title: "技術リスクのエスカレーション",
     prompt:
       "本番障害につながりそうな技術リスクを、上司にエスカレーションしてください。",
@@ -83,6 +88,7 @@ export const practicePrompts: PracticePrompt[] = [
       "放置コストを示す",
       "欲しい判断や支援を明確にする",
     ],
+    durationLabel: "30〜45秒",
   },
   {
     id: "interview-strength",
@@ -97,6 +103,7 @@ export const practicePrompts: PracticePrompt[] = [
       "実例で裏付ける",
       "仕事での再現性に着地する",
     ],
+    durationLabel: "45〜60秒",
   },
   {
     id: "interview-conflict",
@@ -111,6 +118,7 @@ export const practicePrompts: PracticePrompt[] = [
       "自分の役割を明確にする",
       "学びで締める",
     ],
+    durationLabel: "60〜90秒",
   },
 ];
 

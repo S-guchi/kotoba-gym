@@ -10,7 +10,7 @@ import { ScoreList } from "../../../src/components/score-list";
 import { getPracticeSession } from "../../../src/lib/storage";
 import { useThemePalette } from "../../../src/lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../../../src/lib/theme";
-import type { PracticeSessionRecord } from "../../../src/shared/practice";
+import type { PracticeSessionRecord } from "@kotoba-gym/core";
 
 export default function FeedbackScreen() {
   const palette = useThemePalette();

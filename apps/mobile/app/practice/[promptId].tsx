@@ -39,7 +39,7 @@ import {
 } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
-import type { PracticeSessionRecord } from "../../src/shared/practice";
+import type { PracticeSessionRecord } from "@kotoba-gym/core";
 
 const characterImages: Record<RecordingCharacterVariant, number> = {
   smile: require("../../assets/images/characters/01_smile.png"),

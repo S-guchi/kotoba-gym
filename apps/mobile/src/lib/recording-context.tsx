@@ -5,7 +5,7 @@ import {
   useRef,
   type PropsWithChildren,
 } from "react";
-import type { PreviousAttemptPayload } from "../shared/practice";
+import type { PreviousAttemptPayload } from "@kotoba-gym/core";
 
 export interface RecordingPayload {
   sessionId: string;

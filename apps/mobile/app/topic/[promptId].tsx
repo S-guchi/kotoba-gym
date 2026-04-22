@@ -6,25 +6,56 @@ import { Ionicons } from "@expo/vector-icons";
 import { PrimaryButton } from "../../src/components/primary-button";
 import { Tag } from "../../src/components/tag";
 import { fetchPrompts } from "../../src/lib/api";
+import { getPersonalizedPrompts } from "../../src/lib/personalization-storage";
+import { findPromptById } from "../../src/lib/prompt-catalog";
 import { createPracticeSession } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
-import type { PracticePrompt } from "../../src/shared/practice";
+import type {
+  PersonalizedPracticePrompt,
+  PracticePrompt,
+} from "@kotoba-gym/core";
+
+type TopicPrompt = PracticePrompt | PersonalizedPracticePrompt;
 
 export default function TopicDetailScreen() {
   const palette = useThemePalette();
   const styles = createStyles(palette);
   const { promptId } = useLocalSearchParams<{ promptId: string }>();
-  const [prompt, setPrompt] = useState<PracticePrompt | null>(null);
+  const [prompt, setPrompt] = useState<TopicPrompt | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
-      const prompts = await fetchPrompts();
-      setPrompt(prompts.find((p) => p.id === promptId) ?? null);
+      try {
+        setIsLoading(true);
+        const [defaultPrompts, personalizedPrompts] = await Promise.all([
+          fetchPrompts(),
+          getPersonalizedPrompts(),
+        ]);
+
+        setPrompt(
+          findPromptById({
+            defaultPrompts,
+            personalizedPrompts: personalizedPrompts ?? [],
+            promptId: promptId ?? "",
+          }),
+        );
+        setError(null);
+      } catch (cause) {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "お題を読み込めませんでした。",
+        );
+      } finally {
+        setIsLoading(false);
+      }
     })();
   }, [promptId]);
 
-  if (!prompt) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.loading}>読み込み中...</Text>
@@ -32,12 +63,29 @@ export default function TopicDetailScreen() {
     );
   }
 
+  if (!prompt) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>お題が見つかりません</Text>
+          <Text style={styles.emptyBody}>
+            {error ?? "最新の一覧を開いてから、もう一度選択してください。"}
+          </Text>
+          <PrimaryButton onPress={() => router.replace("/")}>
+            ホームに戻る
+          </PrimaryButton>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const currentPrompt = prompt;
+
   async function handleStart() {
-    if (!prompt) return;
-    const session = await createPracticeSession(prompt);
+    const session = await createPracticeSession(currentPrompt);
     router.push({
       pathname: "/practice/[promptId]",
-      params: { promptId: prompt.id, sessionId: session.id },
+      params: { promptId: currentPrompt.id, sessionId: session.id },
     });
   }
 
@@ -50,7 +98,11 @@ export default function TopicDetailScreen() {
           <Ionicons name="chevron-back" size={18} color={palette.text2} />
           <Text style={styles.backText}>お題一覧</Text>
         </Pressable>
-        <Tag label={categoryLabels[prompt.category] ?? prompt.category} />
+        <Tag
+          label={
+            categoryLabels[currentPrompt.category] ?? currentPrompt.category
+          }
+        />
       </View>
 
       <ScrollView
@@ -58,25 +110,27 @@ export default function TopicDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.titleSection}>
-          <Text style={styles.title}>{prompt.title}</Text>
-          <Text style={styles.duration}>目安: 45〜60秒</Text>
+          <Text style={styles.title}>{currentPrompt.title}</Text>
+          <Text style={styles.duration}>
+            目安: {currentPrompt.durationLabel}
+          </Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>シチュエーション</Text>
-          <Text style={styles.cardBody}>{prompt.prompt}</Text>
+          <Text style={styles.cardBody}>{currentPrompt.prompt}</Text>
         </View>
 
         <View style={[styles.card, styles.cardWarm]}>
           <Text style={[styles.cardLabel, styles.cardLabelWarm]}>
             相手の期待
           </Text>
-          <Text style={styles.cardBody}>{prompt.situation}</Text>
+          <Text style={styles.cardBody}>{currentPrompt.situation}</Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.cardLabel}>今回の狙い</Text>
-          {prompt.goals.map((goal) => (
+          {currentPrompt.goals.map((goal) => (
             <Text key={goal} style={styles.goalItem}>
               ・{goal}
             </Text>
@@ -86,9 +140,9 @@ export default function TopicDetailScreen() {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>評価の5軸</Text>
           <View style={styles.axisChips}>
-            {axes.map((ax) => (
-              <View key={ax} style={styles.axisChip}>
-                <Text style={styles.axisChipText}>{ax}</Text>
+            {axes.map((axis) => (
+              <View key={axis} style={styles.axisChip}>
+                <Text style={styles.axisChipText}>{axis}</Text>
               </View>
             ))}
           </View>
@@ -117,6 +171,25 @@ function createStyles(palette: ThemePalette) {
       fontSize: 14,
       textAlign: "center",
       marginTop: 40,
+    },
+    emptyState: {
+      flex: 1,
+      paddingHorizontal: 24,
+      justifyContent: "center",
+      gap: 14,
+    },
+    emptyTitle: {
+      fontFamily: fonts.heading,
+      fontSize: 28,
+      color: palette.text,
+      textAlign: "center",
+    },
+    emptyBody: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      lineHeight: 22,
+      color: palette.text2,
+      textAlign: "center",
     },
     pageHeader: {
       flexDirection: "row",

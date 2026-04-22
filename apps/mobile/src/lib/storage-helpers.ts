@@ -1,10 +1,10 @@
-import type {
-  AttemptEvaluation,
-  PracticePrompt,
-  PracticeSessionRecord,
-  PreviousAttemptPayload,
-} from "../shared/practice";
-import { PreviousAttemptPayloadSchema } from "../shared/practice";
+import {
+  PreviousAttemptPayloadSchema,
+  type AttemptEvaluation,
+  type PracticePrompt,
+  type PracticeSessionRecord,
+  type PreviousAttemptPayload,
+} from "@kotoba-gym/core";
 
 export function createSessionId(now = Date.now(), randomValue = Math.random()) {
   return `session-${now}-${Math.round(randomValue * 1_000_000)}`;

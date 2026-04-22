@@ -19,9 +19,11 @@ const MAX_HEIGHT = 28;
 function WaveformBar({
   isRecording,
   index,
+  color,
 }: {
   isRecording: boolean;
   index: number;
+  color: string;
 }) {
   const height = useSharedValue(MIN_HEIGHT);
 
@@ -29,7 +31,8 @@ function WaveformBar({
     if (isRecording) {
       const duration = 300 + Math.random() * 400;
       const delay = index * 30;
-      const targetHeight = MIN_HEIGHT + Math.random() * (MAX_HEIGHT - MIN_HEIGHT);
+      const targetHeight =
+        MIN_HEIGHT + Math.random() * (MAX_HEIGHT - MIN_HEIGHT);
       height.value = withDelay(
         delay,
         withRepeat(
@@ -60,18 +63,31 @@ function WaveformBar({
     <Animated.View
       style={[
         styles.bar,
-        { backgroundColor: isRecording ? palette.accent : palette.borderLight },
+        { backgroundColor: isRecording ? color : palette.borderLight },
         animatedStyle,
       ]}
     />
   );
 }
 
-export function Waveform({ isRecording }: { isRecording: boolean }) {
+export function Waveform({
+  isRecording,
+  color = palette.accent,
+  barCount = BAR_COUNT,
+}: {
+  isRecording: boolean;
+  color?: string;
+  barCount?: number;
+}) {
   return (
     <View style={styles.container}>
-      {Array.from({ length: BAR_COUNT }).map((_, i) => (
-        <WaveformBar key={i} isRecording={isRecording} index={i} />
+      {Array.from({ length: barCount }).map((_, i) => (
+        <WaveformBar
+          key={i}
+          color={color}
+          isRecording={isRecording}
+          index={i}
+        />
       ))}
     </View>
   );

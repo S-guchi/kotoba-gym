@@ -3,8 +3,8 @@ import { palette } from "./theme";
 import {
   coachProfile,
   formatRecordingDuration,
+  getRecordingColorByState,
   recordingCharacterByState,
-  recordingColorByState,
   recordingDialogues,
   resolveDialogueState,
   shouldShowSubmitButton,
@@ -76,7 +76,7 @@ describe.each([
     test.each([{ label: "state to accent color mapping is deterministic" }])(
       "$label",
       () => {
-        expect(recordingColorByState[state]).toBe(expectedColor);
+        expect(getRecordingColorByState(palette)[state]).toBe(expectedColor);
       },
     );
   },

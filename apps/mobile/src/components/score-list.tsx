@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
-import { fonts, palette } from "../lib/theme";
+import { useThemePalette } from "../lib/use-theme-palette";
+import { fonts, type ThemePalette } from "../lib/theme";
 import type { AttemptEvaluation } from "../shared/practice";
 
 export function ScoreList({
@@ -7,6 +8,9 @@ export function ScoreList({
 }: {
   evaluation: AttemptEvaluation;
 }) {
+  const palette = useThemePalette();
+  const styles = createStyles(palette);
+
   return (
     <View style={styles.list}>
       {evaluation.scores.map((score) => (
@@ -17,10 +21,7 @@ export function ScoreList({
           </View>
           <View style={styles.track}>
             <View
-              style={[
-                styles.fill,
-                { width: `${(score.score / 5) * 100}%` },
-              ]}
+              style={[styles.fill, { width: `${(score.score / 5) * 100}%` }]}
             />
           </View>
           <Text style={styles.comment}>{score.comment}</Text>
@@ -30,44 +31,46 @@ export function ScoreList({
   );
 }
 
-const styles = StyleSheet.create({
-  list: {
-    gap: 14,
-  },
-  row: {
-    gap: 6,
-  },
-  labelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  axis: {
-    fontFamily: fonts.bodyMedium,
-    color: palette.text,
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  value: {
-    fontFamily: fonts.mono,
-    color: palette.text2,
-    fontSize: 12,
-  },
-  track: {
-    height: 4,
-    backgroundColor: palette.borderLight,
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  fill: {
-    height: "100%",
-    borderRadius: 2,
-    backgroundColor: palette.accent,
-  },
-  comment: {
-    fontFamily: fonts.body,
-    color: palette.text3,
-    fontSize: 11,
-    lineHeight: 16,
-  },
-});
+function createStyles(palette: ThemePalette) {
+  return StyleSheet.create({
+    list: {
+      gap: 14,
+    },
+    row: {
+      gap: 6,
+    },
+    labelRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    axis: {
+      fontFamily: fonts.bodyMedium,
+      color: palette.text,
+      fontSize: 12,
+      fontWeight: "500",
+    },
+    value: {
+      fontFamily: fonts.mono,
+      color: palette.text2,
+      fontSize: 12,
+    },
+    track: {
+      height: 4,
+      backgroundColor: palette.borderLight,
+      borderRadius: 2,
+      overflow: "hidden",
+    },
+    fill: {
+      height: "100%",
+      borderRadius: 2,
+      backgroundColor: palette.accent,
+    },
+    comment: {
+      fontFamily: fonts.body,
+      color: palette.text3,
+      fontSize: 11,
+      lineHeight: 16,
+    },
+  });
+}

@@ -23,9 +23,9 @@ import { Waveform } from "../../src/components/waveform";
 import {
   coachProfile,
   formatRecordingDuration,
+  getRecordingColorByState,
   recordingCharacterByState,
   recordingCharacterVariants,
-  recordingColorByState,
   recordingDialogues,
   resolveDialogueState,
   shouldShowSubmitButton,
@@ -37,7 +37,8 @@ import {
   getPracticeSession,
   toPreviousAttemptPayload,
 } from "../../src/lib/storage";
-import { categoryLabels, fonts, palette } from "../../src/lib/theme";
+import { useThemePalette } from "../../src/lib/use-theme-palette";
+import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
 import type { PracticeSessionRecord } from "../../src/shared/practice";
 
 const characterImages: Record<RecordingCharacterVariant, number> = {
@@ -106,7 +107,7 @@ function PulseRing({ color, delay }: { color: string; delay: number }) {
   return (
     <Animated.View
       pointerEvents="none"
-      style={[styles.pulseRing, { borderColor: color }, animatedStyle]}
+      style={[pulseStyles.pulseRing, { borderColor: color }, animatedStyle]}
     />
   );
 }
@@ -116,7 +117,7 @@ function ActionButton({
   onPress,
   variant = "solid",
   flex = 1,
-  color = palette.accent,
+  color,
   disabled = false,
 }: {
   label: string;
@@ -126,6 +127,10 @@ function ActionButton({
   color?: string;
   disabled?: boolean;
 }) {
+  const palette = useThemePalette();
+  const styles = createActionStyles(palette);
+  const resolvedColor = color ?? palette.accent;
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -135,7 +140,7 @@ function ActionButton({
         styles.actionButton,
         { flex },
         variant === "solid"
-          ? { backgroundColor: color, borderColor: color }
+          ? { backgroundColor: resolvedColor, borderColor: resolvedColor }
           : styles.actionButtonGhost,
         disabled && styles.actionButtonDisabled,
         pressed && !disabled && styles.actionButtonPressed,
@@ -156,6 +161,8 @@ function ActionButton({
 }
 
 export default function PracticeScreen() {
+  const palette = useThemePalette();
+  const styles = createStyles(palette);
   const params = useLocalSearchParams<{
     promptId: string;
     sessionId: string;
@@ -228,7 +235,7 @@ export default function PracticeScreen() {
   const accentColor =
     dialogueState === "done"
       ? palette.accent
-      : recordingColorByState[recordingState];
+      : getRecordingColorByState(palette)[recordingState];
   const dialogue = recordingDialogues[dialogueState];
   const typedDialogue = useTypewriterText(dialogue);
   const statusLabel =
@@ -522,309 +529,320 @@ export default function PracticeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: palette.background,
-  },
-  loadingText: {
-    fontFamily: fonts.body,
-    color: palette.text2,
-    fontSize: 14,
-    textAlign: "center",
-    marginTop: 40,
-  },
-  screen: {
-    flex: 1,
-    backgroundColor: palette.background,
-  },
-  pageHeader: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 16,
-    backgroundColor: "rgba(12,12,14,0.74)",
-  },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  backText: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: palette.text2,
-  },
-  heroSection: {
-    height: "48%",
-    minHeight: 340,
-    overflow: "hidden",
-    backgroundColor: "#0d1018",
-    paddingTop: 72,
-  },
-  heroGlow: {
-    position: "absolute",
-    top: 86,
-    alignSelf: "center",
-    width: 280,
-    height: 280,
-    borderRadius: 999,
-    opacity: 0.14,
-  },
-  heroShade: {
-    position: "absolute",
-    right: -30,
-    top: 40,
-    width: 240,
-    height: 240,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.03)",
-  },
-  promptPanel: {
-    width: "58%",
-    paddingHorizontal: 20,
-    zIndex: 2,
-  },
-  promptLabel: {
-    fontFamily: fonts.monoMedium,
-    fontSize: 10,
-    color: palette.accent,
-    letterSpacing: 1.1,
-    marginBottom: 6,
-  },
-  promptTitle: {
-    fontFamily: fonts.heading,
-    fontSize: 28,
-    color: palette.text,
-    lineHeight: 32,
-    marginBottom: 8,
-  },
-  promptBody: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: palette.text2,
-    lineHeight: 20,
-  },
-  expectationCard: {
-    marginTop: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 12,
-    borderRadius: 16,
-    backgroundColor: "rgba(20,20,23,0.88)",
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  expectationImage: {
-    width: 52,
-    height: 52,
-  },
-  expectationBody: {
-    flex: 1,
-  },
-  expectationLabel: {
-    fontFamily: fonts.monoMedium,
-    fontSize: 10,
-    color: palette.accentWarm,
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  expectationText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: palette.text,
-    lineHeight: 18,
-  },
-  characterStage: {
-    position: "absolute",
-    right: -8,
-    bottom: -16,
-    width: "58%",
-    height: "84%",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-  characterImage: {
-    width: "100%",
-    height: "100%",
-  },
-  recBadge: {
-    position: "absolute",
-    top: 84,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: palette.dangerDim,
-    borderWidth: 1,
-    borderColor: "rgba(196,122,107,0.42)",
-  },
-  recDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: palette.danger,
-  },
-  recText: {
-    fontFamily: fonts.monoMedium,
-    fontSize: 10,
-    color: palette.danger,
-    letterSpacing: 0.6,
-  },
-  dialogueCard: {
-    backgroundColor: "rgba(14,14,18,0.97)",
-    borderTopWidth: 1,
-    paddingHorizontal: 18,
-    paddingTop: 14,
-    paddingBottom: 16,
-    minHeight: 116,
-  },
-  namePlate: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: "rgba(255,255,255,0.03)",
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  namePlateText: {
-    fontFamily: fonts.monoMedium,
-    fontSize: 11,
-    letterSpacing: 0.5,
-  },
-  namePlateRole: {
-    fontFamily: fonts.mono,
-    fontSize: 9,
-    letterSpacing: 0.5,
-  },
-  dialogueText: {
-    minHeight: 52,
-    fontFamily: fonts.heading,
-    fontSize: 22,
-    lineHeight: 30,
-    color: palette.text,
-    letterSpacing: 0.1,
-  },
-  dialogueCursor: {
-    fontFamily: fonts.heading,
-  },
-  controlsSection: {
-    flex: 1,
-    borderTopWidth: 1,
-    borderTopColor: palette.border,
-    paddingHorizontal: 24,
-    paddingTop: 18,
-    paddingBottom: 24,
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  timerSection: {
-    alignItems: "center",
-  },
-  timerText: {
-    fontFamily: fonts.mono,
-    fontSize: 40,
-    color: palette.text,
-    letterSpacing: -1.2,
-  },
-  timerLabel: {
-    marginTop: 4,
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: palette.text3,
-  },
-  waveformSection: {
-    minHeight: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  waveformHint: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: palette.text3,
-    textAlign: "center",
-  },
-  micButtonWrap: {
-    width: 112,
-    height: 112,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+function createStyles(palette: ThemePalette) {
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: palette.background,
+    },
+    loadingText: {
+      fontFamily: fonts.body,
+      color: palette.text2,
+      fontSize: 14,
+      textAlign: "center",
+      marginTop: 40,
+    },
+    screen: {
+      flex: 1,
+      backgroundColor: palette.background,
+    },
+    pageHeader: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 20,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      paddingBottom: 16,
+      backgroundColor: palette.background,
+    },
+    backBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    backText: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      color: palette.text2,
+    },
+    heroSection: {
+      height: "48%",
+      minHeight: 340,
+      overflow: "hidden",
+      backgroundColor: palette.surface2,
+      paddingTop: 72,
+    },
+    heroGlow: {
+      position: "absolute",
+      top: 86,
+      alignSelf: "center",
+      width: 280,
+      height: 280,
+      borderRadius: 999,
+      opacity: 0.12,
+    },
+    heroShade: {
+      position: "absolute",
+      right: -30,
+      top: 40,
+      width: 240,
+      height: 240,
+      borderRadius: 999,
+      backgroundColor: palette.accentWarmDim,
+    },
+    promptPanel: {
+      width: "58%",
+      paddingHorizontal: 20,
+      zIndex: 2,
+    },
+    promptLabel: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 10,
+      color: palette.accent,
+      letterSpacing: 1.1,
+      marginBottom: 6,
+    },
+    promptTitle: {
+      fontFamily: fonts.heading,
+      fontSize: 28,
+      color: palette.text,
+      lineHeight: 32,
+      marginBottom: 8,
+    },
+    promptBody: {
+      fontFamily: fonts.body,
+      fontSize: 13,
+      color: palette.text2,
+      lineHeight: 20,
+    },
+    expectationCard: {
+      marginTop: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      padding: 12,
+      borderRadius: 16,
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: palette.border,
+    },
+    expectationImage: {
+      width: 52,
+      height: 52,
+    },
+    expectationBody: {
+      flex: 1,
+    },
+    expectationLabel: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 10,
+      color: palette.accentWarm,
+      letterSpacing: 0.8,
+      marginBottom: 4,
+    },
+    expectationText: {
+      fontFamily: fonts.body,
+      fontSize: 12,
+      color: palette.text,
+      lineHeight: 18,
+    },
+    characterStage: {
+      position: "absolute",
+      right: -8,
+      bottom: -16,
+      width: "58%",
+      height: "84%",
+      justifyContent: "flex-end",
+      alignItems: "center",
+    },
+    characterImage: {
+      width: "100%",
+      height: "100%",
+    },
+    recBadge: {
+      position: "absolute",
+      top: 84,
+      right: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor: palette.dangerDim,
+      borderWidth: 1,
+      borderColor: palette.danger,
+    },
+    recDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 999,
+      backgroundColor: palette.danger,
+    },
+    recText: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 10,
+      color: palette.danger,
+      letterSpacing: 0.6,
+    },
+    dialogueCard: {
+      backgroundColor: palette.surface,
+      borderTopWidth: 1,
+      paddingHorizontal: 18,
+      paddingTop: 14,
+      paddingBottom: 16,
+      minHeight: 116,
+    },
+    namePlate: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      gap: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+      backgroundColor: palette.surface2,
+      borderWidth: 1,
+      marginBottom: 10,
+    },
+    namePlateText: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 11,
+      letterSpacing: 0.5,
+    },
+    namePlateRole: {
+      fontFamily: fonts.mono,
+      fontSize: 9,
+      letterSpacing: 0.5,
+    },
+    dialogueText: {
+      minHeight: 52,
+      fontFamily: fonts.heading,
+      fontSize: 22,
+      lineHeight: 30,
+      color: palette.text,
+      letterSpacing: 0.1,
+    },
+    dialogueCursor: {
+      fontFamily: fonts.heading,
+    },
+    controlsSection: {
+      flex: 1,
+      borderTopWidth: 1,
+      borderTopColor: palette.border,
+      paddingHorizontal: 24,
+      paddingTop: 18,
+      paddingBottom: 24,
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: palette.background,
+    },
+    timerSection: {
+      alignItems: "center",
+    },
+    timerText: {
+      fontFamily: fonts.mono,
+      fontSize: 40,
+      color: palette.text,
+      letterSpacing: -1.2,
+    },
+    timerLabel: {
+      marginTop: 4,
+      fontFamily: fonts.body,
+      fontSize: 12,
+      color: palette.text3,
+    },
+    waveformSection: {
+      minHeight: 40,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    waveformHint: {
+      fontFamily: fonts.mono,
+      fontSize: 11,
+      color: palette.text3,
+      textAlign: "center",
+    },
+    micButtonWrap: {
+      width: 112,
+      height: 112,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    micButton: {
+      width: 74,
+      height: 74,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.18,
+      shadowRadius: 18,
+      elevation: 8,
+    },
+    micButtonPressed: {
+      transform: [{ scale: 0.97 }],
+    },
+    micButtonDisabled: {
+      opacity: 0.5,
+    },
+    actionsRow: {
+      minHeight: 52,
+      width: "100%",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+    },
+  });
+}
+
+function createActionStyles(palette: ThemePalette) {
+  return StyleSheet.create({
+    actionButton: {
+      minHeight: 52,
+      paddingHorizontal: 18,
+      borderRadius: 14,
+      borderWidth: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    actionButtonGhost: {
+      backgroundColor: palette.surface2,
+      borderColor: palette.borderLight,
+    },
+    actionButtonLabel: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 14,
+      letterSpacing: -0.2,
+    },
+    actionButtonLabelSolid: {
+      color: palette.background,
+    },
+    actionButtonLabelGhost: {
+      color: palette.text,
+    },
+    actionButtonDisabled: {
+      opacity: 0.45,
+    },
+    actionButtonPressed: {
+      transform: [{ scale: 0.98 }],
+    },
+  });
+}
+
+const pulseStyles = StyleSheet.create({
   pulseRing: {
     position: "absolute",
     width: 88,
     height: 88,
     borderRadius: 999,
     borderWidth: 2,
-  },
-  micButton: {
-    width: 74,
-    height: 74,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  micButtonPressed: {
-    transform: [{ scale: 0.97 }],
-  },
-  micButtonDisabled: {
-    opacity: 0.5,
-  },
-  actionsRow: {
-    minHeight: 52,
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-  actionButton: {
-    minHeight: 52,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionButtonGhost: {
-    backgroundColor: palette.surface2,
-    borderColor: palette.borderLight,
-  },
-  actionButtonLabel: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 14,
-    letterSpacing: -0.2,
-  },
-  actionButtonLabelSolid: {
-    color: palette.background,
-  },
-  actionButtonLabelGhost: {
-    color: palette.text,
-  },
-  actionButtonDisabled: {
-    opacity: 0.45,
-  },
-  actionButtonPressed: {
-    transform: [{ scale: 0.98 }],
   },
 });

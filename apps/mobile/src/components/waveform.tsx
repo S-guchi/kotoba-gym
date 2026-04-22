@@ -9,7 +9,7 @@ import Animated, {
   withDelay,
   Easing,
 } from "react-native-reanimated";
-import { palette } from "../lib/theme";
+import { useThemePalette } from "../lib/use-theme-palette";
 
 const BAR_COUNT = 28;
 const BAR_WIDTH = 3;
@@ -20,10 +20,12 @@ function WaveformBar({
   isRecording,
   index,
   color,
+  idleColor,
 }: {
   isRecording: boolean;
   index: number;
   color: string;
+  idleColor: string;
 }) {
   const height = useSharedValue(MIN_HEIGHT);
 
@@ -63,7 +65,7 @@ function WaveformBar({
     <Animated.View
       style={[
         styles.bar,
-        { backgroundColor: isRecording ? color : palette.borderLight },
+        { backgroundColor: isRecording ? color : idleColor },
         animatedStyle,
       ]}
     />
@@ -72,19 +74,23 @@ function WaveformBar({
 
 export function Waveform({
   isRecording,
-  color = palette.accent,
+  color,
   barCount = BAR_COUNT,
 }: {
   isRecording: boolean;
   color?: string;
   barCount?: number;
 }) {
+  const palette = useThemePalette();
+  const resolvedColor = color ?? palette.accent;
+
   return (
     <View style={styles.container}>
       {Array.from({ length: barCount }).map((_, i) => (
         <WaveformBar
           key={i}
-          color={color}
+          color={resolvedColor}
+          idleColor={palette.borderLight}
           isRecording={isRecording}
           index={i}
         />

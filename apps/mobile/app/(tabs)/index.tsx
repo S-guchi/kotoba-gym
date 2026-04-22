@@ -8,13 +8,16 @@ import { StatsStrip } from "../../src/components/stats-strip";
 import { Tag } from "../../src/components/tag";
 import { fetchPrompts } from "../../src/lib/api";
 import { listPracticeSessions } from "../../src/lib/storage";
-import { categoryLabels, fonts, palette } from "../../src/lib/theme";
+import { useThemePalette } from "../../src/lib/use-theme-palette";
+import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
 import type {
   PracticePrompt,
   PracticeSessionRecord,
 } from "../../src/shared/practice";
 
 export default function HomeScreen() {
+  const palette = useThemePalette();
+  const styles = createStyles(palette);
   const [prompts, setPrompts] = useState<PracticePrompt[]>([]);
   const [sessions, setSessions] = useState<PracticeSessionRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -49,10 +52,7 @@ export default function HomeScreen() {
           (p) => (categoryLabels[p.category] ?? p.category) === activeCategory,
         );
 
-  // Find a recommended session (has 1 attempt, can retry)
   const recommended = sessions.find((s) => s.attempts.length === 1);
-
-  // Stats
   const weekCount = sessions.length;
   const topCat = sessions.length
     ? (() => {
@@ -61,8 +61,9 @@ export default function HomeScreen() {
           const cat = categoryLabels[s.prompt.category] ?? s.prompt.category;
           counts[cat] = (counts[cat] ?? 0) + 1;
         }
-        return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ??
-          "—";
+        return (
+          Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—"
+        );
       })()
     : "—";
 
@@ -72,22 +73,24 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.eyebrow}>KOTOBA-GYM</Text>
-            <Text style={styles.heroTitle}>今日、何を練習しますか</Text>
+        <View style={styles.headerCard}>
+          <View style={styles.headerGlow} />
+          <View style={styles.headerRow}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.eyebrow}>KOTOBA-GYM</Text>
+              <Text style={styles.heroTitle}>今日、何を練習しますか</Text>
+              <Text style={styles.heroSubtitle}>
+                短く、構造的に、伝わる話し方を毎日少しずつ整える。
+              </Text>
+            </View>
+            <Pressable
+              style={styles.avatar}
+              onPress={() => router.push("/(tabs)/profile")}
+            >
+              <Ionicons name="person" size={18} color={palette.text2} />
+            </Pressable>
           </View>
-          <Pressable
-            style={styles.avatar}
-            onPress={() => router.push("/(tabs)/profile")}
-          >
-            <Ionicons name="person" size={18} color={palette.text2} />
-          </Pressable>
-        </View>
 
-        {/* Stats */}
-        <View style={styles.pad}>
           <StatsStrip
             items={[
               { label: "今週の練習", value: String(weekCount), unit: "回" },
@@ -97,7 +100,6 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Recommended */}
         {recommended && (
           <View style={styles.pad}>
             <Text style={styles.sectionLabel}>おすすめ</Text>
@@ -143,22 +145,20 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Category filter */}
         <CategoryChips
           categories={categories}
           selected={activeCategory}
           onSelect={setActiveCategory}
         />
 
-        {/* Error */}
         {error && (
           <View style={styles.errorCard}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
-        {/* Topic list */}
         <View style={styles.topicList}>
+          <Text style={styles.sectionLabel}>お題一覧</Text>
           {filtered.map((topic) => (
             <Pressable
               key={topic.id}
@@ -171,9 +171,7 @@ export default function HomeScreen() {
               }
             >
               <View style={styles.topicHeader}>
-                <Tag
-                  label={categoryLabels[topic.category] ?? topic.category}
-                />
+                <Tag label={categoryLabels[topic.category] ?? topic.category} />
                 <Text style={styles.duration}>45〜60秒</Text>
               </View>
               <Text style={styles.topicTitle}>{topic.title}</Text>
@@ -199,168 +197,207 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: palette.background,
-  },
-  scroll: {
-    paddingTop: 16,
-    paddingBottom: 20,
-    gap: 20,
-  },
-  pad: {
-    paddingHorizontal: 20,
-  },
-  header: {
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-  eyebrow: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: palette.accent,
-    letterSpacing: 1.5,
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
-  heroTitle: {
-    fontFamily: fonts.heading,
-    fontSize: 26,
-    color: palette.text,
-    letterSpacing: -0.5,
-    lineHeight: 32,
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: palette.surface2,
-    borderWidth: 1,
-    borderColor: palette.borderLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  sectionLabel: {
-    fontFamily: fonts.monoMedium,
-    fontSize: 10,
-    fontWeight: "500",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: palette.text3,
-    marginBottom: 10,
-  },
-  recommendedCard: {
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.accent,
-    borderRadius: 18,
-    padding: 16,
-  },
-  recommendedMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 8,
-  },
-  attemptLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: palette.text3,
-  },
-  recommendedTitle: {
-    fontFamily: fonts.heading,
-    fontSize: 18,
-    color: palette.text,
-    marginBottom: 6,
-  },
-  recommendedFocus: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: palette.text2,
-    lineHeight: 18,
-    marginBottom: 14,
-  },
-  recommendedCta: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: palette.accent,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  recommendedCtaText: {
-    fontFamily: fonts.bodySemiBold,
-    fontSize: 13,
-    fontWeight: "600",
-    color: palette.background,
-  },
-  errorCard: {
-    backgroundColor: palette.dangerDim,
-    borderRadius: 14,
-    padding: 14,
-    marginHorizontal: 20,
-    borderWidth: 1,
-    borderColor: "rgba(196,122,107,0.2)",
-  },
-  errorText: {
-    fontFamily: fonts.body,
-    color: palette.danger,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  topicList: {
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  topicCard: {
-    backgroundColor: palette.surface,
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: 16,
-    padding: 16,
-  },
-  topicHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  duration: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: palette.text3,
-  },
-  topicTitle: {
-    fontFamily: fonts.heading,
-    fontSize: 16,
-    color: palette.text,
-    marginBottom: 6,
-    lineHeight: 22,
-  },
-  topicDesc: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: palette.text2,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  topicFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: palette.border,
-  },
-  topicExpectation: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: palette.text3,
-    flex: 1,
-  },
-});
+function createStyles(palette: ThemePalette) {
+  return StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: palette.background,
+    },
+    scroll: {
+      paddingTop: 10,
+      paddingBottom: 28,
+      gap: 20,
+    },
+    pad: {
+      paddingHorizontal: 20,
+    },
+    headerCard: {
+      marginHorizontal: 20,
+      marginTop: 6,
+      padding: 18,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: palette.border,
+      backgroundColor: palette.surface,
+      overflow: "hidden",
+      gap: 18,
+    },
+    headerGlow: {
+      position: "absolute",
+      top: -44,
+      right: -28,
+      width: 160,
+      height: 160,
+      borderRadius: 80,
+      backgroundColor: palette.accentDim,
+    },
+    headerRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 16,
+    },
+    headerCopy: {
+      flex: 1,
+      gap: 6,
+    },
+    eyebrow: {
+      fontFamily: fonts.mono,
+      fontSize: 10,
+      color: palette.accent,
+      letterSpacing: 1.5,
+      textTransform: "uppercase",
+    },
+    heroTitle: {
+      fontFamily: fonts.heading,
+      fontSize: 28,
+      color: palette.text,
+      letterSpacing: -0.6,
+      lineHeight: 34,
+    },
+    heroSubtitle: {
+      fontFamily: fonts.body,
+      fontSize: 13,
+      color: palette.text2,
+      lineHeight: 21,
+      maxWidth: 250,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: palette.surface2,
+      borderWidth: 1,
+      borderColor: palette.borderLight,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    sectionLabel: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 10,
+      fontWeight: "500",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+      color: palette.text3,
+      marginBottom: 10,
+    },
+    recommendedCard: {
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: palette.accent,
+      borderRadius: 20,
+      padding: 18,
+      shadowColor: palette.black,
+      shadowOpacity: 0.06,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 2,
+    },
+    recommendedMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginBottom: 8,
+    },
+    attemptLabel: {
+      fontFamily: fonts.mono,
+      fontSize: 10,
+      color: palette.text3,
+    },
+    recommendedTitle: {
+      fontFamily: fonts.heading,
+      fontSize: 20,
+      color: palette.text,
+      marginBottom: 8,
+      lineHeight: 26,
+    },
+    recommendedFocus: {
+      fontFamily: fonts.body,
+      fontSize: 13,
+      color: palette.text2,
+      lineHeight: 20,
+      marginBottom: 16,
+    },
+    recommendedCta: {
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      backgroundColor: palette.accent,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    recommendedCtaText: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 13,
+      fontWeight: "600",
+      color: palette.background,
+    },
+    errorCard: {
+      backgroundColor: palette.dangerDim,
+      borderRadius: 16,
+      padding: 14,
+      marginHorizontal: 20,
+      borderWidth: 1,
+      borderColor: palette.danger,
+    },
+    errorText: {
+      fontFamily: fonts.body,
+      color: palette.danger,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+    topicList: {
+      paddingHorizontal: 20,
+      gap: 10,
+    },
+    topicCard: {
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: palette.border,
+      borderRadius: 18,
+      padding: 16,
+    },
+    topicHeader: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      marginBottom: 8,
+    },
+    duration: {
+      fontFamily: fonts.mono,
+      fontSize: 10,
+      color: palette.text3,
+    },
+    topicTitle: {
+      fontFamily: fonts.heading,
+      fontSize: 17,
+      color: palette.text,
+      marginBottom: 8,
+      lineHeight: 23,
+    },
+    topicDesc: {
+      fontFamily: fonts.body,
+      fontSize: 13,
+      color: palette.text2,
+      lineHeight: 20,
+      marginBottom: 12,
+    },
+    topicFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: palette.border,
+      gap: 8,
+    },
+    topicExpectation: {
+      fontFamily: fonts.body,
+      fontSize: 11,
+      color: palette.text3,
+      flex: 1,
+    },
+  });
+}

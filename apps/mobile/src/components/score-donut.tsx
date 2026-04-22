@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle } from "react-native-svg";
-import { fonts, palette } from "../lib/theme";
+import { useThemePalette } from "../lib/use-theme-palette";
+import { fonts, type ThemePalette } from "../lib/theme";
 
 export function ScoreDonut({
   score,
@@ -16,6 +17,8 @@ export function ScoreDonut({
   const circumference = 2 * Math.PI * radius;
   const progress = Math.min(score / maxScore, 1);
   const strokeDashoffset = circumference * (1 - progress);
+  const palette = useThemePalette();
+  const styles = createStyles(palette);
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
@@ -44,12 +47,7 @@ export function ScoreDonut({
         />
       </Svg>
       <View style={styles.label}>
-        <Text
-          style={[
-            styles.value,
-            { fontSize: size < 50 ? 11 : 14 },
-          ]}
-        >
+        <Text style={[styles.value, { fontSize: size < 50 ? 11 : 14 }]}>
           {score}
         </Text>
       </View>
@@ -57,20 +55,22 @@ export function ScoreDonut({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    position: "relative",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  label: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  value: {
-    fontFamily: fonts.mono,
-    fontWeight: "500",
-    color: palette.accent,
-  },
-});
+function createStyles(palette: ThemePalette) {
+  return StyleSheet.create({
+    container: {
+      position: "relative",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    label: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    value: {
+      fontFamily: fonts.mono,
+      fontWeight: "500",
+      color: palette.accent,
+    },
+  });
+}

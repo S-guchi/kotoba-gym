@@ -1,8 +1,11 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { fonts, palette } from "../../src/lib/theme";
+import { useThemePalette } from "../../src/lib/use-theme-palette";
+import { fonts } from "../../src/lib/theme";
 
 export default function TabLayout() {
+  const palette = useThemePalette();
+
   return (
     <Tabs
       screenOptions={{
@@ -13,6 +16,7 @@ export default function TabLayout() {
           borderTopWidth: 1,
           height: 82,
           paddingTop: 10,
+          paddingBottom: 12,
         },
         tabBarActiveTintColor: palette.accent,
         tabBarInactiveTintColor: palette.text3,

@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
-import { fonts, palette } from "../lib/theme";
+import { useThemePalette } from "../lib/use-theme-palette";
+import { fonts, type ThemePalette } from "../lib/theme";
 
 export function CategoryChips({
   categories,
@@ -10,6 +11,9 @@ export function CategoryChips({
   selected: string;
   onSelect: (category: string) => void;
 }) {
+  const palette = useThemePalette();
+  const styles = createStyles(palette);
+
   return (
     <ScrollView
       horizontal
@@ -34,30 +38,32 @@ export function CategoryChips({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  chip: {
-    backgroundColor: palette.surface2,
-    borderWidth: 1,
-    borderColor: palette.border,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  chipActive: {
-    backgroundColor: palette.accent,
-    borderColor: palette.accent,
-  },
-  label: {
-    fontFamily: fonts.bodyMedium,
-    fontSize: 12,
-    fontWeight: "500",
-    color: palette.text2,
-  },
-  labelActive: {
-    color: palette.background,
-  },
-});
+function createStyles(palette: ThemePalette) {
+  return StyleSheet.create({
+    container: {
+      paddingHorizontal: 20,
+      gap: 8,
+    },
+    chip: {
+      backgroundColor: palette.surface2,
+      borderWidth: 1,
+      borderColor: palette.border,
+      borderRadius: 20,
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+    },
+    chipActive: {
+      backgroundColor: palette.accent,
+      borderColor: palette.accent,
+    },
+    label: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 12,
+      fontWeight: "500",
+      color: palette.text2,
+    },
+    labelActive: {
+      color: palette.background,
+    },
+  });
+}

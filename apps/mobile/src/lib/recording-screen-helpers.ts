@@ -1,4 +1,4 @@
-import { palette } from "./theme";
+import type { ThemePalette } from "./theme";
 
 export type RecordingUiState = "idle" | "recording" | "paused";
 export type RecordingDialogueState = RecordingUiState | "done";
@@ -39,11 +39,15 @@ export const recordingCharacterVariants: Record<
   questioning: "questioning",
 };
 
-export const recordingColorByState: Record<RecordingUiState, string> = {
-  idle: palette.accent,
-  recording: palette.danger,
-  paused: palette.accentWarm,
-};
+export function getRecordingColorByState(
+  palette: ThemePalette,
+): Record<RecordingUiState, string> {
+  return {
+    idle: palette.accent,
+    recording: palette.danger,
+    paused: palette.accentWarm,
+  };
+}
 
 export function formatRecordingDuration(seconds: number) {
   return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(

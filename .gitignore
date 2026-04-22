@@ -6,3 +6,4 @@ logs/
 .DS_Store
 .env
 *.log
+apps/server/.wrangler/

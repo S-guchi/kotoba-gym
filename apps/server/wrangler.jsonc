@@ -14,5 +14,8 @@
   ],
   "vars": {
     "GEMINI_MODEL": "gemini-3-flash-preview"
+  },
+  "secrets": {
+    "required": ["GEMINI_API_KEY"]
   }
 }

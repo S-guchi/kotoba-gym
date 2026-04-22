@@ -1,0 +1,5 @@
+# Wrangler のローカル開発では、このファイルを .dev.vars にコピーして使います。
+GEMINI_API_KEY=
+
+# 必要な場合だけローカルでモデルを上書きします。
+# GEMINI_MODEL=gemini-3-flash-preview

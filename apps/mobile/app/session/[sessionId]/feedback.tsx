@@ -17,18 +17,96 @@ export default function FeedbackScreen() {
   const styles = createStyles(palette);
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const [session, setSession] = useState<PracticeSessionRecord | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let alive = true;
+
+    if (!sessionId) {
+      setSession(null);
+      setNotFound(true);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setSession(null);
+    setNotFound(false);
+    setError(null);
+
     void (async () => {
-      if (!sessionId) return;
-      setSession(await getPracticeSession(sessionId));
+      try {
+        const nextSession = await getPracticeSession(sessionId);
+
+        if (!alive) {
+          return;
+        }
+
+        if (!nextSession) {
+          setNotFound(true);
+          return;
+        }
+
+        setSession(nextSession);
+      } catch (cause) {
+        if (!alive) {
+          return;
+        }
+
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "セッションを読み込めませんでした。",
+        );
+      } finally {
+        if (alive) {
+          setIsLoading(false);
+        }
+      }
     })();
+
+    return () => {
+      alive = false;
+    };
   }, [sessionId]);
 
-  if (!session) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.loadingText}>読み込み中...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyCenter}>
+          <Text style={styles.loadingText}>読み込みに失敗しました。</Text>
+          <Text style={styles.emptyText}>{error}</Text>
+          <PrimaryButton onPress={() => router.replace("/")}>
+            ホームへ戻る
+          </PrimaryButton>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (notFound || !session) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyCenter}>
+          <Text style={styles.loadingText}>セッションが見つかりません。</Text>
+          <Text style={styles.emptyText}>
+            最新の一覧からもう一度選び直してください。
+          </Text>
+          <PrimaryButton onPress={() => router.replace("/")}>
+            ホームへ戻る
+          </PrimaryButton>
+        </View>
       </SafeAreaView>
     );
   }
@@ -185,6 +263,13 @@ function createStyles(palette: ThemePalette) {
       padding: 20,
       justifyContent: "center",
       gap: 16,
+    },
+    emptyText: {
+      fontFamily: fonts.body,
+      color: palette.text2,
+      fontSize: 14,
+      lineHeight: 22,
+      textAlign: "center",
     },
     pageHeader: {
       flexDirection: "row",

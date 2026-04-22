@@ -191,6 +191,15 @@ export function registerV1Routes(app: AppType) {
         );
       }
 
+      const expectedAttemptNumber = session.attempts.length + 1;
+      if (parsedFields.attemptNumber !== expectedAttemptNumber) {
+        throw new ApiError(
+          "回答の順序が不正です。最新の画面からやり直してください。",
+          409,
+          "attempt_number_mismatch",
+        );
+      }
+
       const mimeType = assertSupportedAudioMimeType(
         resolveAudioMimeType(audio),
       );

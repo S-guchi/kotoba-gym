@@ -5,7 +5,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryButton } from "../../../src/components/primary-button";
 import { MobileApiError, submitEvaluation } from "../../../src/lib/api";
-import { useRecordingPayload } from "../../../src/lib/recording-context";
+import {
+  getPendingRecordingPayload,
+  removePendingRecordingPayload,
+} from "../../../src/lib/pending-recording-store";
 import { cachePracticeSession } from "../../../src/lib/storage";
 import { useThemePalette } from "../../../src/lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../../../src/lib/theme";
@@ -20,12 +23,16 @@ export default function AnalyzingScreen() {
   const palette = useThemePalette();
   const styles = createStyles(palette);
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
-  const recordingPayload = useRecordingPayload();
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const payload = recordingPayload.consume();
+    if (!sessionId) {
+      setError("録音データが見つかりません。");
+      return;
+    }
+
+    const payload = getPendingRecordingPayload(sessionId);
     if (!payload || !sessionId) {
       setError("録音データが見つかりません。");
       return;
@@ -45,6 +52,7 @@ export default function AnalyzingScreen() {
           audioUri: payload.audioUri,
         });
         cachePracticeSession(result.session);
+        removePendingRecordingPayload(payload.sessionId);
 
         setTimeout(() => {
           router.replace({
@@ -65,7 +73,6 @@ export default function AnalyzingScreen() {
     })();
 
     return () => timers.forEach(clearTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- consume once on mount
   }, [sessionId]);
 
   if (error) {

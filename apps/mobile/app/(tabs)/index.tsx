@@ -185,12 +185,7 @@ export default function HomeScreen() {
     }
 
     router.replace("/onboarding");
-  }, [
-    error,
-    homeFeed.shouldRedirectToOnboarding,
-    isFocused,
-    isLoading,
-  ]);
+  }, [error, homeFeed.shouldRedirectToOnboarding, isFocused, isLoading]);
 
   if (isLoading || homeFeed.shouldRedirectToOnboarding) {
     return (

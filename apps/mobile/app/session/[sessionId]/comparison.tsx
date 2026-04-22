@@ -15,13 +15,109 @@ export default function ComparisonScreen() {
   const styles = createStyles(palette);
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const [session, setSession] = useState<PracticeSessionRecord | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let alive = true;
+
+    if (!sessionId) {
+      setSession(null);
+      setNotFound(true);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setSession(null);
+    setNotFound(false);
+    setError(null);
+
     void (async () => {
-      if (!sessionId) return;
-      setSession(await getPracticeSession(sessionId));
+      try {
+        const nextSession = await getPracticeSession(sessionId);
+
+        if (!alive) {
+          return;
+        }
+
+        if (!nextSession) {
+          setNotFound(true);
+          return;
+        }
+
+        setSession(nextSession);
+      } catch (cause) {
+        if (!alive) {
+          return;
+        }
+
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "セッションを読み込めませんでした。",
+        );
+      } finally {
+        if (alive) {
+          setIsLoading(false);
+        }
+      }
     })();
+
+    return () => {
+      alive = false;
+    };
   }, [sessionId]);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyCard}>
+          <Text style={styles.body}>読み込み中...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.content}>
+          <View style={styles.card}>
+            <Text style={styles.body}>読み込みに失敗しました。</Text>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+          <View style={styles.actions}>
+            <PrimaryButton onPress={() => router.replace("/")}>
+              ホームへ戻る
+            </PrimaryButton>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (notFound || !session) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.content}>
+          <View style={styles.card}>
+            <Text style={styles.body}>セッションが見つかりません。</Text>
+            <Text style={styles.errorText}>
+              最新の一覧からもう一度選び直してください。
+            </Text>
+          </View>
+          <View style={styles.actions}>
+            <PrimaryButton onPress={() => router.replace("/")}>
+              ホームへ戻る
+            </PrimaryButton>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const comparison = session?.attempts[1]?.evaluation.comparison;
 
@@ -213,6 +309,12 @@ function createStyles(palette: ThemePalette) {
       paddingBottom: 32,
       gap: 14,
     },
+    emptyCard: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 24,
+    },
     title: {
       fontFamily: fonts.heading,
       fontSize: 24,
@@ -244,6 +346,13 @@ function createStyles(palette: ThemePalette) {
       fontSize: 14,
       color: palette.text,
       lineHeight: 22,
+    },
+    errorText: {
+      marginTop: 8,
+      fontFamily: fonts.body,
+      fontSize: 13,
+      color: palette.text2,
+      lineHeight: 20,
     },
     deltaCard: {
       backgroundColor: palette.surface,

@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +28,8 @@ export default function TopicDetailScreen() {
   const [prompt, setPrompt] = useState<TopicPrompt | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -74,11 +83,28 @@ export default function TopicDetailScreen() {
   const currentPrompt = prompt;
 
   async function handleStart() {
-    const session = await createPracticeSession(currentPrompt);
-    router.push({
-      pathname: "/practice/[promptId]",
-      params: { promptId: currentPrompt.id, sessionId: session.id },
-    });
+    if (isStarting) {
+      return;
+    }
+
+    setIsStarting(true);
+    setStartError(null);
+
+    try {
+      const session = await createPracticeSession(currentPrompt);
+      router.push({
+        pathname: "/practice/[promptId]",
+        params: { promptId: currentPrompt.id, sessionId: session.id },
+      });
+    } catch (cause) {
+      const message =
+        cause instanceof Error
+          ? cause.message
+          : "セッションを開始できませんでした。";
+      setStartError(message);
+      setIsStarting(false);
+      Alert.alert("開始できませんでした", message);
+    }
   }
 
   const axes = ["結論先出し", "構造化", "具体性", "技術妥当性", "簡潔性"];
@@ -141,9 +167,15 @@ export default function TopicDetailScreen() {
         </View>
 
         <View style={styles.ctaSection}>
-          <PrimaryButton onPress={() => void handleStart()}>
-            回答を始める
+          <PrimaryButton
+            disabled={isStarting}
+            onPress={() => void handleStart()}
+          >
+            {isStarting ? "開始中..." : "回答を始める"}
           </PrimaryButton>
+          {startError ? (
+            <Text style={styles.startErrorText}>{startError}</Text>
+          ) : null}
           <Text style={styles.ctaHint}>録音は何度でも撮り直せます</Text>
         </View>
       </ScrollView>
@@ -277,6 +309,14 @@ function createStyles(palette: ThemePalette) {
     },
     ctaSection: {
       marginTop: 16,
+    },
+    startErrorText: {
+      fontFamily: fonts.body,
+      textAlign: "center",
+      fontSize: 13,
+      lineHeight: 20,
+      color: palette.danger,
+      marginTop: 10,
     },
     ctaHint: {
       fontFamily: fonts.body,

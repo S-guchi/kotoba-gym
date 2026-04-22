@@ -20,10 +20,7 @@ const prompt: PersonalizedPracticePrompt = {
     "新しく入ったメンバーに、なぜ API レスポンスのキャッシュ戦略を見直したのか説明してください。",
   situation:
     "相手はバックエンド経験が浅く、結論先出しで要点を知りたがっています。",
-  goals: [
-    "最初に結論を置く",
-    "現状の問題と改善後の違いを分けて話す",
-  ],
+  goals: ["最初に結論を置く", "現状の問題と改善後の違いを分けて話す"],
   durationLabel: "60〜90秒",
   personalized: true,
 };

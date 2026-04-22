@@ -14,7 +14,6 @@ import {
   DMMono_400Regular,
   DMMono_500Medium,
 } from "@expo-google-fonts/dm-mono";
-import { RecordingProvider } from "../src/lib/recording-context";
 import { getThemePalette } from "../src/lib/theme";
 
 SplashScreen.preventAutoHideAsync();
@@ -42,7 +41,7 @@ export default function RootLayout() {
   }
 
   return (
-    <RecordingProvider>
+    <>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
       <Stack
         screenOptions={{
@@ -51,6 +50,6 @@ export default function RootLayout() {
           animation: "default",
         }}
       />
-    </RecordingProvider>
+    </>
   );
 }

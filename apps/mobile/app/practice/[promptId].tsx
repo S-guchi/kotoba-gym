@@ -32,7 +32,7 @@ import {
   type RecordingCharacterVariant,
   type RecordingUiState,
 } from "../../src/lib/recording-screen-helpers";
-import { useRecordingPayload } from "../../src/lib/recording-context";
+import { savePendingRecordingPayload } from "../../src/lib/pending-recording-store";
 import { getPracticeSession } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
@@ -166,12 +166,14 @@ export default function PracticeScreen() {
   }>();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [session, setSession] = useState<PracticeSessionRecord | null>(null);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [sessionNotFound, setSessionNotFound] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const [recordingState, setRecordingState] =
     useState<RecordingUiState>("idle");
   const [seconds, setSeconds] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recordingPayload = useRecordingPayload();
 
   async function ensureRecordingPermission() {
     const current = await AudioModule.getRecordingPermissionsAsync();
@@ -200,10 +202,55 @@ export default function PracticeScreen() {
   }, []);
 
   useEffect(() => {
+    let alive = true;
+
+    if (!params.sessionId) {
+      setSession(null);
+      setSessionNotFound(true);
+      setSessionError(null);
+      setIsSessionLoading(false);
+      return;
+    }
+
+    setIsSessionLoading(true);
+    setSession(null);
+    setSessionNotFound(false);
+    setSessionError(null);
+
     void (async () => {
-      if (!params.sessionId) return;
-      setSession(await getPracticeSession(params.sessionId));
+      try {
+        const nextSession = await getPracticeSession(params.sessionId);
+
+        if (!alive) {
+          return;
+        }
+
+        if (!nextSession) {
+          setSessionNotFound(true);
+          return;
+        }
+
+        setSession(nextSession);
+      } catch (cause) {
+        if (!alive) {
+          return;
+        }
+
+        setSessionError(
+          cause instanceof Error
+            ? cause.message
+            : "セッションを読み込めませんでした。",
+        );
+      } finally {
+        if (alive) {
+          setIsSessionLoading(false);
+        }
+      }
     })();
+
+    return () => {
+      alive = false;
+    };
   }, [params.sessionId]);
 
   useEffect(() => {
@@ -246,10 +293,42 @@ export default function PracticeScreen() {
   const questionCharacter =
     characterImages[recordingCharacterVariants.questioning];
 
-  if (!session) {
+  if (isSessionLoading) {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.loadingText}>読み込み中...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (sessionError) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>読み込みに失敗しました</Text>
+          <Text style={styles.emptyBody}>{sessionError}</Text>
+          <ActionButton
+            label="ホームへ戻る"
+            onPress={() => router.replace("/")}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (sessionNotFound || !session) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>セッションが見つかりません</Text>
+          <Text style={styles.emptyBody}>
+            最新の一覧からもう一度選び直してください。
+          </Text>
+          <ActionButton
+            label="ホームへ戻る"
+            onPress={() => router.replace("/")}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -303,7 +382,7 @@ export default function PracticeScreen() {
         throw new Error("missing recording uri");
       }
 
-      recordingPayload.set({
+      savePendingRecordingPayload({
         sessionId: session.id,
         promptId: session.prompt.id,
         attemptNumber: currentAttempt,
@@ -530,6 +609,25 @@ function createStyles(palette: ThemePalette) {
       fontSize: 14,
       textAlign: "center",
       marginTop: 40,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: "center",
+      paddingHorizontal: 24,
+      gap: 16,
+    },
+    emptyTitle: {
+      fontFamily: fonts.heading,
+      fontSize: 28,
+      color: palette.text,
+      textAlign: "center",
+    },
+    emptyBody: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      lineHeight: 22,
+      color: palette.text2,
+      textAlign: "center",
     },
     screen: {
       flex: 1,

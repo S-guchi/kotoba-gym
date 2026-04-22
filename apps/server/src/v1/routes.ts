@@ -119,6 +119,14 @@ export function registerV1Routes(app: Hono, config: ServerConfig) {
       }
 
       const mimeType = inferMimeType(audio);
+      console.log("[server][evaluation] received-audio", {
+        promptId: parsedFields.promptId,
+        attemptNumber: parsedFields.attemptNumber,
+        fileName: audio.name,
+        fileType: audio.type,
+        inferredMimeType: mimeType,
+        fileSize: audio.size,
+      });
       if (!SUPPORTED_AUDIO_MIME_TYPES.has(mimeType)) {
         throw new ApiError(
           "対応していない音声形式です。m4a で再録音してください。",

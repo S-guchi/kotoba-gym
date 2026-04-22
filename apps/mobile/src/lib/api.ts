@@ -29,6 +29,12 @@ interface EvaluationResponse {
   prompt: PracticePrompt;
 }
 
+type ReactNativeAudioFile = Blob & {
+  readonly uri: string;
+  readonly name: string;
+  readonly type: string;
+};
+
 function resolveApiBaseUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
   if (envUrl) {
@@ -89,9 +95,19 @@ export async function submitEvaluation(params: {
     form.append("previousEvaluation", JSON.stringify(params.previousEvaluation));
   }
 
-  const audioResponse = await fetch(params.audioUri);
-  const audioBlob = await audioResponse.blob();
-  form.append("audio", audioBlob, `attempt-${params.attemptNumber}.m4a`);
+  const audioFile = {
+    uri: params.audioUri,
+    name: `attempt-${params.attemptNumber}.m4a`,
+    type: "audio/m4a",
+  } as ReactNativeAudioFile;
+  console.log("[mobile][evaluation] upload", {
+    promptId: params.promptId,
+    attemptNumber: params.attemptNumber,
+    audioUri: params.audioUri,
+    fileName: audioFile.name,
+    fileType: audioFile.type,
+  });
+  form.append("audio", audioFile);
 
   const response = await fetch(`${API_BASE_URL}/v1/evaluations`, {
     method: "POST",

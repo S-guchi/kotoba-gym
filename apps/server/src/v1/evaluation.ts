@@ -99,6 +99,18 @@ export class ApiError extends Error {
   }
 }
 
+function logGeminiEvaluation(params: {
+  promptId: string;
+  attemptNumber: number;
+  mimeType: string;
+  raw: string;
+}) {
+  console.log(
+    `[gemini][evaluation] promptId=${params.promptId} attempt=${params.attemptNumber} mimeType=${params.mimeType}`,
+  );
+  console.log(params.raw);
+}
+
 function buildEvaluationPrompt(params: {
   promptId: string;
   attemptNumber: number;
@@ -155,14 +167,22 @@ ${previousSection}
 
 ## 出力ルール
 1. transcript は音声の自然な文字起こしにしてください。
-2. summary は一言総評として2文以内でまとめてください。
-3. scores は5軸すべてを必ず含めてください。score は1から5です。
-4. goodPoints は2個から3個、improvementPoints は2個から3個にしてください。
-5. exampleAnswer は次回の参考になる短い改善例を1つ返してください。
-6. nextFocus は次回の意識点を1文で返してください。
-7. 前回結果がある場合だけ comparison を埋めてください。scoreDiff は全軸を含め、improvedPoints と remainingPoints は各1個から3個にしてください。
-8. 前回結果がない場合は comparison を null にしてください。
-9. 抽象論ではなく、このお題と今回の発話内容に即して評価してください。`;
+2. 音声で確認できない内容を補完・創作してはいけません。ユーザーが話していない固有名詞、事例、障害名、技術課題を勝手に追加してはいけません。
+3. 聞き取れない箇所は推測せず、必要なら「[聞き取り不能]」のように明示してください。
+4. 音声全体が短すぎる、無音に近い、または不明瞭で判断材料が足りない場合は、その前提を transcript / summary / improvementPoints / nextFocus に反映してください。無理にもっともらしい内容を作らないでください。
+5. summary は一言総評として2文以内でまとめてください。
+6. scores は5軸すべてを必ず含めてください。score は1から5です。判断材料が不足する場合は低めに評価し、comment で不足理由を明示してください。
+7. goodPoints と improvementPoints は transcript に根拠がある内容だけを書いてください。引用や言い換えはよいですが、transcript に存在しない事実を追加してはいけません。
+8. goodPoints は2個から3個、improvementPoints は2個から3個にしてください。十分な内容がない場合は、「結論がまだ出ていない」「具体例が不足している」のように不足自体を指摘してください。
+9. exampleAnswer は次回の参考になる短い改善例を1つ返してください。ただし今回の transcript に存在しない過去エピソードを事実として断定してはいけません。
+10. nextFocus は次回の意識点を1文で返してください。
+11. 前回結果がある場合だけ comparison を埋めてください。scoreDiff は全軸を含め、improvedPoints と remainingPoints は各1個から3個にしてください。
+12. 前回結果がない場合は comparison を null にしてください。
+13. 抽象論ではなく、このお題と今回の発話内容に即して評価してください。
+
+## 最重要
+- 音声から確認できない内容を「それっぽい技術文脈」で埋めないこと。
+- 迷ったら保守的に判定し、不足として返すこと。`;
 }
 
 function normalizeScores(scores: EvaluationScore[]): EvaluationScore[] {
@@ -308,6 +328,12 @@ export async function evaluateAttempt(params: {
         thinkingLevel: "low",
       },
     );
+    logGeminiEvaluation({
+      promptId: params.promptId,
+      attemptNumber: params.attemptNumber,
+      mimeType: params.mimeType,
+      raw,
+    });
 
     const parsed = AttemptEvaluationSchema.parse(JSON.parse(raw));
     const normalized = {

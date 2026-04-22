@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-このドキュメントは、`kotoba-gym` の現在実装におけるモジュール間インターフェースをまとめたものです。  
+このドキュメントは、`kotoba-gym` の現在実装におけるモジュール間インターフェースをまとめたものです。
 対象は次の 3 境界です。
 
 - `apps/mobile` と `apps/server` の HTTP API
@@ -29,11 +29,46 @@ packages/core
 
 各モジュールの責務:
 
-| モジュール | 役割 | 外部公開 I/F |
-| --- | --- | --- |
-| `apps/mobile` | 画面表示、録音、API 呼び出し、端末識別子保持 | Expo Router の画面ルート、`src/lib/api.ts`、`src/lib/storage.ts` |
-| `apps/server` | API 提供、入力検証、Gemini 呼び出し、D1 永続化 | `/health`、`/v1/*` |
-| `packages/core` | 共有型、Zod schema | `@kotoba-gym/core` の export |
+| モジュール      | 役割                                           | 外部公開 I/F                                                     |
+| --------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
+| `apps/mobile`   | 画面表示、録音、API 呼び出し、端末識別子保持   | Expo Router の画面ルート、`src/lib/api.ts`、`src/lib/storage.ts` |
+| `apps/server`   | API 提供、入力検証、Gemini 呼び出し、D1 永続化 | `/health`、`/v1/*`                                               |
+| `packages/core` | 共有型、Zod schema                             | `@kotoba-gym/core` の export                                     |
+
+### 2.1 通信経路フロー
+
+主要な通信経路は次のとおりです。
+
+```mermaid
+flowchart TD
+  U[ユーザー] --> M[apps/mobile]
+  M --> F[owner-key.json]
+  F --> M
+
+  M -->|GET /v1/profile| S[apps/server]
+  M -->|GET /v1/prompts| S
+  M -->|POST /v1/personalized-prompts| S
+  M -->|POST /v1/sessions| S
+  M -->|POST /v1/evaluations multipart/form-data| S
+  M -->|GET /v1/sessions| S
+  M -->|GET /v1/sessions/:sessionId| S
+
+  S -->|profile_json / prompt_json / session_json| D[(D1)]
+  D --> S
+
+  S -->|個人化お題生成| G[Gemini API]
+  G --> S
+  S -->|音声評価 / 比較生成| G
+
+  S -->|JSON response| M
+  M -->|画面表示 / メモリキャッシュ更新| U
+```
+
+補足:
+
+- mobile が永続化するのは `ownerKey` のみです
+- `profiles`, `prompts`, `sessions` の正本は server / D1 です
+- 評価時だけ音声ファイルを multipart で送信し、結果は JSON で返します
 
 ## 3. 共有コントラクト
 
@@ -41,12 +76,12 @@ packages/core
 
 ### 3.1 練習お題
 
-| 型 | 概要 |
-| --- | --- |
-| `PracticePrompt` | 1問分のお題 |
-| `PracticePromptCategory` | `tech-explanation` / `design-decision` / `reporting` / `interview` / `escalation` |
-| `PracticePromptDuration` | `30〜45秒` / `45〜60秒` / `60〜90秒` |
-| `PersonalizedPracticePrompt` | `PracticePrompt` に `personalized: true` を加えた型 |
+| 型                           | 概要                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `PracticePrompt`             | 1問分のお題                                                                       |
+| `PracticePromptCategory`     | `tech-explanation` / `design-decision` / `reporting` / `interview` / `escalation` |
+| `PracticePromptDuration`     | `30〜45秒` / `45〜60秒` / `60〜90秒`                                              |
+| `PersonalizedPracticePrompt` | `PracticePrompt` に `personalized: true` を加えた型                               |
 
 `PracticePrompt` の shape:
 
@@ -138,17 +173,17 @@ type PracticeSessionRecord = {
 
 ### 4.1 画面ルート
 
-| ルート | 用途 | 主な入力 |
-| --- | --- | --- |
-| `/` | ホーム | なし |
-| `/onboarding` | プロフィール入力とお題生成 | なし |
-| `/topic/[promptId]` | お題詳細 | `promptId` |
-| `/practice/[promptId]` | 録音画面 | `promptId`, `sessionId` |
-| `/session/[sessionId]/analyzing` | 解析待機 | `sessionId` |
-| `/session/[sessionId]/feedback` | 評価表示 | `sessionId` |
-| `/session/[sessionId]/comparison` | 1回目/2回目比較 | `sessionId` |
-| `/history` | 練習履歴 | なし |
-| `/profile` | プロフィール確認 / 再生成 / リセット | なし |
+| ルート                            | 用途                                 | 主な入力                |
+| --------------------------------- | ------------------------------------ | ----------------------- |
+| `/`                               | ホーム                               | なし                    |
+| `/onboarding`                     | プロフィール入力とお題生成           | なし                    |
+| `/topic/[promptId]`               | お題詳細                             | `promptId`              |
+| `/practice/[promptId]`            | 録音画面                             | `promptId`, `sessionId` |
+| `/session/[sessionId]/analyzing`  | 解析待機                             | `sessionId`             |
+| `/session/[sessionId]/feedback`   | 評価表示                             | `sessionId`             |
+| `/session/[sessionId]/comparison` | 1回目/2回目比較                      | `sessionId`             |
+| `/history`                        | 練習履歴                             | なし                    |
+| `/profile`                        | プロフィール確認 / 再生成 / リセット | なし                    |
 
 ### 4.2 端末識別子
 
@@ -197,14 +232,14 @@ type PracticeSessionRecord = {
 
 `POST /v1/evaluations` 送信時の multipart field:
 
-| フィールド | 型 | 必須 | 備考 |
-| --- | --- | --- | --- |
-| `ownerKey` | string | 必須 | 端末識別子 |
-| `sessionId` | string | 必須 | 練習セッションID |
-| `promptId` | string | 必須 | お題ID |
-| `attemptNumber` | string | 必須 | `"1"` または `"2"` |
-| `locale` | string | 必須 | mobile では既定値 `ja-JP` |
-| `audio` | file | 必須 | mobile は `attempt-<n>.m4a`, `audio/m4a` で送信 |
+| フィールド      | 型     | 必須 | 備考                                            |
+| --------------- | ------ | ---- | ----------------------------------------------- |
+| `ownerKey`      | string | 必須 | 端末識別子                                      |
+| `sessionId`     | string | 必須 | 練習セッションID                                |
+| `promptId`      | string | 必須 | お題ID                                          |
+| `attemptNumber` | string | 必須 | `"1"` または `"2"`                              |
+| `locale`        | string | 必須 | mobile では既定値 `ja-JP`                       |
+| `audio`         | file   | 必須 | mobile は `attempt-<n>.m4a`, `audio/m4a` で送信 |
 
 ## 5. HTTP API
 
@@ -240,8 +275,8 @@ type PracticeSessionRecord = {
 
 クエリ:
 
-| 名前 | 型 | 必須 |
-| --- | --- | --- |
+| 名前       | 型     | 必須 |
+| ---------- | ------ | ---- |
 | `ownerKey` | string | 必須 |
 
 レスポンス:
@@ -295,8 +330,8 @@ type PracticeSessionRecord = {
 
 クエリ:
 
-| 名前 | 型 | 必須 |
-| --- | --- | --- |
+| 名前       | 型     | 必須 |
+| ---------- | ------ | ---- |
 | `ownerKey` | string | 必須 |
 
 動作:
@@ -319,8 +354,8 @@ type PracticeSessionRecord = {
 
 クエリ:
 
-| 名前 | 型 | 必須 |
-| --- | --- | --- |
+| 名前       | 型     | 必須 |
+| ---------- | ------ | ---- |
 | `ownerKey` | string | 必須 |
 
 レスポンス:
@@ -406,8 +441,8 @@ type PracticeSessionRecord = {
 
 クエリ:
 
-| 名前 | 型 | 必須 |
-| --- | --- | --- |
+| 名前       | 型     | 必須 |
+| ---------- | ------ | ---- |
 | `ownerKey` | string | 必須 |
 
 レスポンス:
@@ -424,8 +459,8 @@ type PracticeSessionRecord = {
 
 クエリ:
 
-| 名前 | 型 | 必須 |
-| --- | --- | --- |
+| 名前       | 型     | 必須 |
+| ---------- | ------ | ---- |
 | `ownerKey` | string | 必須 |
 
 レスポンス:
@@ -492,17 +527,17 @@ type PracticeSessionRecord = {
 
 主なエラーコード:
 
-| code | status | 意味 |
-| --- | --- | --- |
-| `invalid_request` | 400 | JSON / form validation 失敗 |
-| `audio_required` | 400 | `audio` 欠落 |
-| `unsupported_audio_format` | 400 | 非対応音声形式 |
-| `prompt_mismatch` | 400 | セッションのお題と `promptId` が不一致 |
-| `attempt_limit_reached` | 400 | 3回目以降の送信 |
-| `prompt_not_found` | 404 | セッション作成対象のお題が存在しない |
-| `session_not_found` | 404 | 対象セッションが存在しない |
-| `personalized_prompt_generation_failed` | 500 | 個人化お題生成失敗 |
-| `evaluation_failed` | 500 | 評価生成失敗 |
+| code                                    | status | 意味                                   |
+| --------------------------------------- | ------ | -------------------------------------- |
+| `invalid_request`                       | 400    | JSON / form validation 失敗            |
+| `audio_required`                        | 400    | `audio` 欠落                           |
+| `unsupported_audio_format`              | 400    | 非対応音声形式                         |
+| `prompt_mismatch`                       | 400    | セッションのお題と `promptId` が不一致 |
+| `attempt_limit_reached`                 | 400    | 3回目以降の送信                        |
+| `prompt_not_found`                      | 404    | セッション作成対象のお題が存在しない   |
+| `session_not_found`                     | 404    | 対象セッションが存在しない             |
+| `personalized_prompt_generation_failed` | 500    | 個人化お題生成失敗                     |
+| `evaluation_failed`                     | 500    | 評価生成失敗                           |
 
 ## 6. サーバー内部 I/F
 
@@ -526,10 +561,10 @@ type PracticeSessionRecord = {
 
 テーブル:
 
-| テーブル | 主キー | 保存内容 |
-| --- | --- | --- |
-| `profiles` | `owner_key` | `profile_json` |
-| `prompts` | `(owner_key, id)` | `prompt_json` |
+| テーブル   | 主キー            | 保存内容       |
+| ---------- | ----------------- | -------------- |
+| `profiles` | `owner_key`       | `profile_json` |
+| `prompts`  | `(owner_key, id)` | `prompt_json`  |
 | `sessions` | `(owner_key, id)` | `session_json` |
 
 特徴:
@@ -542,16 +577,16 @@ type PracticeSessionRecord = {
 
 ### 7.1 mobile
 
-| 名前 | 用途 | 必須 |
-| --- | --- | --- |
+| 名前                       | 用途                 | 必須 |
+| -------------------------- | -------------------- | ---- |
 | `EXPO_PUBLIC_API_BASE_URL` | API 接続先の明示指定 | 任意 |
 
 ### 7.2 server
 
-| 名前 | 用途 | 必須 |
-| --- | --- | --- |
+| 名前             | 用途                | 必須 |
+| ---------------- | ------------------- | ---- |
 | `GEMINI_API_KEY` | Gemini API 呼び出し | 必須 |
-| `GEMINI_MODEL` | 使用モデル名 | 任意 |
+| `GEMINI_MODEL`   | 使用モデル名        | 任意 |
 
 既定モデルは `gemini-3-flash-preview` です。
 

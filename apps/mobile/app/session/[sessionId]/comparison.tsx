@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { AppShell, Card, SectionTitle } from "../../../src/components/app-shell";
+import {
+  AppShell,
+  Card,
+  SectionTitle,
+} from "../../../src/components/app-shell";
 import { PrimaryButton } from "../../../src/components/primary-button";
 import { getPracticeSession } from "../../../src/lib/storage";
 import { palette } from "../../../src/lib/theme";
@@ -46,7 +50,8 @@ export default function ComparisonScreen() {
             <SectionTitle>スコア差分</SectionTitle>
             {comparison.scoreDiff.map((item) => (
               <Text key={item.axis} style={styles.body}>
-                {item.axis}: {item.before} → {item.after} ({item.diff >= 0 ? "+" : ""}
+                {item.axis}: {item.before} → {item.after} (
+                {item.diff >= 0 ? "+" : ""}
                 {item.diff})
               </Text>
             ))}

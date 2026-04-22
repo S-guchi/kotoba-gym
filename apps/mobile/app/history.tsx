@@ -41,7 +41,8 @@ export default function HistoryScreen() {
           <Card key={session.id}>
             <SectionTitle>{session.prompt.title}</SectionTitle>
             <Text style={styles.meta}>
-              {session.attempts.length}回回答 / 更新 {new Date(session.updatedAt).toLocaleString()}
+              {session.attempts.length}回回答 / 更新{" "}
+              {new Date(session.updatedAt).toLocaleString()}
             </Text>
             <PrimaryButton
               onPress={() =>
@@ -78,4 +79,3 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
-

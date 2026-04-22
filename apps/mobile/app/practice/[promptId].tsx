@@ -20,7 +20,10 @@ import { palette } from "../../src/lib/theme";
 import type { PracticeSessionRecord } from "../../src/shared/practice";
 
 export default function PracticeScreen() {
-  const params = useLocalSearchParams<{ promptId: string; sessionId: string }>();
+  const params = useLocalSearchParams<{
+    promptId: string;
+    sessionId: string;
+  }>();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const [session, setSession] = useState<PracticeSessionRecord | null>(null);
@@ -37,7 +40,9 @@ export default function PracticeScreen() {
     const requested = await AudioModule.requestRecordingPermissionsAsync();
     if (!requested.granted) {
       setPermissionReady(false);
-      setError("マイク権限がないため録音できません。iPhoneの設定から許可してください。");
+      setError(
+        "マイク権限がないため録音できません。iPhoneの設定から許可してください。",
+      );
       Alert.alert(
         "マイク権限が必要です",
         "録音するにはマイクを許可してください。設定アプリから変更できます。",
@@ -168,7 +173,9 @@ export default function PracticeScreen() {
       <Card tone="accent">
         <Text style={styles.promptTitle}>{session.prompt.title}</Text>
         <Text style={styles.promptBody}>{activeSession.prompt.prompt}</Text>
-        <Text style={styles.promptSituation}>{activeSession.prompt.situation}</Text>
+        <Text style={styles.promptSituation}>
+          {activeSession.prompt.situation}
+        </Text>
       </Card>
 
       <Card>

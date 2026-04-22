@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { AppShell, Card, SectionTitle } from "../../../src/components/app-shell";
+import {
+  AppShell,
+  Card,
+  SectionTitle,
+} from "../../../src/components/app-shell";
 import { PrimaryButton } from "../../../src/components/primary-button";
 import { ScoreList } from "../../../src/components/score-list";
 import { getPracticeSession } from "../../../src/lib/storage";
@@ -95,7 +99,9 @@ export default function FeedbackScreen() {
           </Text>
         ))}
         <Text style={styles.exampleLabel}>改善例</Text>
-        <Text style={styles.body}>{latestAttempt.evaluation.exampleAnswer}</Text>
+        <Text style={styles.body}>
+          {latestAttempt.evaluation.exampleAnswer}
+        </Text>
         <Text style={styles.focus}>
           次回の意識点: {latestAttempt.evaluation.nextFocus}
         </Text>
@@ -163,4 +169,3 @@ const styles = StyleSheet.create({
     gap: 10,
   },
 });
-

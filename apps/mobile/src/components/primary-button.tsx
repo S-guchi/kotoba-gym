@@ -70,4 +70,3 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.98 }],
   },
 });
-

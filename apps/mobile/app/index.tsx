@@ -4,9 +4,15 @@ import { router } from "expo-router";
 import { AppShell, Card, SectionTitle } from "../src/components/app-shell";
 import { PrimaryButton } from "../src/components/primary-button";
 import { fetchPrompts } from "../src/lib/api";
-import { createPracticeSession, listPracticeSessions } from "../src/lib/storage";
+import {
+  createPracticeSession,
+  listPracticeSessions,
+} from "../src/lib/storage";
 import { categoryLabels, palette } from "../src/lib/theme";
-import type { PracticePrompt, PracticeSessionRecord } from "../src/shared/practice";
+import type {
+  PracticePrompt,
+  PracticeSessionRecord,
+} from "../src/shared/practice";
 
 export default function HomeScreen() {
   const [prompts, setPrompts] = useState<PracticePrompt[]>([]);
@@ -26,18 +32,23 @@ export default function HomeScreen() {
         setPrompts(promptList);
         setRecentSessions(sessions.slice(0, 3));
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "読み込みに失敗しました。");
+        setError(
+          cause instanceof Error ? cause.message : "読み込みに失敗しました。",
+        );
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  const grouped = prompts.reduce<Record<string, PracticePrompt[]>>((acc, prompt) => {
-    const key = prompt.category;
-    acc[key] = [...(acc[key] ?? []), prompt];
-    return acc;
-  }, {});
+  const grouped = prompts.reduce<Record<string, PracticePrompt[]>>(
+    (acc, prompt) => {
+      const key = prompt.category;
+      acc[key] = [...(acc[key] ?? []), prompt];
+      return acc;
+    },
+    {},
+  );
 
   async function startPractice(prompt: PracticePrompt) {
     const session = await createPracticeSession(prompt);
@@ -83,7 +94,8 @@ export default function HomeScreen() {
             >
               <Text style={styles.historyTitle}>{session.prompt.title}</Text>
               <Text style={styles.historyMeta}>
-                {session.attempts.length}回回答 / {new Date(session.updatedAt).toLocaleString()}
+                {session.attempts.length}回回答 /{" "}
+                {new Date(session.updatedAt).toLocaleString()}
               </Text>
             </Pressable>
           ))}
@@ -177,4 +189,3 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
-

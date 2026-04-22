@@ -36,9 +36,7 @@
 kotoba-gym/
 ├── apps/
 │   ├── mobile/    # Expo app
-│   ├── server/    # Hono API
-│   ├── web/       # 既存検証用。MVPの主経路から外す
-│   └── voice-cli/ # 既存検証用。MVPの主経路から外す
+│   └── server/    # Hono API
 └── packages/
     └── core/      # 共有スキーマ・型・お題定義
 ```
@@ -58,17 +56,15 @@ kotoba-gym/
 
 - `apps/server` は Hono を維持し、MVP向けAPIに整理する。
 - Gemini 呼び出し、評価JSONの検証、比較結果生成を担当する。
-- 既存の `sessions.ts` と `/session` `/reply` `/finalize` は **legacy 扱いで当面残す**。
-- MVP 用には `/v1/*` ルートを横に追加し、mobile は新ルートだけを使う。
-- 既存のセッション中心設計は新MVP経路では使わず、モバイルの画面フローに合わせた request/response 型に寄せる。
+- 提供APIは `/v1/prompts` と `/v1/evaluations` に限定する。
+- モバイルの画面フローに合わせた request/response 型に寄せる。
 
 ### core
 
 - `packages/core` は共有スキーマ中心に再整理する。
 - 共有対象は `お題カテゴリ` `評価軸` `評価レスポンス` `比較レスポンス` `履歴レコード` とする。
-- 既存の `session.ts` `llm/*` `cli.ts` はすぐに壊さず、まず legacy として残す。
-- Node.js 依存の処理やログ保存責務は新規コードでは `apps/server` に寄せる。
-- mobile MVP が安定した段階で、legacy コードを縮退または削除する。
+- Node.js 依存の処理やログ保存責務は `apps/server` に寄せる。
+- `practice.ts` `prompts.ts` と最小 export だけを維持する。
 
 ## API案
 
@@ -117,21 +113,18 @@ kotoba-gym/
   - Zod schema の parse 成功/失敗
   - 評価軸とカテゴリ定義の整合
 - `apps/server`
-  - お題一覧取得
-  - 音声アップロード受付
+  - MIME 判定
+  - multipart 入力 parsing
   - Gemini 失敗時のエラーハンドリング
   - 2回目評価時の比較結果同梱
-  - legacy ルートと `/v1/*` ルートの非干渉
 - `apps/mobile`
-  - 録音権限拒否時の分岐
-  - 録音開始/停止の状態遷移
-  - `.m4a` 録音の送信
+  - API base URL 解決
+  - エラーパース
   - 評価表示から再挑戦、比較、履歴保存までの導線
-  - 再送可能エラー時のリトライUI
+  - session record の保存/更新ロジック
 
 ## 前提
 
 - Expo は Expo Go 前提とする。
 - iPhone で先に成立させ、Android は後続対応とする。
-- `apps/web` と `apps/voice-cli` は削除せず残すが、MVPの主対象にはしない。
 - TTS、リアルタイム字幕、ストリーミング応答はMVP対象外とする。

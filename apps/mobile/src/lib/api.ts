@@ -4,14 +4,13 @@ import type {
   PracticePrompt,
   PreviousAttemptPayload,
 } from "../shared/practice";
-
-interface ApiErrorPayload {
-  error?: {
-    code?: string;
-    message?: string;
-    retryable?: boolean;
-  };
-}
+import {
+  buildEvaluationRequestFields,
+  createAudioUploadDescriptor,
+  type ApiErrorPayload,
+  resolveApiBaseUrl,
+  toMobileApiErrorData,
+} from "./api-helpers";
 
 export class MobileApiError extends Error {
   constructor(
@@ -35,35 +34,23 @@ type ReactNativeAudioFile = Blob & {
   readonly type: string;
 };
 
-function resolveApiBaseUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
-  if (envUrl) {
-    return envUrl;
-  }
-
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const host = hostUri.split(":")[0];
-    return `http://${host}:3000`;
-  }
-
-  return "http://127.0.0.1:3000";
-}
-
-const API_BASE_URL = resolveApiBaseUrl();
+const API_BASE_URL = resolveApiBaseUrl({
+  envUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
+  hostUri: Constants.expoConfig?.hostUri,
+});
 
 async function parseApiError(response: Response): Promise<MobileApiError> {
-  const fallback = new MobileApiError("通信に失敗しました。");
-
   try {
     const payload = (await response.json()) as ApiErrorPayload;
-    return new MobileApiError(
-      payload.error?.message ?? fallback.message,
-      payload.error?.code ?? fallback.code,
-      payload.error?.retryable ?? false,
-    );
+    const error = toMobileApiErrorData(payload);
+    return new MobileApiError(error.message, error.code, error.retryable);
   } catch {
-    return fallback;
+    const fallback = toMobileApiErrorData();
+    return new MobileApiError(
+      fallback.message,
+      fallback.code,
+      fallback.retryable,
+    );
   }
 }
 
@@ -84,22 +71,27 @@ export async function submitEvaluation(params: {
   previousAttemptSummary?: string;
   previousEvaluation?: PreviousAttemptPayload;
 }): Promise<EvaluationResponse> {
+  const fields = buildEvaluationRequestFields({
+    promptId: params.promptId,
+    attemptNumber: params.attemptNumber,
+    previousAttemptSummary: params.previousAttemptSummary,
+    previousEvaluation: params.previousEvaluation,
+  });
   const form = new FormData();
-  form.append("promptId", params.promptId);
-  form.append("attemptNumber", String(params.attemptNumber));
-  form.append("locale", "ja-JP");
-  if (params.previousAttemptSummary) {
-    form.append("previousAttemptSummary", params.previousAttemptSummary);
+  form.append("promptId", fields.promptId);
+  form.append("attemptNumber", fields.attemptNumber);
+  form.append("locale", fields.locale);
+  if (fields.previousAttemptSummary) {
+    form.append("previousAttemptSummary", fields.previousAttemptSummary);
   }
-  if (params.previousEvaluation) {
-    form.append("previousEvaluation", JSON.stringify(params.previousEvaluation));
+  if (fields.previousEvaluation) {
+    form.append("previousEvaluation", fields.previousEvaluation);
   }
 
-  const audioFile = {
-    uri: params.audioUri,
-    name: `attempt-${params.attemptNumber}.m4a`,
-    type: "audio/m4a",
-  } as ReactNativeAudioFile;
+  const audioFile = createAudioUploadDescriptor(
+    params.audioUri,
+    params.attemptNumber,
+  ) as ReactNativeAudioFile;
   console.log("[mobile][evaluation] upload", {
     promptId: params.promptId,
     attemptNumber: params.attemptNumber,

@@ -4,17 +4,17 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev:cli": "pnpm --filter @kotoba-gym/core dev",
     "dev:mobile": "pnpm --filter @kotoba-gym/mobile dev",
     "dev:server": "pnpm --filter @kotoba-gym/server dev",
-    "dev:web": "pnpm --filter @kotoba-gym/web dev",
-    "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint",
-    "format": "pnpm -r format"
+    "build": "pnpm -C packages/core build && pnpm -C apps/server build",
+    "typecheck": "pnpm -C packages/core typecheck && pnpm -C apps/server typecheck && pnpm -C apps/mobile typecheck",
+    "test": "vitest run",
+    "lint": "pnpm -C packages/core lint && pnpm -C apps/server lint && pnpm -C apps/mobile lint && biome check AGENTS.md package.json tsconfig.json pnpm-workspace.yaml vitest.config.ts docs",
+    "format": "biome format --write ."
   },
   "devDependencies": {
     "@biomejs/biome": "^1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

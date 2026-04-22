@@ -3,12 +3,14 @@ import type {
   AttemptEvaluation,
   PracticePrompt,
   PracticeSessionRecord,
-  PreviousAttemptPayload,
 } from "../shared/practice";
+import { PracticeSessionRecordSchema } from "../shared/practice";
 import {
-  PracticeSessionRecordSchema,
-  PreviousAttemptPayloadSchema,
-} from "../shared/practice";
+  createPracticeSessionRecord,
+  createSessionId,
+  sortPracticeSessions,
+  upsertPracticeSessionAttempt,
+} from "./storage-helpers";
 
 const sessionCache = new Map<string, PracticeSessionRecord>();
 
@@ -32,10 +34,6 @@ function sessionFile(sessionId: string) {
   return new File(sessionDirectory(), `${sessionId}.json`);
 }
 
-function createSessionId() {
-  return `session-${Date.now()}-${Math.round(Math.random() * 1_000_000)}`;
-}
-
 async function persistSession(record: PracticeSessionRecord) {
   const file = sessionFile(record.id);
   await file.write(JSON.stringify(record, null, 2));
@@ -46,13 +44,11 @@ export async function createPracticeSession(
   prompt: PracticePrompt,
 ): Promise<PracticeSessionRecord> {
   const now = new Date().toISOString();
-  const record: PracticeSessionRecord = {
+  const record = createPracticeSessionRecord({
     id: createSessionId(),
     prompt,
-    attempts: [],
-    createdAt: now,
-    updatedAt: now,
-  };
+    now,
+  });
 
   await persistSession(record);
   return record;
@@ -87,11 +83,11 @@ export async function listPracticeSessions() {
       ),
   );
 
-  sessions.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  for (const session of sessions) {
+  const sortedSessions = sortPracticeSessions(sessions);
+  for (const session of sortedSessions) {
     sessionCache.set(session.id, session);
   }
-  return sessions;
+  return sortedSessions;
 }
 
 export async function appendAttemptToSession(params: {
@@ -104,37 +100,17 @@ export async function appendAttemptToSession(params: {
     throw new Error("session not found");
   }
 
-  const updated: PracticeSessionRecord = {
-    ...record,
-    attempts: [
-      ...record.attempts.filter(
-        (attempt) => attempt.attemptNumber !== params.attemptNumber,
-      ),
-      {
-        attemptNumber: params.attemptNumber,
-        recordedAt: new Date().toISOString(),
-        evaluation: params.evaluation,
-      },
-    ].sort((left, right) => left.attemptNumber - right.attemptNumber),
-    updatedAt: new Date().toISOString(),
-  };
+  const now = new Date().toISOString();
+  const updated = upsertPracticeSessionAttempt({
+    record,
+    attemptNumber: params.attemptNumber,
+    evaluation: params.evaluation,
+    recordedAt: now,
+    updatedAt: now,
+  });
 
   await persistSession(updated);
   return updated;
 }
 
-export function toPreviousAttemptPayload(
-  attemptNumber: number,
-  evaluation: AttemptEvaluation,
-): PreviousAttemptPayload {
-  return PreviousAttemptPayloadSchema.parse({
-    attemptNumber,
-    transcript: evaluation.transcript,
-    summary: evaluation.summary,
-    scores: evaluation.scores,
-    goodPoints: evaluation.goodPoints,
-    improvementPoints: evaluation.improvementPoints,
-    nextFocus: evaluation.nextFocus,
-  });
-}
-
+export { toPreviousAttemptPayload } from "./storage-helpers";

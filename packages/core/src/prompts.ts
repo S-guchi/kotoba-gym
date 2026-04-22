@@ -49,8 +49,7 @@ export const practicePrompts: PracticePrompt[] = [
     title: "オフライン対応の優先度判断",
     prompt:
       "モバイルアプリでオフライン対応を今やるべきかどうか、設計判断として説明してください。",
-    situation:
-      "相手は PM で、技術よりも優先順位の妥当性を重視しています。",
+    situation: "相手は PM で、技術よりも優先順位の妥当性を重視しています。",
     goals: [
       "前提条件を最初に置く",
       "対象ユーザーへの影響を示す",

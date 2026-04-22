@@ -18,4 +18,3 @@ export const categoryLabels = {
   reporting: "報連相",
   interview: "面接",
 } as const;
-

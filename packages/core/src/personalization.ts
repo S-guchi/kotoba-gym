@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PracticePromptSchema } from "./practice.js";
+import { PersonalizedPracticePromptSchema } from "./practice.js";
 
 export const PersonalizationProfileSchema = z.object({
   role: z.string().min(1),
@@ -9,10 +9,6 @@ export const PersonalizationProfileSchema = z.object({
   techStack: z.array(z.string().min(1)).min(1).max(8),
   techStackText: z.string().trim().max(120).default(""),
   scenarios: z.array(z.string().min(1)).min(1).max(8),
-});
-
-export const PersonalizedPracticePromptSchema = PracticePromptSchema.extend({
-  personalized: z.literal(true),
 });
 
 export const GeneratePersonalizedPromptsRequestSchema =

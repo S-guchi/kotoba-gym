@@ -6,14 +6,16 @@ import { useIsFocused } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatsStrip } from "../../src/components/stats-strip";
 import { Tag } from "../../src/components/tag";
-import { fetchPrompts } from "../../src/lib/api";
 import {
   buildHomeFeed,
   buildResumeProgress,
   isPersonalizedPrompt,
   type HomePrompt,
 } from "../../src/lib/home-screen-helpers";
-import { getPersonalizationProfile } from "../../src/lib/personalization-storage";
+import {
+  getPersonalizationProfile,
+  getPersonalizedPrompts,
+} from "../../src/lib/personalization-storage";
 import { listPracticeSessions } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
@@ -117,6 +119,7 @@ export default function HomeScreen() {
   const [sessions, setSessions] = useState<PracticeSessionRecord[]>([]);
   const [profile, setProfile] = useState<PersonalizationProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!isFocused) {
@@ -125,9 +128,10 @@ export default function HomeScreen() {
 
     void (async () => {
       try {
+        setIsLoading(true);
         const [promptList, sessionList, personalizationProfile] =
           await Promise.all([
-            fetchPrompts(),
+            getPersonalizedPrompts(),
             listPracticeSessions(),
             getPersonalizationProfile(),
           ]);
@@ -140,6 +144,8 @@ export default function HomeScreen() {
         setError(
           cause instanceof Error ? cause.message : "読み込みに失敗しました。",
         );
+      } finally {
+        setIsLoading(false);
       }
     })();
   }, [isFocused]);
@@ -167,6 +173,32 @@ export default function HomeScreen() {
     profile,
   });
   const resumeSession = homeFeed.resumeSession;
+
+  useEffect(() => {
+    if (
+      !isFocused ||
+      isLoading ||
+      error ||
+      !homeFeed.shouldRedirectToOnboarding
+    ) {
+      return;
+    }
+
+    router.replace("/onboarding");
+  }, [
+    error,
+    homeFeed.shouldRedirectToOnboarding,
+    isFocused,
+    isLoading,
+  ]);
+
+  if (isLoading || homeFeed.shouldRedirectToOnboarding) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Text style={styles.loadingText}>読み込み中...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -370,6 +402,13 @@ function createStyles(palette: ThemePalette) {
     safe: {
       flex: 1,
       backgroundColor: palette.background,
+    },
+    loadingText: {
+      marginTop: 40,
+      color: palette.text2,
+      fontFamily: fonts.body,
+      fontSize: 14,
+      textAlign: "center",
     },
     scroll: {
       paddingTop: 8,

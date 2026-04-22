@@ -1,7 +1,4 @@
-import type {
-  PersonalizationProfile,
-  PersonalizedPracticePrompt,
-} from "@kotoba-gym/core";
+import type { PersonalizationProfile } from "@kotoba-gym/core";
 import {
   fetchPersonalizationProfile,
   fetchPrompts,
@@ -21,20 +18,6 @@ export async function savePersonalizationProfile(
 
 export async function getPersonalizedPrompts() {
   return fetchPrompts();
-}
-
-export async function savePersonalizedPrompts(
-  prompts: PersonalizedPracticePrompt[],
-) {
-  return prompts;
-}
-
-export async function clearPersonalizedPrompts() {
-  return;
-}
-
-export async function clearPersonalizationProfile() {
-  return;
 }
 
 export async function resetPersonalization() {

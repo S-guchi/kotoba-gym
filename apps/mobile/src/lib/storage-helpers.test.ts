@@ -1,16 +1,32 @@
 import { describe, expect, test } from "vitest";
-import { getPracticePromptById, scoreAxes } from "@kotoba-gym/core";
-import type { AttemptEvaluation } from "@kotoba-gym/core";
+import { scoreAxes } from "@kotoba-gym/core";
+import type {
+  AttemptEvaluation,
+  PersonalizedPracticePrompt,
+} from "@kotoba-gym/core";
 import {
   createPracticeSessionRecord,
   createSessionId,
-  parseStoredPracticeSession,
   sortPracticeSessions,
   toPreviousAttemptPayload,
   upsertPracticeSessionAttempt,
 } from "./storage-helpers";
 
-const prompt = getPracticePromptById("tech-api-cache");
+const prompt: PersonalizedPracticePrompt = {
+  id: "personalized-1",
+  category: "tech-explanation",
+  title: "API キャッシュ戦略の説明",
+  prompt:
+    "新しく入ったメンバーに、なぜ API レスポンスのキャッシュ戦略を見直したのか説明してください。",
+  situation:
+    "相手はバックエンド経験が浅く、結論先出しで要点を知りたがっています。",
+  goals: [
+    "最初に結論を置く",
+    "現状の問題と改善後の違いを分けて話す",
+  ],
+  durationLabel: "60〜90秒",
+  personalized: true,
+};
 const evaluation: AttemptEvaluation = {
   transcript: "結論から説明します。",
   summary: "簡潔に話せています。",
@@ -148,39 +164,6 @@ describe.each([
       expected,
     );
   });
-});
-
-describe.each([
-  {
-    name: "valid stored session parses",
-    input: createPracticeSessionRecord({
-      id: "session-1",
-      prompt,
-      now: "2026-04-22T00:00:00.000Z",
-    }),
-    expectedId: "session-1",
-  },
-  {
-    name: "invalid stored session returns null",
-    input: {
-      id: "session-legacy",
-      prompt: {
-        ...prompt,
-        durationLabel: undefined,
-      },
-      attempts: [],
-      createdAt: "2026-04-22T00:00:00.000Z",
-      updatedAt: "2026-04-22T00:00:00.000Z",
-    },
-    expectedId: null,
-  },
-])("parseStoredPracticeSession", ({ input, expectedId }) => {
-  test.each([{ label: "storage payload validity is checked safely" }])(
-    "$label",
-    () => {
-      expect(parseStoredPracticeSession(input)?.id ?? null).toBe(expectedId);
-    },
-  );
 });
 
 describe.each([

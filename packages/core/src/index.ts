@@ -5,6 +5,8 @@ export {
   AttemptEvaluationSchema,
   type EvaluationScore,
   EvaluationScoreSchema,
+  type PersonalizedPracticePrompt,
+  PersonalizedPracticePromptSchema,
   type PracticePrompt,
   PracticePromptCategorySchema,
   type PracticePromptCategory,
@@ -28,11 +30,4 @@ export {
   type GeneratePersonalizedPromptsResponse,
   PersonalizationProfileSchema,
   type PersonalizationProfile,
-  PersonalizedPracticePromptSchema,
-  type PersonalizedPracticePrompt,
 } from "./personalization.js";
-export {
-  getPracticePromptById,
-  getPracticePrompts,
-  practicePrompts,
-} from "./prompts.js";

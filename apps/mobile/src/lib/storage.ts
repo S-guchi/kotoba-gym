@@ -1,6 +1,5 @@
 import type {
-  AttemptEvaluation,
-  PracticePrompt,
+  PersonalizedPracticePrompt,
   PracticeSessionRecord,
 } from "@kotoba-gym/core";
 import {
@@ -12,7 +11,7 @@ import {
 const sessionCache = new Map<string, PracticeSessionRecord>();
 
 export async function createPracticeSession(
-  prompt: PracticePrompt,
+  prompt: PersonalizedPracticePrompt,
 ): Promise<PracticeSessionRecord> {
   const session = await createRemotePracticeSession(prompt.id);
   sessionCache.set(session.id, session);
@@ -42,34 +41,7 @@ export async function listPracticeSessions() {
   return sessions;
 }
 
-export async function appendAttemptToSession(params: {
-  sessionId: string;
-  attemptNumber: number;
-  evaluation: AttemptEvaluation;
-}) {
-  const cached = sessionCache.get(params.sessionId);
-  if (cached) {
-    sessionCache.set(params.sessionId, {
-      ...cached,
-      attempts: [
-        ...cached.attempts.filter(
-          (attempt) => attempt.attemptNumber !== params.attemptNumber,
-        ),
-        {
-          attemptNumber: params.attemptNumber,
-          recordedAt: new Date().toISOString(),
-          evaluation: params.evaluation,
-        },
-      ].sort((left, right) => left.attemptNumber - right.attemptNumber),
-    });
-  }
-
-  return getPracticeSession(params.sessionId);
-}
-
 export function cachePracticeSession(session: PracticeSessionRecord) {
   sessionCache.set(session.id, session);
   return session;
 }
-
-export { toPreviousAttemptPayload } from "./storage-helpers";

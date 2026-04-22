@@ -2,6 +2,7 @@ export {
   AttemptComparisonSchema,
   AttemptEvaluationSchema,
   EvaluationScoreSchema,
+  PersonalizedPracticePromptSchema,
   PracticePromptCategorySchema,
   PracticePromptDurationSchema,
   PracticePromptSchema,
@@ -15,6 +16,7 @@ export type {
   AttemptComparison,
   AttemptEvaluation,
   EvaluationScore,
+  PersonalizedPracticePrompt,
   PracticePrompt,
   PracticePromptCategory,
   PracticePromptDuration,
@@ -27,16 +29,9 @@ export {
   GeneratePersonalizedPromptsRequestSchema,
   GeneratePersonalizedPromptsResponseSchema,
   PersonalizationProfileSchema,
-  PersonalizedPracticePromptSchema,
 } from "./personalization.react-native";
 export type {
   GeneratePersonalizedPromptsRequest,
   GeneratePersonalizedPromptsResponse,
   PersonalizationProfile,
-  PersonalizedPracticePrompt,
 } from "./personalization.react-native";
-export {
-  getPracticePromptById,
-  getPracticePrompts,
-  practicePrompts,
-} from "./src/prompts";

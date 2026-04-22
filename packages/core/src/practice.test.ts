@@ -3,11 +3,10 @@ import {
   AttemptEvaluationSchema,
   GeneratePersonalizedPromptsResponseSchema,
   PersonalizationProfileSchema,
+  PersonalizedPracticePromptSchema,
   PracticePromptSchema,
   PracticeSessionRecordSchema,
   PreviousAttemptPayloadSchema,
-  getPracticePromptById,
-  practicePrompts,
   scoreAxes,
 } from "./index.js";
 
@@ -27,17 +26,43 @@ const baseEvaluation = {
   nextFocus: "具体例を一つ入れてください。",
   comparison: null,
 };
-const firstPrompt = getPracticePromptById("tech-api-cache");
+const practicePrompt = {
+  id: "prompt-1",
+  category: "tech-explanation" as const,
+  title: "API キャッシュ戦略の説明",
+  prompt:
+    "新しく入ったメンバーに、なぜ API レスポンスのキャッシュ戦略を見直したのか説明してください。",
+  situation:
+    "相手はバックエンド経験が浅く、結論先出しで要点を知りたがっています。",
+  goals: ["最初に結論を置く", "現状の問題と改善後の違いを分けて話す"],
+  durationLabel: "60〜90秒" as const,
+};
+
+const personalizedPrompt = {
+  ...practicePrompt,
+  id: "personalized-1",
+  personalized: true as const,
+};
 
 describe.each(
-  practicePrompts.map((prompt) => ({
+  [practicePrompt].map((prompt) => ({
     name: prompt.id,
     prompt,
   })),
 )("PracticePromptSchema", (entry) => {
   test.each([{ label: "prompt schema parse" }])("$label", () => {
     expect(PracticePromptSchema.parse(entry.prompt)).toEqual(entry.prompt);
-    expect(getPracticePromptById(entry.prompt.id)).toEqual(entry.prompt);
+  });
+});
+
+describe.each([
+  {
+    name: "personalized prompt parses",
+    input: personalizedPrompt,
+  },
+])("PersonalizedPracticePromptSchema", ({ input }) => {
+  test.each([{ label: "personalized prompt schema parse" }])("$label", () => {
+    expect(PersonalizedPracticePromptSchema.parse(input)).toEqual(input);
   });
 });
 
@@ -46,7 +71,7 @@ describe.each([
     name: "attempts over limit",
     input: {
       id: "session-1",
-      prompt: firstPrompt,
+      prompt: personalizedPrompt,
       attempts: [
         {
           attemptNumber: 1,
@@ -129,7 +154,7 @@ describe.each([
     name: "personalized prompts response parses",
     input: {
       prompts: Array.from({ length: 5 }, (_, index) => ({
-        ...firstPrompt,
+        ...personalizedPrompt,
         id: `personalized-${index + 1}`,
         personalized: true as const,
       })),
@@ -144,17 +169,4 @@ describe.each([
       );
     },
   );
-});
-
-describe.each([
-  {
-    name: "unknown prompt id",
-    promptId: "unknown",
-  },
-])("getPracticePromptById", ({ promptId }) => {
-  test.each([{ label: "missing prompt throws" }])("$label", () => {
-    expect(() => getPracticePromptById(promptId)).toThrow(
-      `Practice prompt not found: ${promptId}`,
-    );
-  });
 });

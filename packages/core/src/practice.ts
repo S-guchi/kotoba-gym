@@ -34,6 +34,10 @@ export const PracticePromptSchema = z.object({
   durationLabel: PracticePromptDurationSchema,
 });
 
+export const PersonalizedPracticePromptSchema = PracticePromptSchema.extend({
+  personalized: z.literal(true),
+});
+
 export const EvaluationScoreSchema = z.object({
   axis: ScoreAxisSchema,
   score: z.number().int().min(1).max(5),
@@ -84,7 +88,7 @@ export const PracticeSessionAttemptSchema = z.object({
 
 export const PracticeSessionRecordSchema = z.object({
   id: z.string(),
-  prompt: PracticePromptSchema,
+  prompt: PersonalizedPracticePromptSchema,
   attempts: z.array(PracticeSessionAttemptSchema).max(2),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -98,6 +102,9 @@ export type PracticePromptDuration = z.infer<
   typeof PracticePromptDurationSchema
 >;
 export type PracticePrompt = z.infer<typeof PracticePromptSchema>;
+export type PersonalizedPracticePrompt = z.infer<
+  typeof PersonalizedPracticePromptSchema
+>;
 export type EvaluationScore = z.infer<typeof EvaluationScoreSchema>;
 export type AttemptComparison = z.infer<typeof AttemptComparisonSchema>;
 export type AttemptEvaluation = z.infer<typeof AttemptEvaluationSchema>;

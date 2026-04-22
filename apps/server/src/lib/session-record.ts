@@ -1,6 +1,6 @@
 import type {
   AttemptEvaluation,
-  PracticePrompt,
+  PersonalizedPracticePrompt,
   PracticeSessionRecord,
   PreviousAttemptPayload,
 } from "@kotoba-gym/core";
@@ -12,7 +12,7 @@ export function createSessionId(now = Date.now(), randomValue = Math.random()) {
 
 export function createPracticeSessionRecord(params: {
   id: string;
-  prompt: PracticePrompt;
+  prompt: PersonalizedPracticePrompt;
   now: string;
 }): PracticeSessionRecord {
   return {

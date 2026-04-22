@@ -50,6 +50,10 @@ export function buildHomeFeed(params: {
     candidatePrompts,
     resumeSession: getResumeSession(params.sessions),
     showOnboardingCta: params.prompts.length === 0,
+    shouldRedirectToOnboarding:
+      !params.profile &&
+      params.prompts.length === 0 &&
+      params.sessions.length === 0,
     profileHighlights: buildProfileHighlights(params.profile),
     heroSectionLabel:
       params.profile && params.prompts.length > 0

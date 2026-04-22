@@ -1,8 +1,7 @@
 import {
   PreviousAttemptPayloadSchema,
-  PracticeSessionRecordSchema,
   type AttemptEvaluation,
-  type PracticePrompt,
+  type PersonalizedPracticePrompt,
   type PracticeSessionRecord,
   type PreviousAttemptPayload,
 } from "@kotoba-gym/core";
@@ -13,7 +12,7 @@ export function createSessionId(now = Date.now(), randomValue = Math.random()) {
 
 export function createPracticeSessionRecord(params: {
   id: string;
-  prompt: PracticePrompt;
+  prompt: PersonalizedPracticePrompt;
   now: string;
 }): PracticeSessionRecord {
   return {
@@ -52,16 +51,6 @@ export function sortPracticeSessions(sessions: PracticeSessionRecord[]) {
   return [...sessions].sort((left, right) =>
     right.updatedAt.localeCompare(left.updatedAt),
   );
-}
-
-export function parseStoredPracticeSession(
-  input: unknown,
-): PracticeSessionRecord | null {
-  const parsed = PracticeSessionRecordSchema.safeParse(input);
-  if (!parsed.success) {
-    return null;
-  }
-  return parsed.data;
 }
 
 export function toPreviousAttemptPayload(

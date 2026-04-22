@@ -4,7 +4,7 @@
 
 - MVP は `apps/mobile` を新設し、**Expo Managed workflow / Expo Go / iPhone優先** で構築する。
 - API は既存の `apps/server` を継続利用し、**Hono** をサーバーのエントリポイントとして残す。
-- 履歴保存は端末ローカルのみとし、認証とサーバーDBはMVPでは扱わない。
+- 履歴・プロフィール・個人化お題はサーバー保存とし、認証はMVPでは扱わない。
 - Gemini の利用モデルは `GEMINI_MODEL=gemini-3-flash-preview` を前提とする。
 - 比較結果は別エンドポイントに切り出さず、**2回目の評価レスポンスに同梱**する。
 
@@ -50,13 +50,13 @@ kotoba-gym/
 - 録音は Expo の現行推奨に合わせて `expo-audio` を使う。
 - iPhone 向けの録音設定は **高品質 `.m4a` / AAC** を明示し、Gemini にそのまま渡せる形式で固定する。
 - 録音後、音声ファイルを Hono API に送信し、まとめて評価結果を受け取る。
-- 履歴は `expo-file-system` に JSON として保存し、インデックスだけを軽く保持する。音声ファイル自体は保持しない。
+- mobile は `ownerKey` とメモリキャッシュのみを持ち、履歴本体はサーバー保存に寄せる。
 
 ### server
 
 - `apps/server` は Hono を維持し、MVP向けAPIに整理する。
 - Gemini 呼び出し、評価JSONの検証、比較結果生成を担当する。
-- 提供APIは `/v1/prompts` と `/v1/evaluations` に限定する。
+- 提供APIは `/v1/profile`, `/v1/prompts`, `/v1/personalized-prompts`, `/v1/sessions`, `/v1/evaluations` を中心に構成する。
 - モバイルの画面フローに合わせた request/response 型に寄せる。
 
 ### core
@@ -64,13 +64,13 @@ kotoba-gym/
 - `packages/core` は共有スキーマ中心に再整理する。
 - 共有対象は `お題カテゴリ` `評価軸` `評価レスポンス` `比較レスポンス` `履歴レコード` とする。
 - Node.js 依存の処理やログ保存責務は `apps/server` に寄せる。
-- `practice.ts` `prompts.ts` と最小 export だけを維持する。
+- `practice.ts` と個人化お題・プロフィールの共有 contract を維持する。
 
 ## API案
 
 ### `GET /v1/prompts`
 
-- カテゴリ別お題一覧を返す。
+- 保存済みの個人化お題一覧を返す。
 
 ### `POST /v1/evaluations`
 
@@ -95,10 +95,10 @@ kotoba-gym/
 
 ## 保存方針
 
-- 履歴本体は `expo-file-system` 配下に 1 セッション 1 JSON ファイルで保存する。
-- 一覧表示用の軽いインデックスだけを保持する。実装上必要なら `AsyncStorage` にインデックスを置いてもよいが、本体保存には使わない。
-- 保存するのは `prompt`, `attempts`, `scores`, `feedback`, `comparison`, `createdAt`, `updatedAt` までに絞る。
-- `exampleAnswer` や長文フィードバックは保存対象に含めるが、音声バイナリは保存しない。
+- `profiles`, `prompts`, `sessions` は server / D1 に保存する。
+- mobile は `ownerKey` とセッションのメモリキャッシュのみを保持する。
+- 履歴表示や詳細表示は `GET /v1/sessions` と `GET /v1/sessions/:sessionId` を利用する。
+- 音声バイナリは保存しない。
 
 ## エラー方針
 
@@ -120,8 +120,8 @@ kotoba-gym/
 - `apps/mobile`
   - API base URL 解決
   - エラーパース
-  - 評価表示から再挑戦、比較、履歴保存までの導線
-  - session record の保存/更新ロジック
+  - 評価表示から再挑戦、比較、履歴取得までの導線
+  - 初回起動時のオンボーディング遷移
 
 ## 前提
 

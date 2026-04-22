@@ -23,6 +23,21 @@
 
 個別確認は例として `pnpm -C apps/server typecheck`, `pnpm exec tsc --noEmit` in `apps/mobile` を使います。
 
+## Development Style
+基本は TDD (`探索 → Red → Green → Refactor`) で進めます。  
+ただし UI 全体や外部サービス連携のように直接 TDD しづらい箇所は、まず pure helper を切り出してからテストします。  
+不明瞭な要件や、判断を誤ると手戻りが大きい指示は、実装前に確認します。  
+KPI や達成条件が明示されている作業では、条件を満たすまで検証と修正を繰り返します。
+
+## Design Principles
+- 関心の分離を保つ
+- 状態とロジックを分離する
+- I/O と pure function を分離する
+- 可読性と保守性を優先する
+- API / schema / type などのコントラクトを先に定義する
+- 実装詳細は置き換えやすく保つ
+- 静的に検査できるルールは、プロンプトではなく `Biome` / `ESLint` / `TypeScript` で表現する
+
 ## Coding Style & Naming Conventions
 TypeScript を前提に、インデントは 2 スペースです。フォーマットと import 整理は `Biome` に従ってください。  
 React コンポーネントは `PascalCase`、関数・変数は `camelCase`、ルートや画面ファイルは Expo Router の慣例に合わせます。  

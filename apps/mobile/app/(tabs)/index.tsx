@@ -5,52 +5,237 @@ import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "../../src/components/primary-button";
-import { buildHomeFeed } from "../../src/lib/home-screen-helpers";
-import { listPracticeSessions, listThemes } from "../../src/lib/storage";
-import { useThemePalette } from "../../src/lib/use-theme-palette";
+import { ScoreDonut } from "../../src/components/score-donut";
+import {
+  buildHomeFeed,
+  type HomeFeed,
+} from "../../src/lib/home-screen-helpers";
+import {
+  createPracticeSession,
+  listPracticeSessions,
+  listThemes,
+} from "../../src/lib/storage";
 import { fonts, type ThemePalette } from "../../src/lib/theme";
+import { useThemePalette } from "../../src/lib/use-theme-palette";
 import type { PracticeSessionRecord, ThemeRecord } from "@kotoba-gym/core";
 
-function ThemeCard({
-  theme,
-  onPress,
-  tone = "default",
+type TodayRun = NonNullable<HomeFeed["todaysRun"]>;
+type ThemeRow = HomeFeed["themeRows"][number];
+
+const WEEKDAY_DOT_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+
+function formatWeekDiff(diff: number) {
+  if (diff === 0) {
+    return "±0";
+  }
+
+  return diff > 0 ? `+${diff}` : `${diff}`;
+}
+
+function formatLastPracticed(iso: string | null) {
+  if (!iso) {
+    return "未挑戦";
+  }
+
+  const date = new Date(iso);
+  const today = new Date();
+  const startToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const startDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  );
+  const days = Math.floor(
+    (startToday.getTime() - startDate.getTime()) / 86_400_000,
+  );
+
+  if (days <= 0) {
+    return "今日";
+  }
+  if (days === 1) {
+    return "昨日";
+  }
+
+  return `${days}日前`;
+}
+
+function Header({
+  feed,
+  onHistoryPress,
 }: {
-  theme: ThemeRecord;
+  feed: HomeFeed;
+  onHistoryPress: () => void;
+}) {
+  const palette = useThemePalette();
+  const styles = createStyles(palette);
+
+  return (
+    <View style={styles.header}>
+      <View style={styles.headerCopy}>
+        <Text style={styles.dayLabel}>{feed.header.label}</Text>
+        <Text style={styles.greeting}>{feed.header.greeting}</Text>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        style={styles.historyButton}
+        onPress={onHistoryPress}
+      >
+        <Ionicons name="time-outline" size={18} color={palette.text2} />
+      </Pressable>
+    </View>
+  );
+}
+
+function StreakCard({ feed }: { feed: HomeFeed }) {
+  const palette = useThemePalette();
+  const styles = createStyles(palette);
+
+  return (
+    <View style={styles.streakCard}>
+      <View style={styles.streakMetrics}>
+        <View style={styles.metric}>
+          <Text style={styles.metricLabel}>STREAK</Text>
+          <Text style={styles.metricValue}>
+            {feed.stats.streakDays}
+            <Text style={styles.metricUnit}>日</Text>
+          </Text>
+        </View>
+        <View style={styles.metricDivider} />
+        <View style={styles.metric}>
+          <Text style={styles.metricLabel}>THIS WEEK</Text>
+          <Text style={styles.metricValue}>
+            {feed.stats.weeklySessionCount}
+            <Text style={styles.metricUnit}>本</Text>
+          </Text>
+        </View>
+        <View style={styles.metricDivider} />
+        <View style={styles.metric}>
+          <Text style={styles.metricLabel}>VS LAST</Text>
+          <Text style={styles.metricValue}>
+            {formatWeekDiff(feed.stats.weekOverWeekDiff)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.weekRow}>
+        {feed.stats.practicedWeekdays.map((isPracticed, index) => (
+          <View
+            key={`${WEEKDAY_DOT_LABELS[index]}-${index}`}
+            style={styles.dayDotBox}
+          >
+            <View
+              style={[
+                styles.dayDot,
+                isPracticed ? styles.dayDotActive : styles.dayDotInactive,
+              ]}
+            />
+            <Text style={styles.dayDotLabel}>{WEEKDAY_DOT_LABELS[index]}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.streakCaption}>
+        {feed.stats.daysUntilWeeklyGoal === 0
+          ? "今週は毎日分のリズムを作れています"
+          : `あと${feed.stats.daysUntilWeeklyGoal}日で1週間分のリズム`}
+      </Text>
+    </View>
+  );
+}
+
+function TodayRunCard({
+  run,
+  isStarting,
+  onStart,
+}: {
+  run: TodayRun;
+  isStarting: boolean;
+  onStart: (theme: ThemeRecord) => void;
+}) {
+  const palette = useThemePalette();
+  const styles = createStyles(palette);
+  const challengeText =
+    run.previousScore === null
+      ? "まず1本録って、次回の基準点を作る"
+      : `前回${run.previousScore}点 → ${run.targetScore}点超えを狙う`;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.todayCard,
+        pressed && styles.pressedCard,
+        isStarting && styles.disabledCard,
+      ]}
+      disabled={isStarting}
+      onPress={() => onStart(run.theme)}
+    >
+      <View style={styles.todayHeader}>
+        <View>
+          <Text style={styles.cardEyebrow}>TODAY RUN</Text>
+          <Text numberOfLines={2} style={styles.todayTitle}>
+            {run.theme.title}
+          </Text>
+        </View>
+        <View style={styles.flameBadge}>
+          <Text style={styles.flameText}>🔥</Text>
+        </View>
+      </View>
+
+      <Text style={styles.todayChallenge}>{challengeText}</Text>
+
+      <View style={styles.todayFooter}>
+        <Text numberOfLines={1} style={styles.todayMeta}>
+          {run.theme.persona.name} / {run.theme.durationLabel}
+        </Text>
+        <View style={styles.startPill}>
+          <Text style={styles.startPillText}>
+            {isStarting ? "準備中" : "始める"}
+          </Text>
+          <Ionicons name="mic" size={14} color={palette.background} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function ThemeListRow({
+  row,
+  onPress,
+}: {
+  row: ThemeRow;
   onPress: () => void;
-  tone?: "default" | "featured";
 }) {
   const palette = useThemePalette();
   const styles = createStyles(palette);
 
   return (
     <Pressable
-      style={[
-        styles.themeCard,
-        tone === "featured" && styles.themeCardFeatured,
-      ]}
+      accessibilityRole="button"
+      style={({ pressed }) => [styles.themeRow, pressed && styles.pressedCard]}
       onPress={onPress}
     >
-      <View style={styles.themeTopRow}>
-        <Text style={styles.themeEyebrow}>THEME</Text>
-        <Text style={styles.themeDuration}>{theme.durationLabel}</Text>
+      <View style={styles.scoreBadge}>
+        {row.previousScore === null ? (
+          <Text style={styles.emptyScoreText}>—</Text>
+        ) : (
+          <ScoreDonut score={row.previousScore} size={42} />
+        )}
       </View>
-      <Text style={styles.themeTitle}>{theme.title}</Text>
-      <Text style={styles.themeMeta}>
-        {theme.persona.name}に向けて / {theme.userInput.goal}
-      </Text>
-      <Text style={styles.themeMission}>{theme.mission}</Text>
-      <View style={styles.themePointList}>
-        {theme.talkingPoints.slice(0, 3).map((point) => (
-          <Text key={point} style={styles.themePoint}>
-            ・{point}
-          </Text>
-        ))}
+      <View style={styles.themeRowBody}>
+        <Text numberOfLines={1} style={styles.themeRowTitle}>
+          {row.theme.title}
+        </Text>
+        <Text numberOfLines={1} style={styles.themeRowMeta}>
+          {row.theme.persona.name} / {row.theme.durationLabel} /{" "}
+          {formatLastPracticed(row.lastPracticedAt)}
+        </Text>
       </View>
-      <View style={styles.themeActionRow}>
-        <Text style={styles.themeActionLabel}>テーマを見る</Text>
-        <Ionicons name="arrow-forward" size={16} color={palette.background} />
-      </View>
+      <Ionicons name="chevron-forward" size={18} color={palette.text3} />
     </Pressable>
   );
 }
@@ -63,6 +248,7 @@ export default function HomeScreen() {
   const [sessions, setSessions] = useState<PracticeSessionRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [startingThemeId, setStartingThemeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isFocused) {
@@ -79,6 +265,7 @@ export default function HomeScreen() {
         setThemes(themeList);
         setSessions(sessionList);
         setError(null);
+        setStartingThemeId(null);
       } catch (cause) {
         setError(
           cause instanceof Error ? cause.message : "読み込みに失敗しました。",
@@ -88,6 +275,28 @@ export default function HomeScreen() {
       }
     })();
   }, [isFocused]);
+
+  async function handleStartPractice(theme: ThemeRecord) {
+    if (startingThemeId) {
+      return;
+    }
+
+    try {
+      setStartingThemeId(theme.id);
+      const session = await createPracticeSession(theme);
+      router.push({
+        pathname: "/practice/[themeId]",
+        params: { themeId: theme.id, sessionId: session.id },
+      });
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "セッションを開始できませんでした。",
+      );
+      setStartingThemeId(null);
+    }
+  }
 
   const homeFeed = buildHomeFeed({ themes, sessions });
 
@@ -105,30 +314,10 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroShell}>
-          <View style={styles.heroGlow} />
-          <Text style={styles.eyebrow}>KOTOBA GYM</Text>
-          <Text style={styles.heroTitle}>
-            説明したいことを、そのまま練習に変える。
-          </Text>
-          <Text style={styles.heroBody}>
-            テーマ、相手、目的を入れると、LLM
-            が練習用の骨組みを整えます。同じテーマで何度でも話し直せます。
-          </Text>
-
-          <View style={styles.heroActions}>
-            <PrimaryButton onPress={() => router.push("/theme/new")}>
-              新しいテーマを作る
-            </PrimaryButton>
-            <Pressable
-              style={styles.secondaryAction}
-              onPress={() => router.push("/history")}
-            >
-              <Ionicons name="time-outline" size={16} color={palette.text2} />
-              <Text style={styles.secondaryActionText}>練習履歴を見る</Text>
-            </Pressable>
-          </View>
-        </View>
+        <Header
+          feed={homeFeed}
+          onHistoryPress={() => router.push("/history")}
+        />
 
         {error ? (
           <View style={styles.errorCard}>
@@ -143,49 +332,57 @@ export default function HomeScreen() {
             <Text style={styles.emptyBody}>
               面接の自己紹介、障害報告、設計意図の共有など、いま説明したいことから始められます。
             </Text>
+            <PrimaryButton onPress={() => router.push("/theme/new")}>
+              テーマを作る
+            </PrimaryButton>
           </View>
-        ) : null}
+        ) : (
+          <>
+            <StreakCard feed={homeFeed} />
 
-        {homeFeed.featuredTheme ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>最近作ったテーマ</Text>
-            <ThemeCard
-              theme={homeFeed.featuredTheme}
-              tone="featured"
-              onPress={() =>
-                router.push({
-                  pathname: "/theme/[themeId]",
-                  params: { themeId: homeFeed.featuredTheme?.id ?? "" },
-                })
-              }
-            />
-          </View>
-        ) : null}
+            {homeFeed.todaysRun ? (
+              <TodayRunCard
+                run={homeFeed.todaysRun}
+                isStarting={startingThemeId === homeFeed.todaysRun.theme.id}
+                onStart={handleStartPractice}
+              />
+            ) : null}
 
-        {homeFeed.recentThemes.length > 0 ? (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>ほかのテーマ</Text>
-              <Text style={styles.sectionMeta}>
-                {homeFeed.recentSessionCount} sessions
-              </Text>
-            </View>
-            <View style={styles.themeList}>
-              {homeFeed.recentThemes.map((theme) => (
-                <ThemeCard
-                  key={theme.id}
-                  theme={theme}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/theme/[themeId]",
-                      params: { themeId: theme.id },
-                    })
-                  }
-                />
-              ))}
-            </View>
-          </View>
-        ) : null}
+            {homeFeed.themeRows.length > 0 ? (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionLabel}>THEMES</Text>
+                  <Text style={styles.sectionMeta}>
+                    {homeFeed.sessionCount} sessions
+                  </Text>
+                </View>
+                <View style={styles.themeList}>
+                  {homeFeed.themeRows.map((row) => (
+                    <ThemeListRow
+                      key={row.theme.id}
+                      row={row}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/theme/[themeId]",
+                          params: { themeId: row.theme.id },
+                        })
+                      }
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            <Pressable
+              accessibilityRole="button"
+              style={styles.createThemeButton}
+              onPress={() => router.push("/theme/new")}
+            >
+              <Ionicons name="add" size={18} color={palette.text2} />
+              <Text style={styles.createThemeText}>新しいテーマを作る</Text>
+            </Pressable>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -201,7 +398,7 @@ function createStyles(palette: ThemePalette) {
       paddingHorizontal: 20,
       paddingTop: 16,
       paddingBottom: 32,
-      gap: 18,
+      gap: 16,
     },
     loadingText: {
       fontFamily: fonts.body,
@@ -210,60 +407,37 @@ function createStyles(palette: ThemePalette) {
       textAlign: "center",
       marginTop: 40,
     },
-    heroShell: {
-      position: "relative",
-      overflow: "hidden",
-      backgroundColor: palette.surface,
-      borderRadius: 28,
-      borderWidth: 1,
-      borderColor: palette.border,
-      padding: 24,
-      gap: 14,
-    },
-    heroGlow: {
-      position: "absolute",
-      top: -28,
-      right: -10,
-      width: 140,
-      height: 140,
-      borderRadius: 999,
-      backgroundColor: palette.accentDim,
-    },
-    eyebrow: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 11,
-      letterSpacing: 1.6,
-      color: palette.accentWarm,
-    },
-    heroTitle: {
-      fontFamily: fonts.heading,
-      fontSize: 34,
-      lineHeight: 38,
-      color: palette.text,
-      maxWidth: "90%",
-    },
-    heroBody: {
-      fontFamily: fonts.body,
-      fontSize: 14,
-      lineHeight: 22,
-      color: palette.text2,
-      maxWidth: "92%",
-    },
-    heroActions: {
-      gap: 12,
-      marginTop: 4,
-    },
-    secondaryAction: {
-      alignSelf: "flex-start",
+    header: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 4,
+      justifyContent: "space-between",
+      gap: 16,
     },
-    secondaryActionText: {
-      fontFamily: fonts.bodyMedium,
-      fontSize: 13,
-      color: palette.text2,
+    headerCopy: {
+      flex: 1,
+      gap: 3,
+    },
+    dayLabel: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 11,
+      letterSpacing: 1.2,
+      color: palette.accentWarm,
+    },
+    greeting: {
+      fontFamily: fonts.heading,
+      fontSize: 32,
+      lineHeight: 36,
+      color: palette.text,
+    },
+    historyButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: palette.border,
     },
     errorCard: {
       backgroundColor: palette.dangerDim,
@@ -288,11 +462,11 @@ function createStyles(palette: ThemePalette) {
       borderWidth: 1,
       borderColor: palette.border,
       padding: 20,
-      gap: 8,
+      gap: 12,
     },
     emptyTitle: {
       fontFamily: fonts.heading,
-      fontSize: 26,
+      fontSize: 28,
       color: palette.text,
     },
     emptyBody: {
@@ -301,18 +475,166 @@ function createStyles(palette: ThemePalette) {
       lineHeight: 22,
       color: palette.text2,
     },
-    section: {
+    streakCard: {
+      backgroundColor: palette.surface,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: palette.border,
+      padding: 16,
+      gap: 14,
+    },
+    streakMetrics: {
+      flexDirection: "row",
+      alignItems: "stretch",
       gap: 12,
+    },
+    metric: {
+      flex: 1,
+      gap: 5,
+    },
+    metricDivider: {
+      width: 1,
+      backgroundColor: palette.border,
+    },
+    metricLabel: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 10,
+      letterSpacing: 0.8,
+      color: palette.text3,
+    },
+    metricValue: {
+      fontFamily: fonts.heading,
+      fontSize: 32,
+      lineHeight: 34,
+      color: palette.text,
+    },
+    metricUnit: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 13,
+      color: palette.text2,
+    },
+    weekRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    dayDotBox: {
+      flex: 1,
+      alignItems: "center",
+      gap: 5,
+    },
+    dayDot: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+    },
+    dayDotActive: {
+      backgroundColor: palette.accent,
+    },
+    dayDotInactive: {
+      backgroundColor: palette.surface2,
+      borderWidth: 1,
+      borderColor: palette.border,
+    },
+    dayDotLabel: {
+      fontFamily: fonts.mono,
+      fontSize: 10,
+      color: palette.text3,
+    },
+    streakCaption: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 12,
+      color: palette.text2,
+    },
+    todayCard: {
+      backgroundColor: palette.accent,
+      borderRadius: 24,
+      padding: 18,
+      gap: 16,
+    },
+    pressedCard: {
+      opacity: 0.78,
+    },
+    disabledCard: {
+      opacity: 0.6,
+    },
+    todayHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 14,
+    },
+    cardEyebrow: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 11,
+      letterSpacing: 1.2,
+      color: palette.background,
+      opacity: 0.72,
+    },
+    todayTitle: {
+      marginTop: 5,
+      fontFamily: fonts.heading,
+      fontSize: 30,
+      lineHeight: 33,
+      color: palette.background,
+      maxWidth: 250,
+    },
+    flameBadge: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: palette.white,
+    },
+    flameText: {
+      fontSize: 22,
+    },
+    todayChallenge: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
+      lineHeight: 22,
+      color: palette.background,
+    },
+    todayFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    todayMeta: {
+      flex: 1,
+      fontFamily: fonts.bodyMedium,
+      fontSize: 12,
+      color: palette.background,
+      opacity: 0.74,
+    },
+    startPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: palette.text,
+    },
+    startPillText: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 12,
+      color: palette.background,
+    },
+    section: {
+      gap: 10,
     },
     sectionHeader: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+      paddingHorizontal: 2,
     },
     sectionLabel: {
       fontFamily: fonts.monoMedium,
       fontSize: 11,
-      letterSpacing: 1.4,
+      letterSpacing: 1.3,
       color: palette.text3,
     },
     sectionMeta: {
@@ -321,76 +643,70 @@ function createStyles(palette: ThemePalette) {
       color: palette.text3,
     },
     themeList: {
-      gap: 12,
+      gap: 8,
     },
-    themeCard: {
+    themeRow: {
+      minHeight: 68,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
       backgroundColor: palette.surface,
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 24,
-      padding: 18,
-      gap: 10,
-    },
-    themeCardFeatured: {
-      backgroundColor: palette.surface2,
-      borderColor: palette.border,
-    },
-    themeTopRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    themeEyebrow: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 11,
-      letterSpacing: 1.4,
-      color: palette.text3,
-    },
-    themeDuration: {
-      fontFamily: fonts.mono,
-      fontSize: 11,
-      color: palette.accentWarm,
-    },
-    themeTitle: {
-      fontFamily: fonts.heading,
-      fontSize: 28,
-      lineHeight: 31,
-      color: palette.text,
-    },
-    themeMeta: {
-      fontFamily: fonts.bodyMedium,
-      fontSize: 13,
-      color: palette.text2,
-    },
-    themeMission: {
-      fontFamily: fonts.body,
-      fontSize: 14,
-      lineHeight: 22,
-      color: palette.text2,
-    },
-    themePointList: {
-      gap: 4,
-    },
-    themePoint: {
-      fontFamily: fonts.body,
-      fontSize: 13,
-      color: palette.text,
-    },
-    themeActionRow: {
-      marginTop: 4,
-      alignSelf: "flex-start",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      backgroundColor: palette.accent,
-      borderRadius: 999,
+      borderRadius: 18,
       paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingVertical: 10,
     },
-    themeActionLabel: {
-      fontFamily: fonts.bodyMedium,
+    scoreBadge: {
+      width: 46,
+      height: 46,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    emptyScoreText: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      borderWidth: 1,
+      borderColor: palette.border,
+      textAlign: "center",
+      lineHeight: 40,
+      fontFamily: fonts.monoMedium,
+      fontSize: 16,
+      color: palette.text3,
+      backgroundColor: palette.surface2,
+    },
+    themeRowBody: {
+      flex: 1,
+      gap: 4,
+      minWidth: 0,
+    },
+    themeRowTitle: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
+      color: palette.text,
+    },
+    themeRowMeta: {
+      fontFamily: fonts.body,
       fontSize: 12,
-      color: palette.background,
+      color: palette.text2,
+    },
+    createThemeButton: {
+      minHeight: 52,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderStyle: "dashed",
+      borderColor: palette.borderLight,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: palette.accentDim,
+    },
+    createThemeText: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 14,
+      color: palette.text2,
     },
   });
 }

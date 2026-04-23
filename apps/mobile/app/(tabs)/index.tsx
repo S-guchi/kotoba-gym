@@ -418,8 +418,8 @@ function createStyles(palette: ThemePalette) {
       gap: 10,
     },
     themeCardFeatured: {
-      backgroundColor: palette.black,
-      borderColor: palette.black,
+      backgroundColor: palette.surface2,
+      borderColor: palette.border,
     },
     themeTopRow: {
       flexDirection: "row",

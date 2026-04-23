@@ -189,7 +189,7 @@ function createStyles(palette: ThemePalette) {
       color: palette.text2,
     },
     heroCard: {
-      backgroundColor: palette.black,
+      backgroundColor: palette.surface2,
       borderRadius: 28,
       padding: 24,
       gap: 12,
@@ -204,13 +204,13 @@ function createStyles(palette: ThemePalette) {
       fontFamily: fonts.heading,
       fontSize: 34,
       lineHeight: 38,
-      color: palette.white,
+      color: palette.text,
     },
     body: {
       fontFamily: fonts.body,
       fontSize: 14,
       lineHeight: 22,
-      color: "rgba(255,255,255,0.72)",
+      color: palette.text2,
     },
     formCard: {
       backgroundColor: palette.surface,

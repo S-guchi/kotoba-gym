@@ -142,10 +142,7 @@ export default function ThemeDetailScreen() {
         </View>
 
         {/* Primary CTA */}
-        <PrimaryButton
-          disabled={isStarting}
-          onPress={() => void handleStart()}
-        >
+        <PrimaryButton disabled={isStarting} onPress={() => void handleStart()}>
           {isStarting ? "開始中..." : "このテーマで練習する →"}
         </PrimaryButton>
 
@@ -169,8 +166,7 @@ export default function ThemeDetailScreen() {
                 )}
               </Text>
               <Text numberOfLines={2} style={styles.lastScoreSummary}>
-                {latestSession.evaluation?.summary ??
-                  "評価はまだありません。"}
+                {latestSession.evaluation?.summary ?? "評価はまだありません。"}
               </Text>
             </View>
           </Pressable>
@@ -191,9 +187,7 @@ export default function ThemeDetailScreen() {
             <Text style={styles.briefLabel}>🧑 相手</Text>
             <Text style={styles.briefBody}>
               {theme.persona.description}
-              {theme.audienceSummary
-                ? `\n${theme.audienceSummary}`
-                : ""}
+              {theme.audienceSummary ? `\n${theme.audienceSummary}` : ""}
             </Text>
           </View>
 

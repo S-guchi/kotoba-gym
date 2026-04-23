@@ -37,6 +37,9 @@ import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../../src/lib/theme";
 
 const TOTAL_STEPS = 3;
+const SCREEN_HORIZONTAL_PADDING = 20;
+const CONTEXT_THEME_MAX_LENGTH = 12;
+const STEP_TRANSITION_DURATION_MS = 280;
 
 const initialFormState: ThemeFormState = {
   theme: "",
@@ -48,7 +51,7 @@ export default function NewThemeScreen() {
   const palette = useThemePalette();
   const styles = createStyles(palette);
   const { width } = useWindowDimensions();
-  const stepWidth = Math.max(width - 40, 1);
+  const stepWidth = Math.max(width - SCREEN_HORIZONTAL_PADDING * 2, 1);
   const translateX = useSharedValue(0);
   const [currentStep, setCurrentStep] = useState(0);
   const [form, setForm] = useState(initialFormState);
@@ -69,7 +72,9 @@ export default function NewThemeScreen() {
   const fullValidation = validateThemeForm(form);
 
   useEffect(() => {
-    translateX.value = withTiming(-currentStep * stepWidth, { duration: 280 });
+    translateX.value = withTiming(-currentStep * stepWidth, {
+      duration: STEP_TRANSITION_DURATION_MS,
+    });
   }, [currentStep, stepWidth, translateX]);
 
   useEffect(() => {
@@ -178,151 +183,159 @@ export default function NewThemeScreen() {
 
   const stepFooterLabel = useMemo(() => {
     if (currentStep === 0) {
-      return "相手を選ぶ";
+      return "相手を選ぶ →";
     }
     if (currentStep === 1) {
-      return "目的を入力する";
+      return "目的を入力する →";
     }
-    return isSubmitting ? "テーマを生成中..." : "テーマを作成する";
+    return isSubmitting ? "テーマを生成中..." : "テーマを作成する ✓";
   }, [currentStep, isSubmitting]);
+
+  const truncatedTheme =
+    form.theme.length > CONTEXT_THEME_MAX_LENGTH
+      ? `${form.theme.slice(0, CONTEXT_THEME_MAX_LENGTH)}…`
+      : form.theme;
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* ── 固定ヘッダー ── */}
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <Pressable style={styles.backBtn} onPress={handleBack}>
+            <Ionicons name="chevron-back" size={16} color={palette.text2} />
+            <Text style={styles.backText}>
+              {currentStep === 0 ? "ホーム" : "戻る"}
+            </Text>
+          </Pressable>
+          <Text style={styles.stepCounter}>
+            {currentStep + 1}/{TOTAL_STEPS}
+          </Text>
+        </View>
+        <StepIndicator
+          currentStep={currentStep}
+          onStepPress={goToStep}
+          palette={palette}
+        />
+      </View>
+
+      {/* ── スクロール領域 ── */}
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        style={styles.scrollView}
       >
-        <Pressable style={styles.backBtn} onPress={handleBack}>
-          <Ionicons name="chevron-back" size={18} color={palette.text2} />
-          <Text style={styles.backText}>
-            {currentStep === 0 ? "ホーム" : "前のステップ"}
-          </Text>
-        </Pressable>
-
-        <View style={styles.heroCard}>
-          <Text style={styles.eyebrow}>CREATE THEME</Text>
-          <Text style={styles.title}>3ステップで練習テーマを整える。</Text>
-          <Text style={styles.body}>
-            テーマ、相手、目的を順番に固定します。相手は自由入力ではなくペルソナから選び、練習しやすい密度に揃えます。
-          </Text>
-        </View>
-
-        <View style={styles.wizardCard}>
-          <View style={styles.wizardHeader}>
-            <StepIndicator currentStep={currentStep} palette={palette} />
-          </View>
-
-          <View style={styles.viewport}>
-            <Animated.View
-              style={[
-                styles.track,
-                { width: stepWidth * TOTAL_STEPS },
-                trackStyle,
-              ]}
-            >
-              <View style={[styles.stepPane, { width: stepWidth }]}>
-                <StepTheme
-                  value={form.theme}
-                  error={
-                    revealedErrors.theme
-                      ? themeValidation.errors.theme
-                      : undefined
-                  }
-                  onChangeText={(theme) => {
-                    setForm((current) => ({ ...current, theme }));
-                    setSubmitError(null);
-                  }}
-                  palette={palette}
-                  tips={THEME_TIPS}
-                />
-              </View>
-
-              <View style={[styles.stepPane, { width: stepWidth }]}>
-                <StepPersona
-                  personas={personas}
-                  selectedPersonaId={form.personaId}
-                  error={
-                    revealedErrors.personaId
-                      ? personaValidation.errors.personaId
-                      : undefined
-                  }
-                  isLoading={isLoadingPersonas}
-                  loadError={personasError}
-                  onRetry={() => void loadPersonas()}
-                  onSelect={(personaId) => {
-                    setForm((current) => ({ ...current, personaId }));
-                    setSubmitError(null);
-                  }}
-                  palette={palette}
-                />
-              </View>
-
-              <View style={[styles.stepPane, { width: stepWidth }]}>
-                <StepGoal
-                  value={form.goal}
-                  error={
-                    revealedErrors.goal ? goalValidation.errors.goal : undefined
-                  }
-                  selectedPersona={selectedPersona}
-                  onChangeText={(goal) => {
-                    setForm((current) => ({ ...current, goal }));
-                    setSubmitError(null);
-                  }}
-                  palette={palette}
-                  tips={GOAL_TIPS}
-                />
-              </View>
-            </Animated.View>
-          </View>
-
-          {selectedPersona && currentStep > 0 ? (
-            <View style={styles.selectionRow}>
-              <Text style={styles.selectionLabel}>選択中の相手</Text>
-              <View style={styles.selectionBadge}>
-                <Text style={styles.selectionBadgeText}>
+        {/* 入力済み内容のショートカット */}
+        {currentStep >= 1 && form.theme ? (
+          <View style={styles.contextRow}>
+            <Pressable style={styles.contextPill} onPress={() => goToStep(0)}>
+              <Text style={styles.contextPillLabel}>テーマ</Text>
+              <Text style={styles.contextPillValue} numberOfLines={1}>
+                {truncatedTheme}
+              </Text>
+            </Pressable>
+            {currentStep >= 2 && selectedPersona ? (
+              <Pressable style={styles.contextPill} onPress={() => goToStep(1)}>
+                <Text style={styles.contextPillLabel}>相手</Text>
+                <Text style={styles.contextPillValue}>
                   {selectedPersona.emoji} {selectedPersona.name}
                 </Text>
-              </View>
-            </View>
-          ) : null}
-
-          {submitError ? (
-            <View style={styles.errorCard}>
-              <Text style={styles.errorText}>{submitError}</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.footer}>
-            {currentStep > 0 ? (
-              <PrimaryButton variant="ghost" onPress={handleBack}>
-                戻る
-              </PrimaryButton>
+              </Pressable>
             ) : null}
-            <PrimaryButton
-              disabled={
-                isSubmitting ||
-                (currentStep === 1 && (isLoadingPersonas || !!personasError))
-              }
-              onPress={() =>
-                currentStep === TOTAL_STEPS - 1
-                  ? void handleSubmit()
-                  : handleNext()
-              }
-            >
-              {stepFooterLabel}
-            </PrimaryButton>
           </View>
+        ) : null}
 
-          {isSubmitting ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color={palette.accent} />
-              <Text style={styles.loadingText}>
-                ミッションと構成を整理しています
-              </Text>
+        {/* ステップ切り替え */}
+        <View style={styles.viewport}>
+          <Animated.View
+            style={[
+              styles.track,
+              { width: stepWidth * TOTAL_STEPS },
+              trackStyle,
+            ]}
+          >
+            <View style={[styles.stepPane, { width: stepWidth }]}>
+              <StepTheme
+                value={form.theme}
+                error={
+                  revealedErrors.theme
+                    ? themeValidation.errors.theme
+                    : undefined
+                }
+                onChangeText={(theme) => {
+                  setForm((current) => ({ ...current, theme }));
+                  setSubmitError(null);
+                }}
+                palette={palette}
+                tips={THEME_TIPS}
+              />
             </View>
-          ) : null}
+
+            <View style={[styles.stepPane, { width: stepWidth }]}>
+              <StepPersona
+                personas={personas}
+                selectedPersonaId={form.personaId}
+                error={
+                  revealedErrors.personaId
+                    ? personaValidation.errors.personaId
+                    : undefined
+                }
+                isLoading={isLoadingPersonas}
+                loadError={personasError}
+                onRetry={() => void loadPersonas()}
+                onSelect={(personaId) => {
+                  setForm((current) => ({ ...current, personaId }));
+                  setSubmitError(null);
+                }}
+                palette={palette}
+              />
+            </View>
+
+            <View style={[styles.stepPane, { width: stepWidth }]}>
+              <StepGoal
+                value={form.goal}
+                error={
+                  revealedErrors.goal ? goalValidation.errors.goal : undefined
+                }
+                onChangeText={(goal) => {
+                  setForm((current) => ({ ...current, goal }));
+                  setSubmitError(null);
+                }}
+                palette={palette}
+                tips={GOAL_TIPS}
+              />
+            </View>
+          </Animated.View>
         </View>
+
+        {submitError ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{submitError}</Text>
+          </View>
+        ) : null}
       </ScrollView>
+
+      {/* ── 固定フッター ── */}
+      <View style={styles.footer}>
+        <PrimaryButton
+          disabled={
+            isSubmitting ||
+            (currentStep === 1 && (isLoadingPersonas || !!personasError))
+          }
+          onPress={() =>
+            currentStep === TOTAL_STEPS - 1 ? void handleSubmit() : handleNext()
+          }
+        >
+          {stepFooterLabel}
+        </PrimaryButton>
+        {isSubmitting ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator size="small" color={palette.accent} />
+            <Text style={styles.loadingText}>
+              ミッションと構成を整理しています
+            </Text>
+          </View>
+        ) : null}
+      </View>
     </SafeAreaView>
   );
 }
@@ -333,58 +346,74 @@ function createStyles(palette: ThemePalette) {
       flex: 1,
       backgroundColor: palette.background,
     },
-    scroll: {
-      paddingHorizontal: 20,
-      paddingTop: 18,
-      paddingBottom: 32,
-      gap: 16,
+    /* ── ヘッダー ── */
+    header: {
+      backgroundColor: palette.surface,
+      borderBottomLeftRadius: 20,
+      borderBottomRightRadius: 20,
+      paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+      paddingTop: 8,
+      paddingBottom: 16,
+      gap: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: palette.border,
+    },
+    headerTop: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
     },
     backBtn: {
-      alignSelf: "flex-start",
       flexDirection: "row",
       alignItems: "center",
-      gap: 4,
+      gap: 2,
     },
     backText: {
       fontFamily: fonts.body,
       fontSize: 14,
       color: palette.text2,
     },
-    heroCard: {
-      backgroundColor: palette.surface2,
-      borderRadius: 28,
-      padding: 24,
-      gap: 12,
-    },
-    eyebrow: {
+    stepCounter: {
       fontFamily: fonts.monoMedium,
-      fontSize: 11,
-      letterSpacing: 1.4,
-      color: palette.accentWarm,
-    },
-    title: {
-      fontFamily: fonts.heading,
-      fontSize: 34,
-      lineHeight: 38,
-      color: palette.text,
-    },
-    body: {
-      fontFamily: fonts.body,
-      fontSize: 14,
-      lineHeight: 22,
+      fontSize: 13,
       color: palette.text2,
     },
-    wizardCard: {
-      backgroundColor: palette.surface,
-      borderRadius: 28,
+    /* ── スクロール領域 ── */
+    scrollView: {
+      flex: 1,
+    },
+    scroll: {
+      paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+      paddingTop: 20,
+      paddingBottom: 16,
+      gap: 18,
+    },
+    contextRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    contextPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderRadius: 999,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      backgroundColor: palette.surface2,
       borderWidth: 1,
       borderColor: palette.border,
-      overflow: "hidden",
-      gap: 18,
-      paddingVertical: 20,
     },
-    wizardHeader: {
-      paddingHorizontal: 20,
+    contextPillLabel: {
+      fontFamily: fonts.mono,
+      fontSize: 11,
+      color: palette.text3,
+    },
+    contextPillValue: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 13,
+      color: palette.text,
+      maxWidth: 160,
     },
     viewport: {
       overflow: "hidden",
@@ -393,33 +422,11 @@ function createStyles(palette: ThemePalette) {
       flexDirection: "row",
     },
     stepPane: {
-      paddingHorizontal: 20,
+      paddingRight: 20,
     },
-    selectionRow: {
-      paddingHorizontal: 20,
-      gap: 8,
-    },
-    selectionLabel: {
-      fontFamily: fonts.mono,
-      fontSize: 11,
-      letterSpacing: 0.6,
-      color: palette.text3,
-    },
-    selectionBadge: {
-      alignSelf: "flex-start",
-      borderRadius: 999,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      backgroundColor: palette.accentDim,
-    },
-    selectionBadgeText: {
-      fontFamily: fonts.bodySemiBold,
-      fontSize: 13,
-      color: palette.text,
-    },
+    /* ── エラー表示 ── */
     errorCard: {
-      marginHorizontal: 20,
-      borderRadius: 18,
+      borderRadius: 16,
       backgroundColor: palette.dangerDim,
       paddingHorizontal: 16,
       paddingVertical: 14,
@@ -430,15 +437,20 @@ function createStyles(palette: ThemePalette) {
       lineHeight: 20,
       color: palette.danger,
     },
+    /* ── フッター ── */
     footer: {
-      paddingHorizontal: 20,
-      flexDirection: "row",
-      gap: 12,
+      paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
+      paddingTop: 12,
+      paddingBottom: 8,
+      gap: 10,
+      borderTopWidth: 1,
+      borderTopColor: palette.border,
+      backgroundColor: palette.background,
     },
     loadingRow: {
-      paddingHorizontal: 20,
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "center",
       gap: 10,
     },
     loadingText: {

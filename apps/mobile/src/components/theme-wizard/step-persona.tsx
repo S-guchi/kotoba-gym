@@ -33,10 +33,9 @@ export function StepPersona({
   return (
     <View style={styles.wrapper}>
       <View style={styles.copyBlock}>
-        <Text style={styles.label}>Step 2</Text>
-        <Text style={styles.title}>誰に向けて話すかを選ぶ</Text>
+        <Text style={styles.title}>誰に話す？</Text>
         <Text style={styles.body}>
-          相手を先に固定すると、論点の深さと語彙の強さを揃えやすくなります。
+          相手によって論点の深さと語彙が変わります。
         </Text>
       </View>
 
@@ -78,21 +77,15 @@ export function StepPersona({
 function createStyles(palette: ThemePalette) {
   return StyleSheet.create({
     wrapper: {
-      gap: 20,
+      gap: 18,
     },
     copyBlock: {
-      gap: 10,
-    },
-    label: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 11,
-      color: palette.accentWarm,
-      letterSpacing: 1.2,
+      gap: 6,
     },
     title: {
       fontFamily: fonts.heading,
-      fontSize: 32,
-      lineHeight: 36,
+      fontSize: 26,
+      lineHeight: 32,
       color: palette.text,
     },
     body: {
@@ -102,7 +95,7 @@ function createStyles(palette: ThemePalette) {
       color: palette.text2,
     },
     loadingCard: {
-      borderRadius: 20,
+      borderRadius: 16,
       padding: 18,
       backgroundColor: palette.surface2,
       flexDirection: "row",
@@ -115,7 +108,7 @@ function createStyles(palette: ThemePalette) {
       color: palette.text2,
     },
     errorCard: {
-      borderRadius: 20,
+      borderRadius: 16,
       padding: 18,
       backgroundColor: palette.dangerDim,
       gap: 12,

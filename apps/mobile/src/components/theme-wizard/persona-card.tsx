@@ -24,16 +24,13 @@ export function PersonaCard({
         pressed && styles.cardPressed,
       ]}
     >
-      <View style={styles.header}>
+      <View style={styles.nameRow}>
         <Text style={styles.emoji}>{persona.emoji}</Text>
-        <View style={styles.badge}>
-          <Text style={styles.badgeLabel}>
-            {isSelected ? "SELECTED" : "PERSONA"}
-          </Text>
-        </View>
+        <Text style={styles.name}>{persona.name}</Text>
       </View>
-      <Text style={styles.name}>{persona.name}</Text>
-      <Text style={styles.description}>{persona.description}</Text>
+      <Text style={styles.description} numberOfLines={1}>
+        {persona.description}
+      </Text>
     </Pressable>
   );
 }
@@ -42,12 +39,11 @@ function createStyles(palette: ThemePalette) {
   return StyleSheet.create({
     card: {
       width: "48%",
-      minHeight: 168,
-      borderRadius: 20,
-      padding: 16,
-      gap: 10,
+      borderRadius: 16,
+      padding: 14,
+      gap: 6,
       backgroundColor: palette.surface,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: palette.border,
     },
     cardSelected: {
@@ -57,35 +53,23 @@ function createStyles(palette: ThemePalette) {
     cardPressed: {
       transform: [{ scale: 0.98 }],
     },
-    header: {
+    nameRow: {
       flexDirection: "row",
-      justifyContent: "space-between",
       alignItems: "center",
+      gap: 8,
     },
     emoji: {
-      fontSize: 24,
-    },
-    badge: {
-      borderRadius: 999,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      backgroundColor: palette.background,
-    },
-    badgeLabel: {
-      fontFamily: fonts.mono,
-      fontSize: 9,
-      color: palette.text3,
-      letterSpacing: 0.6,
+      fontSize: 22,
     },
     name: {
       fontFamily: fonts.bodySemiBold,
-      fontSize: 16,
+      fontSize: 15,
       color: palette.text,
     },
     description: {
       fontFamily: fonts.body,
-      fontSize: 13,
-      lineHeight: 19,
+      fontSize: 12,
+      lineHeight: 18,
       color: palette.text2,
     },
   });

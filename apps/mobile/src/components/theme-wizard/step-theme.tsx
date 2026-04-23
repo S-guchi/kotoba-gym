@@ -20,32 +20,28 @@ export function StepTheme({
   return (
     <View style={styles.wrapper}>
       <View style={styles.copyBlock}>
-        <Text style={styles.label}>Step 1</Text>
-        <Text style={styles.title}>何を説明したいかを言葉にする</Text>
-        <Text style={styles.body}>
-          いま整理したいテーマを一文で書いてください。話したい論点が曖昧でも、あとで練習用に整えます。
-        </Text>
+        <Text style={styles.title}>何を練習したい？</Text>
+        <Text style={styles.body}>一文でOK。あとで練習用に整えます。</Text>
       </View>
 
+      <TipChips
+        label="例をタップで使う"
+        tips={tips}
+        onSelect={onChangeText}
+        palette={palette}
+      />
+
       <View style={styles.field}>
-        <Text style={styles.fieldLabel}>テーマ</Text>
         <TextInput
           multiline
           onChangeText={onChangeText}
-          placeholder="例: API キャッシュ戦略を見直した理由"
+          placeholder="例をタップ、または自由に入力"
           placeholderTextColor={palette.text3}
           style={styles.textarea}
           value={value}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
-
-      <TipChips
-        label="TIP"
-        tips={tips}
-        onSelect={onChangeText}
-        palette={palette}
-      />
     </View>
   );
 }
@@ -53,21 +49,15 @@ export function StepTheme({
 function createStyles(palette: ThemePalette) {
   return StyleSheet.create({
     wrapper: {
-      gap: 20,
+      gap: 18,
     },
     copyBlock: {
-      gap: 10,
-    },
-    label: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 11,
-      color: palette.accentWarm,
-      letterSpacing: 1.2,
+      gap: 6,
     },
     title: {
       fontFamily: fonts.heading,
-      fontSize: 32,
-      lineHeight: 36,
+      fontSize: 26,
+      lineHeight: 32,
       color: palette.text,
     },
     body: {
@@ -79,18 +69,13 @@ function createStyles(palette: ThemePalette) {
     field: {
       gap: 8,
     },
-    fieldLabel: {
-      fontFamily: fonts.bodySemiBold,
-      fontSize: 14,
-      color: palette.text,
-    },
     textarea: {
-      minHeight: 140,
-      borderRadius: 22,
+      minHeight: 120,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: palette.border,
       paddingHorizontal: 16,
-      paddingVertical: 16,
+      paddingVertical: 14,
       backgroundColor: palette.background,
       fontFamily: fonts.body,
       fontSize: 15,

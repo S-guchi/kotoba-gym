@@ -247,7 +247,7 @@ export default function HomeScreen() {
   const [themes, setThemes] = useState<ThemeRecord[]>([]);
   const [sessions, setSessions] = useState<PracticeSessionRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [startingThemeId, setStartingThemeId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -255,25 +255,38 @@ export default function HomeScreen() {
       return;
     }
 
+    let isActive = true;
+
     void (async () => {
       try {
-        setIsLoading(true);
         const [themeList, sessionList] = await Promise.all([
           listThemes(),
           listPracticeSessions(),
         ]);
+        if (!isActive) {
+          return;
+        }
         setThemes(themeList);
         setSessions(sessionList);
         setError(null);
         setStartingThemeId(null);
       } catch (cause) {
+        if (!isActive) {
+          return;
+        }
         setError(
           cause instanceof Error ? cause.message : "読み込みに失敗しました。",
         );
       } finally {
-        setIsLoading(false);
+        if (isActive) {
+          setIsInitialLoading(false);
+        }
       }
     })();
+
+    return () => {
+      isActive = false;
+    };
   }, [isFocused]);
 
   async function handleStartPractice(theme: ThemeRecord) {
@@ -300,7 +313,7 @@ export default function HomeScreen() {
 
   const homeFeed = buildHomeFeed({ themes, sessions });
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.loadingText}>読み込み中...</Text>

@@ -7,6 +7,7 @@ import {
   recordingCharacterByState,
   recordingDialogues,
   resolveDialogueState,
+  shouldCleanupRecording,
   shouldShowSubmitButton,
 } from "./recording-screen-helpers";
 
@@ -112,6 +113,31 @@ describe.each([
     "$label",
     () => {
       expect(shouldShowSubmitButton(state, seconds)).toBe(expected);
+    },
+  );
+});
+
+describe.each([
+  {
+    name: "idle skips cleanup",
+    state: "idle" as const,
+    expected: false,
+  },
+  {
+    name: "recording needs cleanup",
+    state: "recording" as const,
+    expected: true,
+  },
+  {
+    name: "paused needs cleanup",
+    state: "paused" as const,
+    expected: true,
+  },
+])("shouldCleanupRecording", ({ state, expected }) => {
+  test.each([{ label: "recording cleanup follows active state" }])(
+    "$label",
+    () => {
+      expect(shouldCleanupRecording(state)).toBe(expected);
     },
   );
 });

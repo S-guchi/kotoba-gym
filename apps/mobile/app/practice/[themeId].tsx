@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
@@ -18,15 +18,11 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { Waveform } from "../../src/components/waveform";
 import {
-  coachProfile,
   formatRecordingDuration,
   getRecordingColorByState,
   recordingCharacterByState,
-  recordingCharacterVariants,
-  recordingDialogues,
-  resolveDialogueState,
+  shouldCleanupRecording,
   shouldShowSubmitButton,
   type RecordingCharacterVariant,
   type RecordingUiState,
@@ -43,28 +39,6 @@ const characterImages: Record<RecordingCharacterVariant, number> = {
   thinking: require("../../assets/images/characters/03_thinking.png"),
   questioning: require("../../assets/images/characters/04_questioning.png"),
 };
-
-function useTypewriterText(text: string, speed: number = 36) {
-  const [displayed, setDisplayed] = useState("");
-
-  useEffect(() => {
-    setDisplayed("");
-    let index = 0;
-
-    const timer = setInterval(() => {
-      index += 1;
-      setDisplayed(text.slice(0, index));
-
-      if (index >= text.length) {
-        clearInterval(timer);
-      }
-    }, speed);
-
-    return () => clearInterval(timer);
-  }, [speed, text]);
-
-  return displayed;
-}
 
 function PulseRing({ color, delay }: { color: string; delay: number }) {
   const scale = useSharedValue(1);
@@ -173,8 +147,13 @@ export default function PracticeScreen() {
   const [seconds, setSeconds] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recordingStateRef = useRef<RecordingUiState>("idle");
+  const isSubmittingRef = useRef(false);
 
-  async function ensureRecordingPermission() {
+  recordingStateRef.current = recordingState;
+  isSubmittingRef.current = isSubmitting;
+
+  const ensureRecordingPermission = useCallback(async () => {
     const current = await AudioModule.getRecordingPermissionsAsync();
     if (current.granted) return true;
 
@@ -187,18 +166,43 @@ export default function PracticeScreen() {
       return false;
     }
     return true;
-  }
+  }, []);
+
+  const resetRecordingUi = useCallback(() => {
+    setRecordingState("idle");
+    setSeconds(0);
+  }, []);
+
+  const stopRecorderSilently = useCallback(async () => {
+    try {
+      await recorder.stop();
+    } catch {
+      // 録音破棄時の stop エラーは無視する
+    }
+  }, [recorder]);
 
   useEffect(() => {
+    let alive = true;
+
     void (async () => {
-      const granted = await ensureRecordingPermission();
-      if (!granted) return;
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-      });
+      try {
+        const granted = await ensureRecordingPermission();
+        if (!granted || !alive) return;
+        await setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
+        });
+      } catch {
+        if (alive) {
+          setSessionError("録音の準備に失敗しました。");
+        }
+      }
     })();
-  }, []);
+
+    return () => {
+      alive = false;
+    };
+  }, [ensureRecordingPermission]);
 
   useEffect(() => {
     let alive = true;
@@ -274,23 +278,20 @@ export default function PracticeScreen() {
     };
   }, [recordingState]);
 
-  const dialogueState = resolveDialogueState(recordingState, isSubmitting);
-  const accentColor =
-    dialogueState === "done"
-      ? palette.accent
-      : getRecordingColorByState(palette)[recordingState];
-  const dialogue = recordingDialogues[dialogueState];
-  const typedDialogue = useTypewriterText(dialogue);
-  const statusLabel =
-    recordingState === "recording"
-      ? "録音中"
-      : recordingState === "paused"
-        ? "一時停止中"
-        : "録音待機中";
+  useEffect(() => {
+    return () => {
+      if (
+        shouldCleanupRecording(recordingStateRef.current) &&
+        !isSubmittingRef.current
+      ) {
+        void stopRecorderSilently();
+      }
+    };
+  }, [stopRecorderSilently]);
+
+  const accentColor = getRecordingColorByState(palette)[recordingState];
   const currentCharacter =
     characterImages[recordingCharacterByState[recordingState]];
-  const questionCharacter =
-    characterImages[recordingCharacterVariants.questioning];
 
   if (isSessionLoading) {
     return (
@@ -394,9 +395,11 @@ export default function PracticeScreen() {
     if (!session || isSubmitting) return;
 
     setIsSubmitting(true);
+    let didStopRecording = false;
 
     try {
       await recorder.stop();
+      didStopRecording = true;
 
       if (!recorder.uri) {
         throw new Error("missing recording uri");
@@ -408,6 +411,7 @@ export default function PracticeScreen() {
         audioUri: recorder.uri,
       });
 
+      resetRecordingUi();
       setIsSubmitting(false);
       router.push({
         pathname: "/session/[sessionId]/analyzing",
@@ -415,7 +419,11 @@ export default function PracticeScreen() {
       });
     } catch {
       setIsSubmitting(false);
-      setRecordingState("paused");
+      if (didStopRecording) {
+        resetRecordingUi();
+      } else {
+        setRecordingState("paused");
+      }
       Alert.alert("録音の送信に失敗しました", "もう一度お試しください。");
     }
   }
@@ -423,16 +431,11 @@ export default function PracticeScreen() {
   async function resetRecording() {
     if (isSubmitting) return;
 
-    try {
-      if (recordingState !== "idle") {
-        await recorder.stop();
-      }
-    } catch {
-      // 録音破棄時の stop エラーは無視する
+    if (shouldCleanupRecording(recordingState)) {
+      await stopRecorderSilently();
     }
 
-    setRecordingState("idle");
-    setSeconds(0);
+    resetRecordingUi();
   }
 
   function handleMicPress() {
@@ -451,58 +454,70 @@ export default function PracticeScreen() {
     resumeRecording();
   }
 
+  async function handleBackPress() {
+    if (isSubmitting) return;
+
+    if (shouldCleanupRecording(recordingState)) {
+      await stopRecorderSilently();
+      resetRecordingUi();
+    }
+
+    router.back();
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.screen}>
         <View style={styles.pageHeader}>
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
+          <Pressable
+            disabled={isSubmitting}
+            style={styles.backBtn}
+            onPress={() => void handleBackPress()}
+          >
             <Ionicons name="chevron-back" size={18} color={palette.text2} />
             <Text style={styles.backText}>戻る</Text>
           </Pressable>
-          <Text style={styles.headerMeta}>{session.theme.durationLabel}</Text>
+          <View style={styles.headerRight}>
+            <Ionicons name="time-outline" size={13} color={palette.text3} />
+            <Text style={styles.headerMeta}>
+              目安 {session.theme.durationLabel}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.heroSection}>
-          <View style={[styles.heroGlow, { backgroundColor: accentColor }]} />
-          <View style={styles.heroShade} />
+        <Text style={styles.themeTitle} numberOfLines={1}>
+          {session.theme.title}
+        </Text>
 
-          <View style={styles.promptPanel}>
-            <Text style={styles.promptLabel}>{"TODAY'S THEME"}</Text>
-            <Text style={styles.promptTitle}>{session.theme.title}</Text>
-            <Text style={styles.promptBody}>{session.theme.mission}</Text>
-
-            <View style={styles.contextCard}>
-              <Text style={styles.contextLabel}>相手</Text>
-              <Text style={styles.contextText}>
-                {session.theme.audienceSummary}
-              </Text>
+        <View style={styles.personaSection}>
+          <View
+            style={[
+              styles.personaCircle,
+              { backgroundColor: palette.accentDim },
+            ]}
+          >
+            <View style={styles.personaAvatarWrap}>
+              <Image
+                contentFit="contain"
+                source={currentCharacter}
+                style={styles.personaAvatar}
+              />
             </View>
-
-            {recordingState === "idle" ? (
-              <View style={styles.expectationCard}>
-                <Image
-                  contentFit="contain"
-                  source={questionCharacter}
-                  style={styles.expectationImage}
-                />
-                <View style={styles.expectationBody}>
-                  <Text style={styles.expectationLabel}>伝えるポイント</Text>
-                  <Text style={styles.expectationText}>
-                    {session.theme.talkingPoints.join(" / ")}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
+            <Text style={styles.personaName}>{session.theme.persona.name}</Text>
+            <Text style={styles.personaDesc}>
+              {session.theme.persona.description}
+            </Text>
           </View>
+        </View>
 
-          <View style={styles.characterStage}>
-            <Image
-              contentFit="contain"
-              source={currentCharacter}
-              style={styles.characterImage}
-            />
-          </View>
+        <View style={styles.missionRow}>
+          <Text style={styles.missionLabel}>目的</Text>
+          <Text style={styles.missionText} numberOfLines={1}>
+            {session.theme.mission}
+          </Text>
+        </View>
 
+        <View style={styles.controlsSection}>
           {recordingState === "recording" && (
             <View style={styles.recBadge}>
               <View style={styles.recDot} />
@@ -511,49 +526,6 @@ export default function PracticeScreen() {
               </Text>
             </View>
           )}
-        </View>
-
-        <View
-          style={[styles.dialogueCard, { borderTopColor: `${accentColor}66` }]}
-        >
-          <View style={[styles.namePlate, { borderColor: `${accentColor}55` }]}>
-            <Text style={[styles.namePlateText, { color: accentColor }]}>
-              {coachProfile.name}
-            </Text>
-            <Text style={[styles.namePlateRole, { color: `${accentColor}cc` }]}>
-              {coachProfile.role}
-            </Text>
-          </View>
-
-          <Text style={styles.dialogueText}>
-            {typedDialogue}
-            {typedDialogue.length < dialogue.length ? (
-              <Text style={[styles.dialogueCursor, { color: accentColor }]}>
-                ▌
-              </Text>
-            ) : null}
-          </Text>
-        </View>
-
-        <View style={styles.controlsSection}>
-          <View style={styles.timerSection}>
-            <Text style={styles.timerText}>
-              {formatRecordingDuration(seconds)}
-            </Text>
-            <Text style={styles.timerLabel}>{statusLabel}</Text>
-          </View>
-
-          <View style={styles.waveformSection}>
-            {recordingState === "recording" ? (
-              <Waveform color={accentColor} isRecording barCount={32} />
-            ) : (
-              <Text style={styles.waveformHint}>
-                {recordingState === "idle"
-                  ? "ボタンを押して録音を開始"
-                  : "もう一度押すと録音を再開"}
-              </Text>
-            )}
-          </View>
 
           <View style={styles.micButtonWrap}>
             {recordingState === "recording" && (
@@ -586,11 +558,15 @@ export default function PracticeScreen() {
             >
               <Ionicons
                 name={recordingState === "recording" ? "square" : "mic"}
-                size={recordingState === "recording" ? 18 : 28}
+                size={recordingState === "recording" ? 22 : 32}
                 color={palette.background}
               />
             </Pressable>
           </View>
+
+          {recordingState === "idle" && (
+            <Text style={styles.micLabel}>話し始める</Text>
+          )}
 
           <View style={styles.actionsRow}>
             {shouldShowSubmitButton(recordingState, seconds) ? (
@@ -656,18 +632,17 @@ function createStyles(palette: ThemePalette) {
       backgroundColor: palette.background,
     },
     pageHeader: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 20,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 16,
       paddingTop: 10,
-      paddingBottom: 16,
-      backgroundColor: palette.background,
+      paddingBottom: 4,
+    },
+    headerRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
     },
     headerMeta: {
       fontFamily: fonts.mono,
@@ -684,126 +659,81 @@ function createStyles(palette: ThemePalette) {
       fontSize: 14,
       color: palette.text2,
     },
-    heroSection: {
-      height: "48%",
-      minHeight: 340,
-      overflow: "hidden",
-      backgroundColor: palette.surface2,
-      paddingTop: 72,
-    },
-    heroGlow: {
-      position: "absolute",
-      top: 86,
-      alignSelf: "center",
-      width: 280,
-      height: 280,
-      borderRadius: 999,
-      opacity: 0.12,
-    },
-    heroShade: {
-      position: "absolute",
-      right: -30,
-      top: 40,
-      width: 240,
-      height: 240,
-      borderRadius: 999,
-      backgroundColor: palette.accentWarmDim,
-    },
-    promptPanel: {
-      width: "58%",
-      paddingHorizontal: 20,
-      zIndex: 2,
-    },
-    promptLabel: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 10,
-      color: palette.accent,
-      letterSpacing: 1.1,
-      marginBottom: 6,
-    },
-    promptTitle: {
-      fontFamily: fonts.heading,
-      fontSize: 28,
+    themeTitle: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 13,
       color: palette.text,
-      lineHeight: 32,
-      marginBottom: 8,
+      paddingHorizontal: 20,
+      paddingBottom: 8,
     },
-    promptBody: {
+    personaSection: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    personaCircle: {
+      width: 220,
+      height: 220,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    personaAvatarWrap: {
+      width: 100,
+      height: 100,
+      borderRadius: 999,
+      backgroundColor: palette.white,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 12,
+      overflow: "hidden",
+    },
+    personaAvatar: {
+      width: 80,
+      height: 80,
+    },
+    personaName: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 16,
+      color: palette.text,
+    },
+    personaDesc: {
       fontFamily: fonts.body,
       fontSize: 13,
       color: palette.text2,
-      lineHeight: 20,
+      marginTop: 2,
     },
-    contextCard: {
-      marginTop: 14,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: 16,
-      backgroundColor: "#ffffffcc",
-      borderWidth: 1,
-      borderColor: palette.borderLight,
-    },
-    contextLabel: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 10,
-      color: palette.accent,
-      letterSpacing: 0.8,
-      marginBottom: 6,
-    },
-    contextText: {
-      fontFamily: fonts.body,
-      fontSize: 12,
-      color: palette.text,
-      lineHeight: 18,
-    },
-    expectationCard: {
-      marginTop: 14,
+    missionRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
-      padding: 12,
-      borderRadius: 16,
-      backgroundColor: palette.surface,
-      borderWidth: 1,
-      borderColor: palette.border,
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderTopWidth: 1,
+      borderTopColor: palette.border,
+      borderBottomWidth: 1,
+      borderBottomColor: palette.border,
+      gap: 12,
     },
-    expectationImage: {
-      width: 52,
-      height: 52,
-    },
-    expectationBody: {
-      flex: 1,
-    },
-    expectationLabel: {
+    missionLabel: {
       fontFamily: fonts.monoMedium,
-      fontSize: 10,
-      color: palette.accentWarm,
-      letterSpacing: 0.8,
-      marginBottom: 4,
+      fontSize: 11,
+      color: palette.text3,
+      letterSpacing: 0.6,
     },
-    expectationText: {
-      fontFamily: fonts.body,
-      fontSize: 12,
+    missionText: {
+      flex: 1,
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 14,
       color: palette.text,
-      lineHeight: 18,
     },
-    characterStage: {
-      position: "absolute",
-      right: -8,
-      bottom: -16,
-      width: "58%",
-      height: "84%",
-      justifyContent: "flex-end",
+    controlsSection: {
+      paddingHorizontal: 24,
+      paddingTop: 24,
+      paddingBottom: 24,
       alignItems: "center",
-    },
-    characterImage: {
-      width: "100%",
-      height: "100%",
+      gap: 8,
     },
     recBadge: {
-      position: "absolute",
-      top: 84,
-      right: 16,
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
@@ -813,6 +743,7 @@ function createStyles(palette: ThemePalette) {
       backgroundColor: palette.dangerDim,
       borderWidth: 1,
       borderColor: palette.danger,
+      marginBottom: 8,
     },
     recDot: {
       width: 7,
@@ -826,93 +757,15 @@ function createStyles(palette: ThemePalette) {
       color: palette.danger,
       letterSpacing: 0.6,
     },
-    dialogueCard: {
-      backgroundColor: palette.surface,
-      borderTopWidth: 1,
-      paddingHorizontal: 18,
-      paddingTop: 14,
-      paddingBottom: 16,
-      minHeight: 116,
-    },
-    namePlate: {
-      flexDirection: "row",
-      alignItems: "center",
-      alignSelf: "flex-start",
-      gap: 8,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: 8,
-      backgroundColor: palette.surface2,
-      borderWidth: 1,
-      marginBottom: 10,
-    },
-    namePlateText: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 11,
-      letterSpacing: 0.5,
-    },
-    namePlateRole: {
-      fontFamily: fonts.mono,
-      fontSize: 9,
-      letterSpacing: 0.5,
-    },
-    dialogueText: {
-      minHeight: 52,
-      fontFamily: fonts.heading,
-      fontSize: 22,
-      lineHeight: 30,
-      color: palette.text,
-      letterSpacing: 0.1,
-    },
-    dialogueCursor: {
-      fontFamily: fonts.heading,
-    },
-    controlsSection: {
-      flex: 1,
-      borderTopWidth: 1,
-      borderTopColor: palette.border,
-      paddingHorizontal: 24,
-      paddingTop: 18,
-      paddingBottom: 24,
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: palette.background,
-    },
-    timerSection: {
-      alignItems: "center",
-    },
-    timerText: {
-      fontFamily: fonts.mono,
-      fontSize: 40,
-      color: palette.text,
-      letterSpacing: -1.2,
-    },
-    timerLabel: {
-      marginTop: 4,
-      fontFamily: fonts.body,
-      fontSize: 12,
-      color: palette.text3,
-    },
-    waveformSection: {
-      minHeight: 40,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    waveformHint: {
-      fontFamily: fonts.mono,
-      fontSize: 11,
-      color: palette.text3,
-      textAlign: "center",
-    },
     micButtonWrap: {
-      width: 112,
-      height: 112,
+      width: 128,
+      height: 128,
       alignItems: "center",
       justifyContent: "center",
     },
     micButton: {
-      width: 74,
-      height: 74,
+      width: 96,
+      height: 96,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
@@ -927,6 +780,12 @@ function createStyles(palette: ThemePalette) {
     },
     micButtonDisabled: {
       opacity: 0.5,
+    },
+    micLabel: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      color: palette.text2,
+      marginTop: 4,
     },
     actionsRow: {
       minHeight: 52,
@@ -976,8 +835,8 @@ function createActionStyles(palette: ThemePalette) {
 const pulseStyles = StyleSheet.create({
   pulseRing: {
     position: "absolute",
-    width: 88,
-    height: 88,
+    width: 110,
+    height: 110,
     borderRadius: 999,
     borderWidth: 2,
   },

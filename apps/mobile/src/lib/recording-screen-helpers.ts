@@ -62,6 +62,10 @@ export function shouldShowSubmitButton(
   return state === "paused" || (state === "recording" && seconds > 2);
 }
 
+export function shouldCleanupRecording(state: RecordingUiState) {
+  return state !== "idle";
+}
+
 export function resolveDialogueState(
   state: RecordingUiState,
   isSubmitting: boolean,

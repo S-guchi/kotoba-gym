@@ -62,6 +62,13 @@ const llmEvaluation: AttemptEvaluation = {
   comparison: null,
 };
 
+const llmEvaluationWithoutGoodPoints: AttemptEvaluation = {
+  ...llmEvaluation,
+  transcript: "[無音]",
+  summary: "音声が確認できませんでした。",
+  goodPoints: [],
+};
+
 interface EvaluationRouteResponse {
   evaluation: AttemptEvaluation;
   session: {
@@ -231,6 +238,40 @@ describe.each([
       }
     },
   );
+});
+
+describe.each([
+  {
+    name: "empty good points from llm are accepted",
+  },
+])("POST /v1/evaluations tolerant flow", () => {
+  test.each([
+    { label: "evaluation result is persisted even when goodPoints is empty" },
+  ])("$label", async () => {
+    mockGenerateParts.mockResolvedValue(
+      JSON.stringify(llmEvaluationWithoutGoodPoints),
+    );
+    const { app, repository } = await createAppWithRepository();
+
+    await repository.saveSession({
+      ownerKey,
+      session: createPracticeSessionRecord({
+        id: "session-1",
+        theme,
+        now: "2026-04-22T00:03:00.000Z",
+      }),
+    });
+
+    const response = await app.request("/v1/evaluations", {
+      method: "POST",
+      body: createEvaluationFormData("session-1", theme.id),
+    });
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as EvaluationRouteResponse;
+    expect(payload.evaluation.goodPoints).toEqual([]);
+    expect(payload.session.evaluation.goodPoints).toEqual([]);
+  });
 });
 
 describe.each([

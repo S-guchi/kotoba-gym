@@ -33,6 +33,13 @@ const baseEvaluation: AttemptEvaluation = {
   comparison: null,
 };
 
+const evaluationWithoutGoodPoints: AttemptEvaluation = {
+  ...baseEvaluation,
+  transcript: "[無音]",
+  summary: "音声が確認できませんでした。",
+  goodPoints: [],
+};
+
 const previousEvaluation: PreviousEvaluationPayload = {
   transcript: "前回の発話",
   summary: "前回の総評",
@@ -127,6 +134,23 @@ describe.each([
       scoreDiff: buildScoreDiff(previousEvaluation.scores, reversedScores),
       improvedPoints: baseEvaluation.goodPoints.slice(0, 2),
       remainingPoints: baseEvaluation.improvementPoints.slice(0, 2),
+      comparisonSummary:
+        "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の練習に反映してください。",
+    },
+  },
+  {
+    name: "retry practice without good points injects default improved point",
+    raw: evaluationWithoutGoodPoints,
+    previous: previousEvaluation,
+    expectedComparison: {
+      scoreDiff: buildScoreDiff(previousEvaluation.scores, reversedScores),
+      improvedPoints: [
+        "今回は改善点を特定できる十分な発話がありませんでした。",
+      ],
+      remainingPoints: evaluationWithoutGoodPoints.improvementPoints.slice(
+        0,
+        2,
+      ),
       comparisonSummary:
         "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の練習に反映してください。",
     },

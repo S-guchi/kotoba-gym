@@ -94,6 +94,20 @@ describe.each([
       updatedAt: "2026-04-22T00:00:00.000Z",
     },
   },
+  {
+    name: "evaluation without good points parses",
+    input: {
+      id: "session-3",
+      theme: themeRecord,
+      evaluation: {
+        ...baseEvaluation,
+        goodPoints: [],
+      },
+      recordedAt: "2026-04-22T00:03:00.000Z",
+      createdAt: "2026-04-22T00:00:00.000Z",
+      updatedAt: "2026-04-22T00:03:00.000Z",
+    },
+  },
 ])("PracticeSessionRecordSchema", ({ input }) => {
   test.each([{ label: "session schema parse succeeds" }])("$label", () => {
     expect(PracticeSessionRecordSchema.parse(input)).toEqual(input);

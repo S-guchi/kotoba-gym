@@ -65,7 +65,7 @@ export const AttemptEvaluationSchema = z.object({
   transcript: z.string(),
   summary: z.string(),
   scores: z.array(EvaluationScoreSchema).length(scoreAxes.length),
-  goodPoints: z.array(z.string()).min(1).max(3),
+  goodPoints: z.array(z.string()).max(3),
   improvementPoints: z.array(z.string()).min(1).max(3),
   exampleAnswer: z.string(),
   nextFocus: z.string(),

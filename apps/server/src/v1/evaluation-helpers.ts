@@ -155,7 +155,7 @@ ${previousSection}
 5. summary は一言総評として2文以内でまとめてください。
 6. scores は5軸すべてを必ず含めてください。score は1から5です。判断材料が不足する場合は低めに評価し、comment で不足理由を明示してください。
 7. goodPoints と improvementPoints は transcript に根拠がある内容だけを書いてください。引用や言い換えはよいですが、transcript に存在しない事実を追加してはいけません。
-8. goodPoints は2個から3個、improvementPoints は2個から3個にしてください。十分な内容がない場合は、「結論がまだ出ていない」「相手に必要な背景が不足している」のように不足自体を指摘してください。
+8. goodPoints は通常2個から3個ですが、十分な内容がなく良かった点を挙げられない場合は 0個でもかまいません。improvementPoints は2個から3個を基本としつつ、最低1個は返してください。十分な内容がない場合は、「結論がまだ出ていない」「相手に必要な背景が不足している」のように不足自体を指摘してください。
 9. exampleAnswer は次回の参考になる短い改善例を1つ返してください。ただし今回の transcript に存在しない過去エピソードを事実として断定してはいけません。
 10. nextFocus は次回の意識点を1文で返してください。
 11. 前回結果がある場合だけ comparison を埋めてください。scoreDiff は全軸を含め、improvedPoints と remainingPoints は各1個から3個にしてください。
@@ -238,12 +238,20 @@ export function withDeterministicComparison(params: {
         }
       : {
           scoreDiff,
-          improvedPoints: params.raw.goodPoints.slice(0, 2),
+          improvedPoints: selectImprovedPoints(params.raw.goodPoints),
           remainingPoints: params.raw.improvementPoints.slice(0, 2),
           comparisonSummary:
             "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の練習に反映してください。",
         },
   };
+}
+
+function selectImprovedPoints(goodPoints: string[]) {
+  if (goodPoints.length > 0) {
+    return goodPoints.slice(0, 2);
+  }
+
+  return ["今回は改善点を特定できる十分な発話がありませんでした。"];
 }
 
 export function inferApiError(error: unknown): ApiError {

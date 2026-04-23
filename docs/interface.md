@@ -47,19 +47,22 @@ type ThemeRecord = {
 
 ### 2.3 PracticeSessionRecord
 
-1 つのテーマに対する録音セッションです。
+1 回の練習を表すセッションです。
 
 ```ts
 type PracticeSessionRecord = {
   id: string;
   theme: ThemeRecord;
-  attempts: PracticeSessionAttempt[];
+  evaluation: AttemptEvaluation | null;
+  recordedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
 ```
 
-`attempts` は最大 2 件です。
+- 1 session = 1 回の録音と評価です
+- 同じテーマを再練習するときは新しい session を作ります
+- 比較は同一テーマの直前の完了済み session と行います
 
 ## 3. モバイル画面ルート
 
@@ -71,7 +74,7 @@ type PracticeSessionRecord = {
 | `/practice/[themeId]`             | 録音画面             | `themeId`, `sessionId`  |
 | `/session/[sessionId]/analyzing`  | 解析待機             | `sessionId`             |
 | `/session/[sessionId]/feedback`   | 評価表示             | `sessionId`             |
-| `/session/[sessionId]/comparison` | 1回目/2回目比較      | `sessionId`             |
+| `/session/[sessionId]/comparison` | 前回 / 今回の比較    | `sessionId`             |
 | `/history`                        | 練習履歴             | なし                    |
 
 ## 4. HTTP API
@@ -171,6 +174,7 @@ type PracticeSessionRecord = {
 | 名前       | 型     | 必須 |
 | ---------- | ------ | ---- |
 | `ownerKey` | string | 必須 |
+| `themeId`  | string | 任意 |
 
 レスポンス:
 
@@ -180,6 +184,8 @@ type PracticeSessionRecord = {
 }
 ```
 
+`themeId` を付けると、そのテーマの session のみ返します。
+
 ### 4.7 `GET /v1/sessions/:sessionId`
 
 クエリ:
@@ -188,24 +194,40 @@ type PracticeSessionRecord = {
 | ---------- | ------ | ---- |
 | `ownerKey` | string | 必須 |
 
+レスポンス:
+
+```json
+{
+  "session": PracticeSessionRecord
+}
+```
+
 ### 4.8 `POST /v1/evaluations`
 
 `multipart/form-data` で送信します。
 
-| フィールド      | 型     | 必須 |
-| --------------- | ------ | ---- |
-| `ownerKey`      | string | 必須 |
-| `sessionId`     | string | 必須 |
-| `themeId`       | string | 必須 |
-| `attemptNumber` | string | 必須 |
-| `locale`        | string | 必須 |
-| `audio`         | file   | 必須 |
+| フィールド | 型     | 必須 |
+| ---------- | ------ | ---- |
+| `ownerKey` | string | 必須 |
+| `sessionId`| string | 必須 |
+| `themeId`  | string | 必須 |
+| `locale`   | string | 必須 |
+| `audio`    | file   | 必須 |
 
 前提:
 
 - `session.theme.id === themeId`
-- `session.attempts.length < 2`
-- `attemptNumber` は次の回答順であること
+- `session.evaluation === null`
+- 比較対象はサーバーが同テーマの直前完了 session から自動選択します
+
+レスポンス:
+
+```json
+{
+  "evaluation": AttemptEvaluation,
+  "session": PracticeSessionRecord
+}
+```
 
 ## 5. 永続化
 
@@ -214,7 +236,7 @@ type PracticeSessionRecord = {
 - `themes`
 - `sessions`
 
-どちらも owner 単位で保持します。
+`sessions` は `theme_id` を持ち、owner 単位かつ theme 単位の検索を行います。
 
 ## 6. モバイル内部 I/F
 
@@ -224,7 +246,7 @@ type PracticeSessionRecord = {
   - `listThemes()`
   - `createPracticeSession(theme)`
   - `getPracticeSession(sessionId)`
-  - `listPracticeSessions()`
+  - `listPracticeSessions(themeId?)`
 
 - `apps/mobile/src/lib/pending-recording-store.ts`
   - 解析待機画面へ渡す一時 payload を `sessionId` 単位で保持します

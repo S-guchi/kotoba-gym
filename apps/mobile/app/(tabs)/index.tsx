@@ -5,10 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "../../src/components/primary-button";
-import {
-  buildHomeFeed,
-  buildResumeProgress,
-} from "../../src/lib/home-screen-helpers";
+import { buildHomeFeed } from "../../src/lib/home-screen-helpers";
 import { listPracticeSessions, listThemes } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../../src/lib/theme";
@@ -93,10 +90,6 @@ export default function HomeScreen() {
   }, [isFocused]);
 
   const homeFeed = buildHomeFeed({ themes, sessions });
-  const resumeSession = homeFeed.resumeSession;
-  const resumeProgress = resumeSession
-    ? buildResumeProgress(resumeSession)
-    : null;
 
   if (isLoading) {
     return (
@@ -142,38 +135,6 @@ export default function HomeScreen() {
             <Text style={styles.errorTitle}>読み込みに失敗しました</Text>
             <Text style={styles.errorBody}>{error}</Text>
           </View>
-        ) : null}
-
-        {resumeSession && resumeProgress ? (
-          <Pressable
-            style={styles.resumeCard}
-            onPress={() =>
-              router.push({
-                pathname: "/practice/[themeId]",
-                params: {
-                  themeId: resumeSession.theme.id,
-                  sessionId: resumeSession.id,
-                },
-              })
-            }
-          >
-            <View style={styles.resumeHeader}>
-              <Text style={styles.resumeEyebrow}>CONTINUE</Text>
-              <Text style={styles.resumeCount}>{resumeProgress.label}</Text>
-            </View>
-            <Text style={styles.resumeTitle}>{resumeSession.theme.title}</Text>
-            <Text style={styles.resumeFocus}>
-              次に意識すること: {resumeProgress.focusText}
-            </Text>
-            <View style={styles.resumeBarTrack}>
-              <View
-                style={[
-                  styles.resumeBarFill,
-                  { width: `${resumeProgress.ratio * 100}%` },
-                ]}
-              />
-            </View>
-          </Pressable>
         ) : null}
 
         {homeFeed.shouldShowEmptyState ? (
@@ -320,53 +281,6 @@ function createStyles(palette: ThemePalette) {
       fontSize: 13,
       lineHeight: 20,
       color: palette.text2,
-    },
-    resumeCard: {
-      backgroundColor: palette.surface2,
-      borderWidth: 1,
-      borderColor: palette.borderLight,
-      borderRadius: 22,
-      padding: 18,
-      gap: 8,
-    },
-    resumeHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    resumeEyebrow: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 11,
-      letterSpacing: 1.4,
-      color: palette.text3,
-    },
-    resumeCount: {
-      fontFamily: fonts.mono,
-      fontSize: 11,
-      color: palette.accent,
-    },
-    resumeTitle: {
-      fontFamily: fonts.bodySemiBold,
-      fontSize: 17,
-      color: palette.text,
-    },
-    resumeFocus: {
-      fontFamily: fonts.body,
-      fontSize: 13,
-      lineHeight: 20,
-      color: palette.text2,
-    },
-    resumeBarTrack: {
-      height: 8,
-      backgroundColor: palette.border,
-      borderRadius: 999,
-      overflow: "hidden",
-      marginTop: 4,
-    },
-    resumeBarFill: {
-      height: "100%",
-      backgroundColor: palette.accent,
-      borderRadius: 999,
     },
     emptyCard: {
       backgroundColor: palette.surface,

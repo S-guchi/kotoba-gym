@@ -44,25 +44,23 @@ export function buildEvaluationRequestFields(params: {
   ownerKey: string;
   sessionId: string;
   themeId: string;
-  attemptNumber: number;
   locale?: string;
 }) {
   return {
     ownerKey: params.ownerKey,
     sessionId: params.sessionId,
     themeId: params.themeId,
-    attemptNumber: String(params.attemptNumber),
     locale: params.locale ?? "ja-JP",
   };
 }
 
 export function createAudioUploadDescriptor(
   audioUri: string,
-  attemptNumber: number,
+  sessionId: string,
 ) {
   return {
     uri: audioUri,
-    name: `attempt-${attemptNumber}.m4a`,
+    name: `${sessionId}.m4a`,
     type: "audio/m4a",
   };
 }

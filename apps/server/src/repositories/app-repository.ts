@@ -23,7 +23,10 @@ export interface AppRepository {
     ownerKey: string;
     themeId: string;
   }): Promise<ThemeRecord | null>;
-  listSessions(ownerKey: string): Promise<PracticeSessionRecord[]>;
+  listSessions(params: {
+    ownerKey: string;
+    themeId?: string;
+  }): Promise<PracticeSessionRecord[]>;
   listThemes(ownerKey: string): Promise<ThemeRecord[]>;
   saveSession(params: {
     ownerKey: string;
@@ -93,13 +96,20 @@ export class D1AppRepository implements AppRepository {
     return parseTheme(row.theme_json);
   }
 
-  async listSessions(ownerKey: string) {
-    const result = await this.db
-      .prepare(
-        "SELECT session_json FROM sessions WHERE owner_key = ? ORDER BY updated_at DESC",
-      )
-      .bind(ownerKey)
-      .all<{ session_json: string }>();
+  async listSessions(params: { ownerKey: string; themeId?: string }) {
+    const result = params.themeId
+      ? await this.db
+          .prepare(
+            "SELECT session_json FROM sessions WHERE owner_key = ? AND theme_id = ? ORDER BY updated_at DESC",
+          )
+          .bind(params.ownerKey, params.themeId)
+          .all<{ session_json: string }>()
+      : await this.db
+          .prepare(
+            "SELECT session_json FROM sessions WHERE owner_key = ? ORDER BY updated_at DESC",
+          )
+          .bind(params.ownerKey)
+          .all<{ session_json: string }>();
 
     return sortPracticeSessions(
       (result.results ?? []).map((row) => parseSession(row.session_json)),
@@ -125,15 +135,17 @@ export class D1AppRepository implements AppRepository {
 
     await this.db
       .prepare(
-        `INSERT INTO sessions (owner_key, id, session_json, updated_at)
-         VALUES (?, ?, ?, ?)
+        `INSERT INTO sessions (owner_key, id, theme_id, session_json, updated_at)
+         VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(owner_key, id) DO UPDATE SET
+           theme_id = excluded.theme_id,
            session_json = excluded.session_json,
            updated_at = excluded.updated_at`,
       )
       .bind(
         params.ownerKey,
         parsed.id,
+        parsed.theme.id,
         JSON.stringify(parsed),
         parsed.updatedAt,
       )
@@ -197,10 +209,13 @@ export class InMemoryAppRepository implements AppRepository {
     return this.themes.get(params.ownerKey)?.get(params.themeId) ?? null;
   }
 
-  async listSessions(ownerKey: string) {
-    return sortPracticeSessions([
-      ...(this.sessions.get(ownerKey)?.values() ?? []),
-    ]);
+  async listSessions(params: { ownerKey: string; themeId?: string }) {
+    const sessions = [...(this.sessions.get(params.ownerKey)?.values() ?? [])];
+    return sortPracticeSessions(
+      params.themeId
+        ? sessions.filter((session) => session.theme.id === params.themeId)
+        : sessions,
+    );
   }
 
   async listThemes(ownerKey: string) {

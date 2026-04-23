@@ -25,7 +25,6 @@ export class MobileApiError extends Error {
 }
 
 interface EvaluationResponse {
-  attemptNumber: number;
   evaluation: AttemptEvaluation;
   session: PracticeSessionRecord;
 }
@@ -139,12 +138,16 @@ export async function fetchPracticeSession(
   }
 }
 
-export async function fetchPracticeSessions(): Promise<
-  PracticeSessionRecord[]
-> {
+export async function fetchPracticeSessions(
+  themeId?: string,
+): Promise<PracticeSessionRecord[]> {
   const ownerKey = await getOwnerKey();
+  const query = new URLSearchParams({ ownerKey });
+  if (themeId) {
+    query.set("themeId", themeId);
+  }
   const payload = await fetchJson<{ sessions: PracticeSessionRecord[] }>(
-    `${API_BASE_URL}/v1/sessions?ownerKey=${encodeURIComponent(ownerKey)}`,
+    `${API_BASE_URL}/v1/sessions?${query.toString()}`,
   );
   return payload.sessions;
 }
@@ -152,7 +155,6 @@ export async function fetchPracticeSessions(): Promise<
 export async function submitEvaluation(params: {
   sessionId: string;
   themeId: string;
-  attemptNumber: number;
   audioUri: string;
 }): Promise<EvaluationResponse> {
   const ownerKey = await getOwnerKey();
@@ -160,22 +162,20 @@ export async function submitEvaluation(params: {
     ownerKey,
     sessionId: params.sessionId,
     themeId: params.themeId,
-    attemptNumber: params.attemptNumber,
   });
   const form = new FormData();
   form.append("ownerKey", fields.ownerKey);
   form.append("sessionId", fields.sessionId);
   form.append("themeId", fields.themeId);
-  form.append("attemptNumber", fields.attemptNumber);
   form.append("locale", fields.locale);
 
   const audioFile = createAudioUploadDescriptor(
     params.audioUri,
-    params.attemptNumber,
+    params.sessionId,
   ) as ReactNativeAudioFile;
   console.log("[mobile][evaluation] upload", {
     themeId: params.themeId,
-    attemptNumber: params.attemptNumber,
+    sessionId: params.sessionId,
     audioUri: params.audioUri,
     fileName: audioFile.name,
     fileType: audioFile.type,

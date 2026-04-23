@@ -69,8 +69,8 @@ export async function getPracticeSession(sessionId: string) {
   return session;
 }
 
-export async function listPracticeSessions() {
-  const sessions = await fetchPracticeSessions();
+export async function listPracticeSessions(themeId?: string) {
+  const sessions = await fetchPracticeSessions(themeId);
   for (const session of sessions) {
     themeCache.set(session.theme.id, session.theme);
     sessionCache.set(session.id, session);

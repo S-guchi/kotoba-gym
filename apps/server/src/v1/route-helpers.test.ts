@@ -48,7 +48,7 @@ describe.each([
 
 describe.each([
   {
-    name: "default locale and attempt number are applied",
+    name: "default locale is applied",
     form: () => {
       const form = new FormData();
       form.append("ownerKey", "owner-1");
@@ -60,7 +60,6 @@ describe.each([
       ownerKey: "owner-1",
       sessionId: "session-1",
       themeId: "theme-1",
-      attemptNumber: 1,
       locale: "ja-JP",
     },
   },
@@ -73,12 +72,12 @@ describe.each([
 describe.each([
   {
     name: "prefer explicit mime type",
-    file: { name: "attempt.m4a", type: "audio/x-m4a" },
+    file: { name: "session.m4a", type: "audio/x-m4a" },
     expected: "audio/m4a",
   },
   {
     name: "infer from file name",
-    file: { name: "attempt.webm", type: "" },
+    file: { name: "session.webm", type: "" },
     expected: "audio/webm",
   },
 ])("resolveAudioMimeType", ({ file, expected }) => {

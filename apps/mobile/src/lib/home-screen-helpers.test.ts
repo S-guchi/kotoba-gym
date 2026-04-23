@@ -1,10 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { PracticeSessionRecord, ThemeRecord } from "@kotoba-gym/core";
-import {
-  buildHomeFeed,
-  buildResumeProgress,
-  getResumeSession,
-} from "./home-screen-helpers";
+import { buildHomeFeed } from "./home-screen-helpers";
 
 const theme: ThemeRecord = {
   id: "theme-1",
@@ -31,89 +27,25 @@ const theme: ThemeRecord = {
   updatedAt: "2026-04-22T00:00:00.000Z",
 };
 
-const resumeSession: PracticeSessionRecord = {
+const session: PracticeSessionRecord = {
   id: "session-1",
   theme,
-  attempts: [
-    {
-      attemptNumber: 1,
-      recordedAt: "2026-04-22T00:00:00.000Z",
-      evaluation: {
-        transcript: "回答です。",
-        summary: "総評です。",
-        scores: [
-          { axis: "conclusion", score: 3, comment: "a" },
-          { axis: "structure", score: 3, comment: "b" },
-          { axis: "specificity", score: 3, comment: "c" },
-          { axis: "technicalValidity", score: 3, comment: "d" },
-          { axis: "brevity", score: 3, comment: "e" },
-        ],
-        goodPoints: ["結論がある"],
-        improvementPoints: ["例が少ない"],
-        exampleAnswer: "改善例です。",
-        nextFocus: "具体例を追加する",
-        comparison: null,
-      },
-    },
-  ],
+  evaluation: null,
+  recordedAt: null,
   createdAt: "2026-04-22T00:00:00.000Z",
   updatedAt: "2026-04-22T00:00:00.000Z",
 };
 
 describe.each([
   {
-    name: "finds first resumable session",
-    sessions: [resumeSession],
-    expected: resumeSession.id,
-  },
-  {
-    name: "returns null when no resumable session exists",
-    sessions: [
-      {
-        ...resumeSession,
-        attempts: [
-          ...resumeSession.attempts,
-          { ...resumeSession.attempts[0], attemptNumber: 2 },
-        ],
-      },
-    ],
-    expected: null,
-  },
-])("getResumeSession", ({ sessions, expected }) => {
-  test.each([{ label: "resume session selection is stable" }])("$label", () => {
-    expect(getResumeSession(sessions)?.id ?? null).toBe(expected);
-  });
-});
-
-describe.each([
-  {
-    name: "resume progress uses existing attempt count",
-    session: resumeSession,
-    expected: {
-      completedAttempts: 1,
-      totalAttempts: 2,
-      ratio: 0.5,
-      label: "1/2 回答済み",
-      focusText: "具体例を追加する",
-    },
-  },
-])("buildResumeProgress", ({ session, expected }) => {
-  test.each([{ label: "resume progress is deterministic" }])("$label", () => {
-    expect(buildResumeProgress(session)).toEqual(expected);
-  });
-});
-
-describe.each([
-  {
     name: "themes and sessions drive home feed",
     input: {
       themes: [theme, { ...theme, id: "theme-2", title: "別テーマ" }],
-      sessions: [resumeSession],
+      sessions: [session],
     },
     expected: {
       featuredThemeId: "theme-1",
       recentThemeIds: ["theme-2"],
-      resumeSessionId: "session-1",
       shouldShowEmptyState: false,
       recentSessionCount: 1,
     },
@@ -127,7 +59,6 @@ describe.each([
     expected: {
       featuredThemeId: null,
       recentThemeIds: [],
-      resumeSessionId: null,
       shouldShowEmptyState: true,
       recentSessionCount: 0,
     },
@@ -140,7 +71,6 @@ describe.each([
       expect({
         featuredThemeId: resolved.featuredTheme?.id ?? null,
         recentThemeIds: resolved.recentThemes.map((item) => item.id),
-        resumeSessionId: resolved.resumeSession?.id ?? null,
         shouldShowEmptyState: resolved.shouldShowEmptyState,
         recentSessionCount: resolved.recentSessionCount,
       }).toEqual(expected);

@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 import type { AttemptEvaluation, ThemeRecord } from "@kotoba-gym/core";
 import {
   createPracticeSessionRecord,
+  setSessionEvaluation,
   sortPracticeSessions,
-  toPreviousAttemptPayload,
-  upsertPracticeSessionAttempt,
+  toPreviousEvaluationPayload,
 } from "./storage-helpers";
 
 const theme: ThemeRecord = {
@@ -51,7 +51,7 @@ const evaluation: AttemptEvaluation = {
 
 describe.each([
   {
-    name: "create session record seeds empty attempts",
+    name: "create session record seeds empty evaluation",
     input: {
       id: "session-1",
       theme,
@@ -60,7 +60,8 @@ describe.each([
     expected: {
       id: "session-1",
       theme,
-      attempts: [],
+      evaluation: null,
+      recordedAt: null,
       createdAt: "2026-04-22T00:00:00.000Z",
       updatedAt: "2026-04-22T00:00:00.000Z",
     },
@@ -73,28 +74,35 @@ describe.each([
 
 describe.each([
   {
-    name: "upsert inserts new attempt",
+    name: "set stores session evaluation",
     input: {
       record: createPracticeSessionRecord({
         id: "session-1",
         theme,
         now: "2026-04-22T00:00:00.000Z",
       }),
-      attemptNumber: 1,
       evaluation,
       recordedAt: "2026-04-22T00:01:00.000Z",
       updatedAt: "2026-04-22T00:01:00.000Z",
     },
-    expectedAttempts: [1],
+    expected: {
+      evaluation,
+      recordedAt: "2026-04-22T00:01:00.000Z",
+      updatedAt: "2026-04-22T00:01:00.000Z",
+    },
   },
-])("upsertPracticeSessionAttempt", ({ input, expectedAttempts }) => {
-  test.each([{ label: "attempt upsert keeps sorted order" }])("$label", () => {
-    expect(
-      upsertPracticeSessionAttempt(input).attempts.map(
-        (attempt) => attempt.attemptNumber,
-      ),
-    ).toEqual(expectedAttempts);
-  });
+])("setSessionEvaluation", ({ input, expected }) => {
+  test.each([{ label: "session evaluation is stored deterministically" }])(
+    "$label",
+    () => {
+      const actual = setSessionEvaluation(input);
+      expect({
+        evaluation: actual.evaluation,
+        recordedAt: actual.recordedAt,
+        updatedAt: actual.updatedAt,
+      }).toEqual(expected);
+    },
+  );
 });
 
 describe.each([
@@ -132,11 +140,9 @@ describe.each([
   {
     name: "previous payload keeps only comparison-safe fields",
     input: {
-      attemptNumber: 1,
       evaluation,
     },
     expected: {
-      attemptNumber: 1,
       transcript: "現在障害が起きています。",
       summary: "要点は伝えられています。",
       scores: evaluation.scores,
@@ -145,13 +151,11 @@ describe.each([
       nextFocus: "影響範囲を数字で示す",
     },
   },
-])("toPreviousAttemptPayload", ({ input, expected }) => {
+])("toPreviousEvaluationPayload", ({ input, expected }) => {
   test.each([{ label: "comparison payload is derived deterministically" }])(
     "$label",
     () => {
-      expect(
-        toPreviousAttemptPayload(input.attemptNumber, input.evaluation),
-      ).toEqual(expected);
+      expect(toPreviousEvaluationPayload(input.evaluation)).toEqual(expected);
     },
   );
 });

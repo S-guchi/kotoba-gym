@@ -18,7 +18,6 @@ const EvaluationFieldsSchema = z.object({
   ownerKey: OwnerKeySchema,
   sessionId: z.string().trim().min(1),
   themeId: z.string().trim().min(1),
-  attemptNumber: z.coerce.number().int().min(1).max(2).default(1),
   locale: z.string().min(2).default("ja-JP"),
 });
 
@@ -52,7 +51,6 @@ export function parseEvaluationFields(form: FormData) {
     ownerKey: form.get("ownerKey"),
     sessionId: form.get("sessionId"),
     themeId: form.get("themeId"),
-    attemptNumber: form.get("attemptNumber") ?? "1",
     locale: form.get("locale") ?? "ja-JP",
   });
 }

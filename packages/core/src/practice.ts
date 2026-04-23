@@ -72,27 +72,20 @@ export const AttemptEvaluationSchema = z.object({
   comparison: AttemptComparisonSchema.nullable().default(null),
 });
 
-export const PreviousAttemptPayloadSchema = AttemptEvaluationSchema.pick({
+export const PreviousEvaluationPayloadSchema = AttemptEvaluationSchema.pick({
   transcript: true,
   summary: true,
   scores: true,
   goodPoints: true,
   improvementPoints: true,
   nextFocus: true,
-}).extend({
-  attemptNumber: z.number().int().min(1),
-});
-
-export const PracticeSessionAttemptSchema = z.object({
-  attemptNumber: z.number().int().min(1),
-  recordedAt: z.string(),
-  evaluation: AttemptEvaluationSchema,
 });
 
 export const PracticeSessionRecordSchema = z.object({
   id: z.string(),
   theme: ThemeRecordSchema,
-  attempts: z.array(PracticeSessionAttemptSchema).max(2),
+  evaluation: AttemptEvaluationSchema.nullable().default(null),
+  recordedAt: z.string().nullable().default(null),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -107,10 +100,7 @@ export type ListThemesResponse = z.infer<typeof ListThemesResponseSchema>;
 export type EvaluationScore = z.infer<typeof EvaluationScoreSchema>;
 export type AttemptComparison = z.infer<typeof AttemptComparisonSchema>;
 export type AttemptEvaluation = z.infer<typeof AttemptEvaluationSchema>;
-export type PreviousAttemptPayload = z.infer<
-  typeof PreviousAttemptPayloadSchema
->;
-export type PracticeSessionAttempt = z.infer<
-  typeof PracticeSessionAttemptSchema
+export type PreviousEvaluationPayload = z.infer<
+  typeof PreviousEvaluationPayloadSchema
 >;
 export type PracticeSessionRecord = z.infer<typeof PracticeSessionRecordSchema>;

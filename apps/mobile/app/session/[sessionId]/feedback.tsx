@@ -7,7 +7,10 @@ import { Collapsible } from "../../../src/components/collapsible";
 import { PrimaryButton } from "../../../src/components/primary-button";
 import { ScoreDonut } from "../../../src/components/score-donut";
 import { ScoreList } from "../../../src/components/score-list";
-import { getPracticeSession } from "../../../src/lib/storage";
+import {
+  createPracticeSession,
+  getPracticeSession,
+} from "../../../src/lib/storage";
 import { useThemePalette } from "../../../src/lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../../../src/lib/theme";
 import type { PracticeSessionRecord } from "@kotoba-gym/core";
@@ -20,6 +23,7 @@ export default function FeedbackScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRestarting, setIsRestarting] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -65,6 +69,29 @@ export default function FeedbackScreen() {
     };
   }, [sessionId]);
 
+  async function handleRetry() {
+    if (!session || isRestarting) {
+      return;
+    }
+
+    setIsRestarting(true);
+
+    try {
+      const nextSession = await createPracticeSession(session.theme);
+      router.replace({
+        pathname: "/practice/[themeId]",
+        params: { themeId: session.theme.id, sessionId: nextSession.id },
+      });
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "新しい練習を開始できませんでした。",
+      );
+      setIsRestarting(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -93,12 +120,11 @@ export default function FeedbackScreen() {
     );
   }
 
-  const latestAttempt = session.attempts.at(-1);
-  if (!latestAttempt) {
+  if (!session.evaluation) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.emptyCenter}>
-          <Text style={styles.loadingText}>まだ回答がありません。</Text>
+          <Text style={styles.loadingText}>まだ評価がありません。</Text>
           <PrimaryButton
             onPress={() =>
               router.replace({
@@ -114,12 +140,11 @@ export default function FeedbackScreen() {
     );
   }
 
-  const canRetry = session.attempts.length === 1;
-  const canCompare = session.attempts.length >= 2;
-  const eval_ = latestAttempt.evaluation;
+  const evaluation = session.evaluation;
+  const canCompare = evaluation.comparison != null;
   const avgScore = Math.round(
-    (eval_.scores.reduce((sum, item) => sum + item.score, 0) /
-      eval_.scores.length) *
+    (evaluation.scores.reduce((sum, item) => sum + item.score, 0) /
+      evaluation.scores.length) *
       20,
   );
 
@@ -130,9 +155,6 @@ export default function FeedbackScreen() {
           <Ionicons name="chevron-back" size={18} color={palette.text2} />
           <Text style={styles.backText}>ホーム</Text>
         </Pressable>
-        <Text style={styles.attemptLabel}>
-          Attempt {latestAttempt.attemptNumber}
-        </Text>
       </View>
 
       <ScrollView
@@ -145,25 +167,25 @@ export default function FeedbackScreen() {
         <View style={styles.overallCard}>
           <ScoreDonut score={avgScore} />
           <View style={styles.overallBody}>
-            <Text style={styles.summaryText}>{eval_.summary}</Text>
+            <Text style={styles.summaryText}>{evaluation.summary}</Text>
             <Text style={styles.missionText}>{session.theme.mission}</Text>
           </View>
         </View>
 
         <Collapsible title="あなたの回答（文字起こし）">
-          <Text style={styles.transcriptText}>{eval_.transcript}</Text>
+          <Text style={styles.transcriptText}>{evaluation.transcript}</Text>
         </Collapsible>
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>5軸スコア</Text>
-          <ScoreList evaluation={eval_} />
+          <ScoreList evaluation={evaluation} />
         </View>
 
         <View style={[styles.card, styles.cardAccent]}>
           <Text style={[styles.sectionLabel, { color: palette.accent }]}>
             良かった点
           </Text>
-          {eval_.goodPoints.map((point) => (
+          {evaluation.goodPoints.map((point) => (
             <View key={point} style={styles.pointRow}>
               <Ionicons name="checkmark" size={14} color={palette.accent} />
               <Text style={styles.pointText}>{point}</Text>
@@ -175,7 +197,7 @@ export default function FeedbackScreen() {
           <Text style={[styles.sectionLabel, { color: palette.danger }]}>
             改善ポイント
           </Text>
-          {eval_.improvementPoints.map((point) => (
+          {evaluation.improvementPoints.map((point) => (
             <View key={point} style={styles.pointRow}>
               <Text style={styles.arrowDanger}>→</Text>
               <Text style={styles.pointText}>{point}</Text>
@@ -185,31 +207,24 @@ export default function FeedbackScreen() {
 
         <Collapsible title="参考になる言い換え例">
           <View style={styles.rewriteBlock}>
-            <Text style={styles.transcriptText}>{eval_.exampleAnswer}</Text>
+            <Text style={styles.transcriptText}>
+              {evaluation.exampleAnswer}
+            </Text>
           </View>
         </Collapsible>
 
         <View style={[styles.card, styles.cardWarm]}>
           <Text style={styles.focusLabel}>次回の意識点</Text>
-          <Text style={styles.focusText}>{eval_.nextFocus}</Text>
+          <Text style={styles.focusText}>{evaluation.nextFocus}</Text>
         </View>
 
         <View style={styles.actions}>
-          {canRetry ? (
-            <PrimaryButton
-              onPress={() =>
-                router.replace({
-                  pathname: "/practice/[themeId]",
-                  params: {
-                    themeId: session.theme.id,
-                    sessionId: session.id,
-                  },
-                })
-              }
-            >
-              もう一度回答する
-            </PrimaryButton>
-          ) : null}
+          <PrimaryButton
+            disabled={isRestarting}
+            onPress={() => void handleRetry()}
+          >
+            {isRestarting ? "開始中..." : "このテーマでもう一度練習する"}
+          </PrimaryButton>
           {canCompare ? (
             <PrimaryButton
               variant="ghost"
@@ -267,9 +282,6 @@ function createStyles(palette: ThemePalette) {
       textAlign: "center",
     },
     pageHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
       paddingHorizontal: 20,
       paddingTop: 10,
       paddingBottom: 6,
@@ -278,51 +290,47 @@ function createStyles(palette: ThemePalette) {
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
+      alignSelf: "flex-start",
     },
     backText: {
       fontFamily: fonts.body,
       fontSize: 14,
       color: palette.text2,
     },
-    attemptLabel: {
-      fontFamily: fonts.mono,
-      fontSize: 11,
-      color: palette.text3,
-    },
     content: {
       paddingHorizontal: 20,
-      paddingBottom: 32,
-      gap: 12,
+      paddingBottom: 28,
+      gap: 14,
     },
     title: {
       fontFamily: fonts.heading,
-      fontSize: 28,
+      fontSize: 30,
       color: palette.text,
     },
     subtitle: {
       fontFamily: fonts.body,
-      fontSize: 13,
-      color: palette.text2,
-      marginTop: -4,
+      fontSize: 14,
+      color: palette.text3,
+      marginTop: -6,
     },
     overallCard: {
       flexDirection: "row",
+      gap: 18,
       alignItems: "center",
-      gap: 14,
       backgroundColor: palette.surface,
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 20,
-      padding: 16,
+      borderRadius: 24,
+      padding: 18,
     },
     overallBody: {
       flex: 1,
-      gap: 6,
+      gap: 8,
     },
     summaryText: {
       fontFamily: fonts.bodySemiBold,
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 16,
+      lineHeight: 24,
       color: palette.text,
     },
     missionText: {
@@ -335,9 +343,18 @@ function createStyles(palette: ThemePalette) {
       backgroundColor: palette.surface,
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 20,
-      padding: 16,
-      gap: 8,
+      borderRadius: 22,
+      padding: 18,
+      gap: 10,
+    },
+    cardAccent: {
+      backgroundColor: palette.accentDim,
+    },
+    cardDanger: {
+      backgroundColor: palette.dangerDim,
+    },
+    cardWarm: {
+      backgroundColor: palette.surface2,
     },
     sectionLabel: {
       fontFamily: fonts.bodySemiBold,
@@ -347,8 +364,8 @@ function createStyles(palette: ThemePalette) {
     transcriptText: {
       fontFamily: fonts.body,
       fontSize: 14,
-      lineHeight: 22,
-      color: palette.text2,
+      lineHeight: 24,
+      color: palette.text,
     },
     pointRow: {
       flexDirection: "row",
@@ -362,40 +379,30 @@ function createStyles(palette: ThemePalette) {
       lineHeight: 22,
       color: palette.text,
     },
-    cardAccent: {
-      backgroundColor: palette.accentDim,
-      borderColor: palette.accentDim,
-    },
-    cardDanger: {
-      backgroundColor: palette.dangerDim,
-      borderColor: palette.dangerDim,
-    },
     arrowDanger: {
       fontFamily: fonts.bodySemiBold,
       fontSize: 14,
       color: palette.danger,
+      marginTop: 1,
     },
     rewriteBlock: {
-      paddingTop: 4,
-    },
-    cardWarm: {
       backgroundColor: palette.surface2,
-      borderColor: palette.borderLight,
+      borderRadius: 18,
+      padding: 14,
     },
     focusLabel: {
       fontFamily: fonts.bodySemiBold,
-      fontSize: 15,
-      color: palette.text,
+      fontSize: 14,
+      color: palette.accentWarm,
     },
     focusText: {
       fontFamily: fonts.body,
-      fontSize: 14,
-      lineHeight: 22,
-      color: palette.text2,
+      fontSize: 15,
+      lineHeight: 24,
+      color: palette.text,
     },
     actions: {
       gap: 10,
-      marginTop: 4,
     },
   });
 }

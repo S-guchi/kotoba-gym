@@ -1,9 +1,23 @@
 import type { AttemptEvaluation, ThemeRecord } from "@kotoba-gym/core";
 import { scoreAxes } from "@kotoba-gym/core";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { createApp } from "../app.js";
-import { createPracticeSessionRecord } from "../lib/session-record.js";
+import {
+  createPracticeSessionRecord,
+  setSessionEvaluation,
+} from "../lib/session-record.js";
 import { InMemoryAppRepository } from "../repositories/app-repository.js";
+
+const { mockGenerateParts } = vi.hoisted(() => ({
+  mockGenerateParts: vi.fn(),
+}));
+
+vi.mock("../lib/gemini-client.js", () => ({
+  createLLMClient: () => ({
+    generate: vi.fn(),
+    generateParts: mockGenerateParts,
+  }),
+}));
 
 const ownerKey = "owner-1";
 
@@ -33,7 +47,7 @@ const theme: ThemeRecord = {
   updatedAt: "2026-04-22T00:00:00.000Z",
 };
 
-const evaluation: AttemptEvaluation = {
+const llmEvaluation: AttemptEvaluation = {
   transcript: "結論から説明します。",
   summary: "結論先出しはできています。",
   scores: scoreAxes.map((axis, index) => ({
@@ -41,52 +55,39 @@ const evaluation: AttemptEvaluation = {
     score: Math.min(index + 1, 5),
     comment: `${axis} comment`,
   })),
-  goodPoints: ["結論がある"],
-  improvementPoints: ["具体例が少ない"],
+  goodPoints: ["結論がある", "短い"],
+  improvementPoints: ["具体例が少ない", "数字がない"],
   exampleAnswer: "結論、背景、効果の順で説明します。",
-  nextFocus: "数字を1つ入れてください。",
+  nextFocus: "数字を一つ入れてください。",
   comparison: null,
 };
 
-function createEvaluationFormData(attemptNumber: number) {
+interface EvaluationRouteResponse {
+  evaluation: AttemptEvaluation;
+  session: {
+    evaluation: AttemptEvaluation;
+  };
+}
+
+function createEvaluationFormData(sessionId: string, themeId: string) {
   const form = new FormData();
   form.append("ownerKey", ownerKey);
-  form.append("sessionId", "session-1");
-  form.append("themeId", theme.id);
-  form.append("attemptNumber", String(attemptNumber));
+  form.append("sessionId", sessionId);
+  form.append("themeId", themeId);
   form.append("locale", "ja-JP");
   form.append(
     "audio",
-    new File(["audio"], "attempt.m4a", { type: "audio/m4a" }),
+    new File(["audio"], "session.m4a", { type: "audio/m4a" }),
   );
   return form;
 }
 
-async function createAppWithSession(attemptCount: number) {
+async function createAppWithRepository() {
   const repository = new InMemoryAppRepository();
 
   await repository.saveTheme({
     ownerKey,
     theme,
-  });
-
-  const session = createPracticeSessionRecord({
-    id: "session-1",
-    theme,
-    now: "2026-04-22T00:00:00.000Z",
-  });
-
-  await repository.saveSession({
-    ownerKey,
-    session: {
-      ...session,
-      attempts: Array.from({ length: attemptCount }, (_, index) => ({
-        attemptNumber: index + 1,
-        recordedAt: `2026-04-22T00:0${index + 1}:00.000Z`,
-        evaluation,
-      })),
-      updatedAt: "2026-04-22T00:10:00.000Z",
-    },
   });
 
   const app = createApp({
@@ -97,43 +98,184 @@ async function createAppWithSession(attemptCount: number) {
     repository,
   });
 
-  return app;
+  return { app, repository };
 }
+
+afterEach(() => {
+  mockGenerateParts.mockReset();
+});
 
 describe.each([
   {
-    name: "attempt number mismatch returns conflict",
-    attemptCount: 1,
-    attemptNumber: 1,
-    expectedStatus: 409,
-    expectedCode: "attempt_number_mismatch",
+    name: "reject already evaluated session",
+  },
+])("POST /v1/evaluations guard checks", () => {
+  test.each([{ label: "request is rejected before evaluation starts" }])(
+    "$label",
+    async () => {
+      const { app, repository } = await createAppWithRepository();
+      const seeded = createPracticeSessionRecord({
+        id: "session-1",
+        theme,
+        now: "2026-04-22T00:00:00.000Z",
+      });
+
+      await repository.saveSession({
+        ownerKey,
+        session: setSessionEvaluation({
+          record: seeded,
+          evaluation: llmEvaluation,
+          recordedAt: "2026-04-22T00:01:00.000Z",
+          updatedAt: "2026-04-22T00:01:00.000Z",
+        }),
+      });
+
+      const response = await app.request("/v1/evaluations", {
+        method: "POST",
+        body: createEvaluationFormData("session-1", theme.id),
+      });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        error: {
+          code: "session_already_evaluated",
+        },
+      });
+      expect(mockGenerateParts).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe.each([
+  {
+    name: "first session has no comparison",
+    previousSession: null,
+    expectedComparison: null,
   },
   {
-    name: "attempt limit is checked before mismatch",
-    attemptCount: 2,
-    attemptNumber: 1,
-    expectedStatus: 400,
-    expectedCode: "attempt_limit_reached",
+    name: "later session compares against latest completed session",
+    previousSession: {
+      id: "session-0",
+      createdAt: "2026-04-22T00:00:00.000Z",
+      updatedAt: "2026-04-22T00:02:00.000Z",
+      recordedAt: "2026-04-22T00:02:00.000Z",
+    },
+    expectedComparisonShape: {
+      scoreDiffLength: scoreAxes.length,
+      improvedPointsLength: 2,
+      remainingPointsLength: 2,
+    },
   },
-])(
-  "POST /v1/evaluations guard checks",
-  ({ attemptCount, attemptNumber, expectedStatus, expectedCode }) => {
-    test.each([{ label: "request is rejected before evaluation starts" }])(
-      "$label",
-      async () => {
-        const app = await createAppWithSession(attemptCount);
-        const response = await app.request("/v1/evaluations", {
-          method: "POST",
-          body: createEvaluationFormData(attemptNumber),
-        });
+])("POST /v1/evaluations success flow", ({ previousSession, ...expected }) => {
+  test.each([{ label: "evaluation result is persisted to session" }])(
+    "$label",
+    async () => {
+      mockGenerateParts.mockResolvedValue(JSON.stringify(llmEvaluation));
+      const { app, repository } = await createAppWithRepository();
 
-        expect(response.status).toBe(expectedStatus);
-        await expect(response.json()).resolves.toMatchObject({
-          error: {
-            code: expectedCode,
-          },
+      const currentSession = createPracticeSessionRecord({
+        id: "session-1",
+        theme,
+        now: "2026-04-22T00:03:00.000Z",
+      });
+      await repository.saveSession({
+        ownerKey,
+        session: currentSession,
+      });
+
+      if (previousSession) {
+        const seeded = createPracticeSessionRecord({
+          id: previousSession.id,
+          theme,
+          now: previousSession.createdAt,
         });
-      },
-    );
+        await repository.saveSession({
+          ownerKey,
+          session: setSessionEvaluation({
+            record: seeded,
+            evaluation: llmEvaluation,
+            recordedAt: previousSession.recordedAt,
+            updatedAt: previousSession.updatedAt,
+          }),
+        });
+      }
+
+      const response = await app.request("/v1/evaluations", {
+        method: "POST",
+        body: createEvaluationFormData("session-1", theme.id),
+      });
+
+      expect(response.status).toBe(200);
+      const payload = (await response.json()) as EvaluationRouteResponse;
+      expect(payload.session.evaluation.summary).toBe(llmEvaluation.summary);
+
+      if ("expectedComparison" in expected) {
+        expect(payload.evaluation.comparison).toBe(expected.expectedComparison);
+      } else {
+        const comparison = payload.evaluation.comparison;
+        expect(comparison).not.toBeNull();
+        expect(comparison).toMatchObject({
+          scoreDiff: expect.any(Array),
+          improvedPoints: expect.any(Array),
+          remainingPoints: expect.any(Array),
+        });
+        expect(comparison?.scoreDiff).toHaveLength(
+          expected.expectedComparisonShape.scoreDiffLength,
+        );
+        expect(comparison?.improvedPoints).toHaveLength(
+          expected.expectedComparisonShape.improvedPointsLength,
+        );
+        expect(comparison?.remainingPoints).toHaveLength(
+          expected.expectedComparisonShape.remainingPointsLength,
+        );
+      }
+    },
+  );
+});
+
+describe.each([
+  {
+    name: "theme filter returns matching sessions only",
   },
-);
+])("GET /v1/sessions", () => {
+  test.each([{ label: "theme scoped list is returned" }])(
+    "$label",
+    async () => {
+      const otherTheme: ThemeRecord = {
+        ...theme,
+        id: "theme-2",
+        title: "別テーマ",
+      };
+      const { app, repository } = await createAppWithRepository();
+      await repository.saveTheme({
+        ownerKey,
+        theme: otherTheme,
+      });
+      await repository.saveSession({
+        ownerKey,
+        session: createPracticeSessionRecord({
+          id: "session-1",
+          theme,
+          now: "2026-04-22T00:00:00.000Z",
+        }),
+      });
+      await repository.saveSession({
+        ownerKey,
+        session: createPracticeSessionRecord({
+          id: "session-2",
+          theme: otherTheme,
+          now: "2026-04-22T00:01:00.000Z",
+        }),
+      });
+
+      const response = await app.request(
+        `/v1/sessions?ownerKey=${ownerKey}&themeId=${theme.id}`,
+      );
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        sessions: [{ id: "session-1", theme: { id: theme.id } }],
+      });
+    },
+  );
+});

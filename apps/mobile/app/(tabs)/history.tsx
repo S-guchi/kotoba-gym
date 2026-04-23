@@ -56,14 +56,13 @@ export default function HistoryScreen() {
         ) : (
           <View style={styles.list}>
             {sessions.map((session) => {
-              const latest = session.attempts.at(-1);
-              const avgScore = latest
+              const avgScore = session.evaluation
                 ? Math.round(
-                    (latest.evaluation.scores.reduce(
+                    (session.evaluation.scores.reduce(
                       (sum, item) => sum + item.score,
                       0,
                     ) /
-                      latest.evaluation.scores.length) *
+                      session.evaluation.scores.length) *
                       20,
                   )
                 : 0;
@@ -85,11 +84,10 @@ export default function HistoryScreen() {
                       {session.theme.title}
                     </Text>
                     <Text style={styles.historyMeta}>
-                      {session.theme.userInput.audience} /{" "}
-                      {session.attempts.length}回回答
+                      {session.theme.userInput.audience}
                     </Text>
                     <Text numberOfLines={2} style={styles.historyMission}>
-                      {session.theme.mission}
+                      {session.evaluation?.summary ?? session.theme.mission}
                     </Text>
                   </View>
                   <Text style={styles.historyDate}>

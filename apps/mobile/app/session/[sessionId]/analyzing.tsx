@@ -48,7 +48,6 @@ export default function AnalyzingScreen() {
         const result = await submitEvaluation({
           sessionId: payload.sessionId,
           themeId: payload.themeId,
-          attemptNumber: payload.attemptNumber,
           audioUri: payload.audioUri,
         });
         cachePracticeSession(result.session);

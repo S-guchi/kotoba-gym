@@ -4,16 +4,39 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryButton } from "../../src/components/primary-button";
-import { getTheme, createPracticeSession } from "../../src/lib/storage";
+import { ScoreDonut } from "../../src/components/score-donut";
+import {
+  createPracticeSession,
+  getTheme,
+  listPracticeSessions,
+} from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../../src/lib/theme";
-import type { ThemeRecord } from "@kotoba-gym/core";
+import type { PracticeSessionRecord, ThemeRecord } from "@kotoba-gym/core";
+
+function formatDate(iso: string) {
+  const date = new Date(iso);
+  return `${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
+function getAverageScore(session: PracticeSessionRecord) {
+  if (!session.evaluation) {
+    return 0;
+  }
+
+  return Math.round(
+    (session.evaluation.scores.reduce((sum, item) => sum + item.score, 0) /
+      session.evaluation.scores.length) *
+      20,
+  );
+}
 
 export default function ThemeDetailScreen() {
   const palette = useThemePalette();
   const styles = createStyles(palette);
   const { themeId } = useLocalSearchParams<{ themeId: string }>();
   const [theme, setTheme] = useState<ThemeRecord | null>(null);
+  const [sessions, setSessions] = useState<PracticeSessionRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
@@ -22,8 +45,14 @@ export default function ThemeDetailScreen() {
     void (async () => {
       try {
         setIsLoading(true);
-        const nextTheme = await getTheme(themeId ?? "");
+        const [nextTheme, nextSessions] = await Promise.all([
+          getTheme(themeId ?? ""),
+          listPracticeSessions(themeId ?? ""),
+        ]);
         setTheme(nextTheme);
+        setSessions(
+          nextSessions.filter((session) => session.evaluation !== null),
+        );
         setError(null);
       } catch (cause) {
         setError(
@@ -138,6 +167,45 @@ export default function ThemeDetailScreen() {
           </View>
         </View>
 
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>練習の記録</Text>
+          {sessions.length === 0 ? (
+            <Text style={styles.bodyText}>
+              まだこのテーマの練習記録はありません。
+            </Text>
+          ) : (
+            <View style={styles.sessionList}>
+              {sessions.map((session) => (
+                <Pressable
+                  key={session.id}
+                  style={styles.sessionRow}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/session/[sessionId]/feedback",
+                      params: { sessionId: session.id },
+                    })
+                  }
+                >
+                  <ScoreDonut score={getAverageScore(session)} size={48} />
+                  <View style={styles.sessionBody}>
+                    <Text style={styles.sessionTitle}>
+                      {formatDate(session.recordedAt ?? session.updatedAt)}
+                    </Text>
+                    <Text numberOfLines={2} style={styles.sessionSummary}>
+                      {session.evaluation?.summary ?? "評価はまだありません。"}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color={palette.text3}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <View style={styles.actions}>
@@ -244,6 +312,32 @@ function createStyles(palette: ThemePalette) {
       fontSize: 14,
       lineHeight: 22,
       color: palette.text,
+    },
+    sessionList: {
+      gap: 10,
+    },
+    sessionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      backgroundColor: palette.surface2,
+      borderRadius: 18,
+      padding: 14,
+    },
+    sessionBody: {
+      flex: 1,
+      gap: 4,
+    },
+    sessionTitle: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 14,
+      color: palette.text,
+    },
+    sessionSummary: {
+      fontFamily: fonts.body,
+      fontSize: 13,
+      lineHeight: 20,
+      color: palette.text2,
     },
     metricsCard: {
       flexDirection: "row",

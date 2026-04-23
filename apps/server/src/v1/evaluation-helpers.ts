@@ -2,7 +2,7 @@ import { Type } from "@google/genai";
 import {
   type AttemptEvaluation,
   type EvaluationScore,
-  type PreviousAttemptPayload,
+  type PreviousEvaluationPayload,
   type ThemeRecord,
   scoreAxes,
 } from "@kotoba-gym/core";
@@ -90,15 +90,13 @@ export const EVALUATION_RESPONSE_SCHEMA = {
 
 export function buildEvaluationPrompt(params: {
   theme: ThemeRecord;
-  attemptNumber: number;
   locale: string;
-  previousAttemptSummary?: string;
-  previousEvaluation?: PreviousAttemptPayload;
+  previousEvaluationSummary?: string;
+  previousEvaluation?: PreviousEvaluationPayload;
 }): string {
   const previousSection = params.previousEvaluation
     ? `
-## 前回の回答結果
-- attemptNumber: ${params.previousEvaluation.attemptNumber}
+## 前回の練習結果
 - summary: ${params.previousEvaluation.summary}
 - nextFocus: ${params.previousEvaluation.nextFocus}
 - goodPoints:
@@ -109,8 +107,8 @@ ${params.previousEvaluation.improvementPoints.map((item) => `  - ${item}`).join(
 ${params.previousEvaluation.scores
   .map((item) => `  - ${item.axis}: ${item.score} / ${item.comment}`)
   .join("\n")}
-${params.previousAttemptSummary ? `- previousAttemptSummary: ${params.previousAttemptSummary}` : ""}`
-    : "\n## 前回の回答結果\n今回は初回回答です。comparison は null を返してください。";
+${params.previousEvaluationSummary ? `- previousEvaluationSummary: ${params.previousEvaluationSummary}` : ""}`
+    : "\n## 前回の練習結果\n今回がこのテーマの初回練習です。comparison は null を返してください。";
 
   return `あなたはエンジニア向け口頭コミュニケーション練習コーチです。添付された音声を聞いて、回答を日本語で評価してください。
 
@@ -186,7 +184,7 @@ export function normalizeScores(scores: EvaluationScore[]): EvaluationScore[] {
 }
 
 export function buildScoreDiff(
-  previousScores: PreviousAttemptPayload["scores"],
+  previousScores: PreviousEvaluationPayload["scores"],
   currentScores: EvaluationScore[],
 ) {
   const previousMap = new Map(
@@ -217,7 +215,7 @@ export function buildScoreDiff(
 
 export function withDeterministicComparison(params: {
   raw: AttemptEvaluation;
-  previousEvaluation?: PreviousAttemptPayload;
+  previousEvaluation?: PreviousEvaluationPayload;
 }): AttemptEvaluation {
   if (!params.previousEvaluation) {
     return {
@@ -243,7 +241,7 @@ export function withDeterministicComparison(params: {
           improvedPoints: params.raw.goodPoints.slice(0, 2),
           remainingPoints: params.raw.improvementPoints.slice(0, 2),
           comparisonSummary:
-            "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の回答に反映してください。",
+            "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の練習に反映してください。",
         },
   };
 }

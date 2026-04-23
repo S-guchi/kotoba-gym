@@ -1,6 +1,6 @@
 import {
   AttemptEvaluationSchema,
-  type PreviousAttemptPayload,
+  type PreviousEvaluationPayload,
   type ThemeRecord,
 } from "@kotoba-gym/core";
 import type { ServerConfig } from "../config.js";
@@ -18,12 +18,11 @@ export { ApiError } from "./api-error.js";
 
 function logGeminiEvaluation(params: {
   themeId: string;
-  attemptNumber: number;
   mimeType: string;
   raw: string;
 }) {
   console.log(
-    `[gemini][evaluation] themeId=${params.themeId} attempt=${params.attemptNumber} mimeType=${params.mimeType}`,
+    `[gemini][evaluation] themeId=${params.themeId} mimeType=${params.mimeType}`,
   );
   console.log(params.raw);
 }
@@ -31,12 +30,11 @@ function logGeminiEvaluation(params: {
 export async function evaluateAttempt(params: {
   config: ServerConfig;
   theme: ThemeRecord;
-  attemptNumber: number;
   audio: Uint8Array;
   mimeType: string;
   locale: string;
-  previousAttemptSummary?: string;
-  previousEvaluation?: PreviousAttemptPayload;
+  previousEvaluationSummary?: string;
+  previousEvaluation?: PreviousEvaluationPayload;
 }) {
   try {
     const client = createLLMClient(
@@ -48,9 +46,8 @@ export async function evaluateAttempt(params: {
         {
           text: buildEvaluationPrompt({
             theme: params.theme,
-            attemptNumber: params.attemptNumber,
             locale: params.locale,
-            previousAttemptSummary: params.previousAttemptSummary,
+            previousEvaluationSummary: params.previousEvaluationSummary,
             previousEvaluation: params.previousEvaluation,
           }),
         },
@@ -69,7 +66,6 @@ export async function evaluateAttempt(params: {
     );
     logGeminiEvaluation({
       themeId: params.theme.id,
-      attemptNumber: params.attemptNumber,
       mimeType: params.mimeType,
       raw,
     });

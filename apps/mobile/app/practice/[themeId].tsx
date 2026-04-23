@@ -332,7 +332,28 @@ export default function PracticeScreen() {
     );
   }
 
-  const currentAttempt = session.attempts.length + 1;
+  if (session.evaluation) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>この練習は完了しています</Text>
+          <Text style={styles.emptyBody}>
+            この session
+            はすでに評価済みです。フィードバック画面から確認してください。
+          </Text>
+          <ActionButton
+            label="フィードバックを見る"
+            onPress={() =>
+              router.replace({
+                pathname: "/session/[sessionId]/feedback",
+                params: { sessionId: session.id },
+              })
+            }
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   async function startRecording() {
     const granted = await ensureRecordingPermission();
@@ -384,7 +405,6 @@ export default function PracticeScreen() {
       savePendingRecordingPayload({
         sessionId: session.id,
         themeId: session.theme.id,
-        attemptNumber: currentAttempt,
         audioUri: recorder.uri,
       });
 

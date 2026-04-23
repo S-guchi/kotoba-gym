@@ -5,7 +5,7 @@ import {
   CreateThemeResponseSchema,
   ListThemesResponseSchema,
   PracticeSessionRecordSchema,
-  PreviousAttemptPayloadSchema,
+  PreviousEvaluationPayloadSchema,
   ThemeRecordSchema,
   scoreAxes,
 } from "./index.js";
@@ -73,31 +73,34 @@ describe.each([{ name: "request parses", input: themeRecord.userInput }])(
 
 describe.each([
   {
-    name: "attempts over limit",
+    name: "completed session parses",
     input: {
       id: "session-1",
       theme: themeRecord,
-      attempts: [
-        {
-          attemptNumber: 1,
-          recordedAt: "2026-04-22T00:00:00.000Z",
-          evaluation: baseEvaluation,
-        },
-        {
-          attemptNumber: 2,
-          recordedAt: "2026-04-22T00:01:00.000Z",
-          evaluation: baseEvaluation,
-        },
-        {
-          attemptNumber: 3,
-          recordedAt: "2026-04-22T00:02:00.000Z",
-          evaluation: baseEvaluation,
-        },
-      ],
+      evaluation: baseEvaluation,
+      recordedAt: "2026-04-22T00:02:00.000Z",
       createdAt: "2026-04-22T00:00:00.000Z",
       updatedAt: "2026-04-22T00:02:00.000Z",
     },
   },
+  {
+    name: "pending session parses",
+    input: {
+      id: "session-2",
+      theme: themeRecord,
+      evaluation: null,
+      recordedAt: null,
+      createdAt: "2026-04-22T00:00:00.000Z",
+      updatedAt: "2026-04-22T00:00:00.000Z",
+    },
+  },
+])("PracticeSessionRecordSchema", ({ input }) => {
+  test.each([{ label: "session schema parse succeeds" }])("$label", () => {
+    expect(PracticeSessionRecordSchema.parse(input)).toEqual(input);
+  });
+});
+
+describe.each([
   {
     name: "missing score axis",
     input: {
@@ -107,12 +110,7 @@ describe.each([
   },
 ])("schema validation failures", ({ input }) => {
   test.each([{ label: "invalid payload is rejected" }])("$label", () => {
-    const parse =
-      "attempts" in input
-        ? () => PracticeSessionRecordSchema.parse(input)
-        : () => AttemptEvaluationSchema.parse(input);
-
-    expect(parse).toThrow();
+    expect(() => AttemptEvaluationSchema.parse(input)).toThrow();
   });
 });
 
@@ -120,7 +118,6 @@ describe.each([
   {
     name: "previous payload strips comparison",
     input: {
-      attemptNumber: 1,
       transcript: baseEvaluation.transcript,
       summary: baseEvaluation.summary,
       scores: baseEvaluation.scores,
@@ -129,9 +126,9 @@ describe.each([
       nextFocus: baseEvaluation.nextFocus,
     },
   },
-])("PreviousAttemptPayloadSchema", ({ input }) => {
+])("PreviousEvaluationPayloadSchema", ({ input }) => {
   test.each([{ label: "payload parse succeeds" }])("$label", () => {
-    expect(PreviousAttemptPayloadSchema.parse(input)).toEqual(input);
+    expect(PreviousEvaluationPayloadSchema.parse(input)).toEqual(input);
   });
 });
 

@@ -1,8 +1,8 @@
 import type { Hono } from "hono";
 import type { ServerConfig, WorkerBindings } from "../config.js";
 import {
-  toPreviousAttemptPayload,
-  upsertPracticeSessionAttempt,
+  setSessionEvaluation,
+  toPreviousEvaluationPayload,
 } from "../lib/session-record.js";
 import type { AppRepository } from "../repositories/app-repository.js";
 import { ApiError, evaluateAttempt } from "./evaluation.js";
@@ -110,7 +110,11 @@ export function registerV1Routes(app: AppType) {
   app.get("/v1/sessions", async (c) => {
     try {
       const ownerKey = parseOwnerKey(c.req.query("ownerKey"));
-      const sessions = await c.get("repository").listSessions(ownerKey);
+      const themeId = c.req.query("themeId")?.trim() || undefined;
+      const sessions = await c.get("repository").listSessions({
+        ownerKey,
+        themeId,
+      });
       return c.json({ sessions });
     } catch (error) {
       return jsonApiError(toRouteApiError(error));
@@ -168,20 +172,11 @@ export function registerV1Routes(app: AppType) {
         throw new ApiError("テーマが一致しません。", 400, "theme_mismatch");
       }
 
-      if (session.attempts.length >= 2) {
+      if (session.evaluation) {
         throw new ApiError(
-          "このセッションの回答は完了しています。",
+          "このセッションの評価は完了しています。",
           400,
-          "attempt_limit_reached",
-        );
-      }
-
-      const expectedAttemptNumber = session.attempts.length + 1;
-      if (parsedFields.attemptNumber !== expectedAttemptNumber) {
-        throw new ApiError(
-          "回答の順序が不正です。最新の画面からやり直してください。",
-          409,
-          "attempt_number_mismatch",
+          "session_already_evaluated",
         );
       }
 
@@ -190,36 +185,41 @@ export function registerV1Routes(app: AppType) {
       );
       console.log("[server][evaluation] received-audio", {
         themeId: parsedFields.themeId,
-        attemptNumber: parsedFields.attemptNumber,
+        sessionId: parsedFields.sessionId,
         fileName: audio.name,
         fileType: audio.type,
         inferredMimeType: mimeType,
         fileSize: audio.size,
       });
 
-      const previousAttempt = session.attempts.at(-1);
+      const previousSession = (
+        await repository.listSessions({
+          ownerKey: parsedFields.ownerKey,
+          themeId: parsedFields.themeId,
+        })
+      ).find(
+        (candidate) =>
+          candidate.id !== session.id && candidate.evaluation !== null,
+      );
+
       const evaluation = await evaluateAttempt({
         config,
         theme: session.theme,
-        attemptNumber: parsedFields.attemptNumber,
         audio: new Uint8Array(await audio.arrayBuffer()),
         mimeType,
         locale: parsedFields.locale,
-        previousAttemptSummary: previousAttempt?.evaluation.summary,
-        previousEvaluation: previousAttempt
-          ? toPreviousAttemptPayload(
-              previousAttempt.attemptNumber,
-              previousAttempt.evaluation,
-            )
+        previousEvaluationSummary: previousSession?.evaluation?.summary,
+        previousEvaluation: previousSession?.evaluation
+          ? toPreviousEvaluationPayload(previousSession.evaluation)
           : undefined,
       });
 
-      const updatedSession = upsertPracticeSessionAttempt({
+      const now = new Date().toISOString();
+      const updatedSession = setSessionEvaluation({
         record: session,
-        attemptNumber: parsedFields.attemptNumber,
         evaluation,
-        recordedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        recordedAt: now,
+        updatedAt: now,
       });
 
       await repository.saveSession({
@@ -228,7 +228,6 @@ export function registerV1Routes(app: AppType) {
       });
 
       return c.json({
-        attemptNumber: parsedFields.attemptNumber,
         evaluation,
         session: updatedSession,
       });

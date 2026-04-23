@@ -1,6 +1,6 @@
 import type {
   AttemptEvaluation,
-  PreviousAttemptPayload,
+  PreviousEvaluationPayload,
   ThemeRecord,
 } from "@kotoba-gym/core";
 import { scoreAxes } from "@kotoba-gym/core";
@@ -33,8 +33,7 @@ const baseEvaluation: AttemptEvaluation = {
   comparison: null,
 };
 
-const previousEvaluation: PreviousAttemptPayload = {
-  attemptNumber: 1,
+const previousEvaluation: PreviousEvaluationPayload = {
   transcript: "前回の発話",
   summary: "前回の総評",
   scores: orderedScores.map((score) => ({
@@ -115,13 +114,13 @@ describe.each([
 
 describe.each([
   {
-    name: "first attempt forces null comparison",
+    name: "first practice forces null comparison",
     raw: baseEvaluation,
     previous: undefined,
     expectedComparison: null,
   },
   {
-    name: "second attempt injects fallback comparison",
+    name: "retry practice injects fallback comparison",
     raw: baseEvaluation,
     previous: previousEvaluation,
     expectedComparison: {
@@ -129,7 +128,7 @@ describe.each([
       improvedPoints: baseEvaluation.goodPoints.slice(0, 2),
       remainingPoints: baseEvaluation.improvementPoints.slice(0, 2),
       comparisonSummary:
-        "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の回答に反映してください。",
+        "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の練習に反映してください。",
     },
   },
 ])("withDeterministicComparison", ({ raw, previous, expectedComparison }) => {
@@ -178,33 +177,31 @@ describe.each([
     name: "initial prompt mentions null comparison",
     input: {
       theme,
-      attemptNumber: 1,
       locale: "ja-JP",
     },
-    expectedSnippet: "comparison は null を返してください。",
+    expectedSnippet:
+      "今回がこのテーマの初回練習です。comparison は null を返してください。",
   },
   {
-    name: "retry prompt includes previous attempt summary",
+    name: "retry prompt includes previous summary",
     input: {
       theme,
-      attemptNumber: 2,
       locale: "ja-JP",
-      previousAttemptSummary: "前回は冗長でした。",
+      previousEvaluationSummary: "前回は冗長でした。",
       previousEvaluation,
     },
-    expectedSnippet: "previousAttemptSummary: 前回は冗長でした。",
+    expectedSnippet: "previousEvaluationSummary: 前回は冗長でした。",
   },
   {
     name: "prompt includes audience context",
     input: {
       theme,
-      attemptNumber: 1,
       locale: "ja-JP",
     },
     expectedSnippet: "## 相手の前提",
   },
 ])("buildEvaluationPrompt", ({ input, expectedSnippet }) => {
-  test.each([{ label: "prompt reflects attempt context" }])("$label", () => {
+  test.each([{ label: "prompt reflects session context" }])("$label", () => {
     expect(buildEvaluationPrompt(input)).toContain(expectedSnippet);
   });
 });

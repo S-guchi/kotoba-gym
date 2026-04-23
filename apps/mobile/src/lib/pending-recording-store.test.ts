@@ -11,7 +11,6 @@ describe.each([
     payload: {
       sessionId: "session-1",
       themeId: "theme-1",
-      attemptNumber: 1,
       audioUri: "file:///tmp/1.m4a",
     },
   },
@@ -20,7 +19,6 @@ describe.each([
     payload: {
       sessionId: "session-1",
       themeId: "theme-2",
-      attemptNumber: 2,
       audioUri: "file:///tmp/2.m4a",
     },
   },

@@ -10,6 +10,7 @@ import {
   EVALUATION_RESPONSE_SCHEMA,
   buildEvaluationPrompt,
   inferApiError,
+  normalizeModelEvaluationPayload,
   normalizeScores,
   withDeterministicComparison,
 } from "./evaluation-helpers.js";
@@ -70,7 +71,9 @@ export async function evaluateAttempt(params: {
       raw,
     });
 
-    const parsed = AttemptEvaluationSchema.parse(JSON.parse(raw));
+    const parsed = AttemptEvaluationSchema.parse(
+      normalizeModelEvaluationPayload(JSON.parse(raw)),
+    );
     const normalized = {
       ...parsed,
       scores: normalizeScores(parsed.scores),

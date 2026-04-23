@@ -58,8 +58,8 @@ export const AttemptComparisonSchema = z.object({
       diff: z.number().int(),
     }),
   ),
-  improvedPoints: z.array(z.string()).min(1).max(3),
-  remainingPoints: z.array(z.string()).min(1).max(3),
+  improvedPoints: z.array(z.string()).max(3),
+  remainingPoints: z.array(z.string()).max(3),
   comparisonSummary: z.string(),
 });
 

@@ -10,6 +10,7 @@ import {
   buildEvaluationPrompt,
   buildScoreDiff,
   inferApiError,
+  normalizeModelEvaluationPayload,
   normalizeScores,
   withDeterministicComparison,
 } from "./evaluation-helpers.js";
@@ -50,6 +51,16 @@ const previousEvaluation: PreviousEvaluationPayload = {
   goodPoints: ["結論を出せた", "短かった"],
   improvementPoints: ["具体性不足", "理由が弱い"],
   nextFocus: "数字を入れる",
+};
+
+const evaluationWithEmptyComparisonArrays: AttemptEvaluation = {
+  ...baseEvaluation,
+  comparison: {
+    scoreDiff: buildScoreDiff(previousEvaluation.scores, reversedScores),
+    improvedPoints: [],
+    remainingPoints: [],
+    comparisonSummary: "比較結果です。",
+  },
 };
 
 const theme: ThemeRecord = {
@@ -95,6 +106,41 @@ describe.each([
   test.each([{ label: "score order follows scoreAxes" }])("$label", () => {
     expect(normalizeScores(input)).toEqual(expected);
   });
+});
+
+describe.each([
+  {
+    name: "empty comparison arrays remain empty",
+    input: evaluationWithEmptyComparisonArrays,
+    expected: {
+      improvedPoints: [],
+      remainingPoints: [],
+    },
+  },
+  {
+    name: "empty comparison arrays remain empty even without good points",
+    input: {
+      ...evaluationWithoutGoodPoints,
+      comparison: {
+        scoreDiff: buildScoreDiff(previousEvaluation.scores, reversedScores),
+        improvedPoints: [],
+        remainingPoints: [],
+        comparisonSummary: "比較結果です。",
+      },
+    },
+    expected: {
+      improvedPoints: [],
+      remainingPoints: [],
+    },
+  },
+])("normalizeModelEvaluationPayload", ({ input, expected }) => {
+  test.each([{ label: "model payload is normalized before schema parse" }])(
+    "$label",
+    () => {
+      const normalized = normalizeModelEvaluationPayload(input);
+      expect(normalized.comparison).toMatchObject(expected);
+    },
+  );
 });
 
 describe.each([

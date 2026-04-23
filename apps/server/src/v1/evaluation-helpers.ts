@@ -159,7 +159,7 @@ ${previousSection}
 8. goodPoints は通常2個から3個ですが、十分な内容がなく良かった点を挙げられない場合は 0個でもかまいません。improvementPoints は2個から3個を基本としつつ、最低1個は返してください。十分な内容がない場合は、「結論がまだ出ていない」「相手に必要な背景が不足している」のように不足自体を指摘してください。
 9. exampleAnswer は次回の参考になる短い改善例を1つ返してください。ただし今回の transcript に存在しない過去エピソードを事実として断定してはいけません。
 10. nextFocus は次回の意識点を1文で返してください。
-11. 前回結果がある場合だけ comparison を埋めてください。scoreDiff は全軸を含め、improvedPoints と remainingPoints は各1個から3個にしてください。
+11. 前回結果がある場合だけ comparison を埋めてください。scoreDiff は全軸を含め、improvedPoints と remainingPoints は各0個から3個にしてください。
 12. 前回結果がない場合は comparison を null にしてください。
 13. 抽象論ではなく、このテーマと今回の発話内容に即して評価してください。相手と目的に合った説明になっているかを重視してください。
 
@@ -182,6 +182,36 @@ export function normalizeScores(scores: EvaluationScore[]): EvaluationScore[] {
     }
     return score;
   });
+}
+
+export function normalizeModelEvaluationPayload(raw: AttemptEvaluation) {
+  const normalizedImprovementPoints = selectArrayItems(raw.improvementPoints, [
+    "次回は相手に伝えるべき要点を一つ以上含めてください。",
+  ]);
+
+  if (!raw.comparison) {
+    return {
+      ...raw,
+      goodPoints: raw.goodPoints.slice(0, 3),
+      improvementPoints: normalizedImprovementPoints,
+      comparison: null,
+    };
+  }
+
+  return {
+    ...raw,
+    goodPoints: raw.goodPoints.slice(0, 3),
+    improvementPoints: normalizedImprovementPoints,
+    comparison: {
+      ...raw.comparison,
+      improvedPoints: raw.comparison.improvedPoints
+        .filter((item) => item.trim().length > 0)
+        .slice(0, 3),
+      remainingPoints: raw.comparison.remainingPoints
+        .filter((item) => item.trim().length > 0)
+        .slice(0, 3),
+    },
+  };
 }
 
 export function buildScoreDiff(
@@ -239,7 +269,7 @@ export function withDeterministicComparison(params: {
         }
       : {
           scoreDiff,
-          improvedPoints: selectImprovedPoints(params.raw.goodPoints),
+          improvedPoints: selectFallbackImprovedPoints(params.raw.goodPoints),
           remainingPoints: params.raw.improvementPoints.slice(0, 2),
           comparisonSummary:
             "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の練習に反映してください。",
@@ -247,12 +277,28 @@ export function withDeterministicComparison(params: {
   };
 }
 
-function selectImprovedPoints(goodPoints: string[]) {
+function selectFallbackImprovedPoints(goodPoints: string[]) {
   if (goodPoints.length > 0) {
     return goodPoints.slice(0, 2);
   }
 
   return ["今回は改善点を特定できる十分な発話がありませんでした。"];
+}
+
+function selectArrayItems(items: string[], fallback: string[]) {
+  const normalized = items.filter((item) => item.trim().length > 0).slice(0, 3);
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  const fallbackItems = fallback
+    .filter((item) => item.trim().length > 0)
+    .slice(0, 3);
+  if (fallbackItems.length > 0) {
+    return fallbackItems;
+  }
+
+  return ["今回は十分な比較材料がありませんでした。"];
 }
 
 export function inferApiError(error: unknown): ApiError {

@@ -1,7 +1,4 @@
-import type {
-  AttemptEvaluation,
-  PersonalizedPracticePrompt,
-} from "@kotoba-gym/core";
+import type { AttemptEvaluation, ThemeRecord } from "@kotoba-gym/core";
 import { scoreAxes } from "@kotoba-gym/core";
 import { describe, expect, test } from "vitest";
 import { createApp } from "../app.js";
@@ -10,17 +7,30 @@ import { InMemoryAppRepository } from "../repositories/app-repository.js";
 
 const ownerKey = "owner-1";
 
-const prompt: PersonalizedPracticePrompt = {
-  id: "personalized-1",
-  category: "tech-explanation",
-  title: "API キャッシュ戦略の説明",
-  prompt: "API キャッシュ戦略を説明してください。",
-  background:
-    "最近アクセス数が増え、一部 API の平均応答時間が悪化していました。特に商品一覧 API はピーク時に 900ms 前後まで遅くなっていたため、キャッシュ対象と TTL を見直しました。",
-  situation: "相手は結論を先に知りたがっています。",
-  goals: ["最初に結論を置く", "改善点を分けて話す"],
+const theme: ThemeRecord = {
+  id: "theme-1",
+  title: "API キャッシュ戦略を説明する",
+  userInput: {
+    theme: "API キャッシュ戦略を見直した理由",
+    audience: "新メンバー",
+    goal: "設計意図を誤解なく理解してほしい",
+  },
+  mission:
+    "新メンバーに、キャッシュ戦略を見直した理由と設計意図が伝わるように説明してください。",
+  audienceSummary: "相手は背景知識が浅く、結論から短く知りたがっています。",
+  talkingPoints: [
+    "どんな問題が起きていたか",
+    "なぜ見直しが必要だったか",
+    "どのように変えたか",
+  ],
+  recommendedStructure: [
+    "最初に結論を一言で述べる",
+    "見直し前の問題を共有する",
+    "変更点と理由を順番に話す",
+  ],
   durationLabel: "60〜90秒",
-  personalized: true,
+  createdAt: "2026-04-22T00:00:00.000Z",
+  updatedAt: "2026-04-22T00:00:00.000Z",
 };
 
 const evaluation: AttemptEvaluation = {
@@ -42,7 +52,7 @@ function createEvaluationFormData(attemptNumber: number) {
   const form = new FormData();
   form.append("ownerKey", ownerKey);
   form.append("sessionId", "session-1");
-  form.append("promptId", prompt.id);
+  form.append("themeId", theme.id);
   form.append("attemptNumber", String(attemptNumber));
   form.append("locale", "ja-JP");
   form.append(
@@ -55,9 +65,14 @@ function createEvaluationFormData(attemptNumber: number) {
 async function createAppWithSession(attemptCount: number) {
   const repository = new InMemoryAppRepository();
 
+  await repository.saveTheme({
+    ownerKey,
+    theme,
+  });
+
   const session = createPracticeSessionRecord({
     id: "session-1",
-    prompt,
+    theme,
     now: "2026-04-22T00:00:00.000Z",
   });
 

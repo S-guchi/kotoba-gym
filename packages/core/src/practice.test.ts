@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vitest";
 import {
   AttemptEvaluationSchema,
-  GeneratePersonalizedPromptsResponseSchema,
-  PersonalizationProfileSchema,
-  PersonalizedPracticePromptSchema,
-  PracticePromptSchema,
+  CreateThemeRequestSchema,
+  CreateThemeResponseSchema,
+  ListThemesResponseSchema,
   PracticeSessionRecordSchema,
   PreviousAttemptPayloadSchema,
+  ThemeRecordSchema,
   scoreAxes,
 } from "./index.js";
 
@@ -26,54 +26,57 @@ const baseEvaluation = {
   nextFocus: "具体例を一つ入れてください。",
   comparison: null,
 };
-const practicePrompt = {
-  id: "prompt-1",
-  category: "tech-explanation" as const,
-  title: "API キャッシュ戦略の説明",
-  prompt:
-    "新しく入ったメンバーに、なぜ API レスポンスのキャッシュ戦略を見直したのか説明してください。",
-  background:
-    "最近アクセス数が増え、一部 API の平均応答時間が悪化していました。特に商品一覧 API はピーク時に 900ms 前後まで遅くなっていたため、キャッシュ対象と TTL を見直しました。",
-  situation:
-    "相手はバックエンド経験が浅く、結論先出しで要点を知りたがっています。",
-  goals: ["最初に結論を置く", "現状の問題と改善後の違いを分けて話す"],
-  durationLabel: "60〜90秒" as const,
-};
 
-const personalizedPrompt = {
-  ...practicePrompt,
-  id: "personalized-1",
-  personalized: true as const,
-};
-
-describe.each(
-  [practicePrompt].map((prompt) => ({
-    name: prompt.id,
-    prompt,
-  })),
-)("PracticePromptSchema", (entry) => {
-  test.each([{ label: "prompt schema parse" }])("$label", () => {
-    expect(PracticePromptSchema.parse(entry.prompt)).toEqual(entry.prompt);
-  });
-});
-
-describe.each([
-  {
-    name: "personalized prompt parses",
-    input: personalizedPrompt,
+const themeRecord = {
+  id: "theme-1",
+  title: "API キャッシュ戦略を説明する",
+  userInput: {
+    theme: "API キャッシュ戦略を見直した理由",
+    audience: "新メンバー",
+    goal: "設計意図を誤解なく理解してほしい",
   },
-])("PersonalizedPracticePromptSchema", ({ input }) => {
-  test.each([{ label: "personalized prompt schema parse" }])("$label", () => {
-    expect(PersonalizedPracticePromptSchema.parse(input)).toEqual(input);
-  });
-});
+  mission:
+    "新メンバーに、キャッシュ戦略を見直した理由と設計意図が伝わるように説明してください。",
+  audienceSummary: "相手は背景知識が浅く、結論から短く知りたがっています。",
+  talkingPoints: [
+    "どんな問題が起きていたか",
+    "なぜ見直しが必要だったか",
+    "どのように変えたか",
+  ],
+  recommendedStructure: [
+    "最初に結論を一言で述べる",
+    "見直し前の問題を共有する",
+    "変更点と理由を順番に話す",
+  ],
+  durationLabel: "60〜90秒" as const,
+  createdAt: "2026-04-22T00:00:00.000Z",
+  updatedAt: "2026-04-22T00:00:00.000Z",
+};
+
+describe.each([{ name: "theme record parses", input: themeRecord }])(
+  "ThemeRecordSchema",
+  ({ input }) => {
+    test.each([{ label: "theme schema parse succeeds" }])("$label", () => {
+      expect(ThemeRecordSchema.parse(input)).toEqual(input);
+    });
+  },
+);
+
+describe.each([{ name: "request parses", input: themeRecord.userInput }])(
+  "CreateThemeRequestSchema",
+  ({ input }) => {
+    test.each([{ label: "request schema parse succeeds" }])("$label", () => {
+      expect(CreateThemeRequestSchema.parse(input)).toEqual(input);
+    });
+  },
+);
 
 describe.each([
   {
     name: "attempts over limit",
     input: {
       id: "session-1",
-      prompt: personalizedPrompt,
+      theme: themeRecord,
       attempts: [
         {
           attemptNumber: 1,
@@ -133,42 +136,32 @@ describe.each([
 });
 
 describe.each([
-  {
-    name: "personalization profile parses with free text",
-    input: {
-      role: "モバイル",
-      roleText: "React Native 中心です",
-      strengths: ["実装速度"],
-      strengthsText: "試作が速い",
-      techStack: ["Expo", "TypeScript"],
-      techStackText: "Supabase",
-      scenarios: ["技術説明", "報連相"],
-    },
-  },
-])("PersonalizationProfileSchema", ({ input }) => {
-  test.each([{ label: "profile schema parse succeeds" }])("$label", () => {
-    expect(PersonalizationProfileSchema.parse(input)).toEqual(input);
+  { name: "theme response parses", input: { theme: themeRecord } },
+])("CreateThemeResponseSchema", ({ input }) => {
+  test.each([{ label: "response schema parse succeeds" }])("$label", () => {
+    expect(CreateThemeResponseSchema.parse(input)).toEqual(input);
   });
 });
 
 describe.each([
   {
-    name: "personalized prompts response parses",
+    name: "list themes parses",
     input: {
-      prompts: Array.from({ length: 5 }, (_, index) => ({
-        ...personalizedPrompt,
-        id: `personalized-${index + 1}`,
-        personalized: true as const,
-      })),
+      themes: [
+        themeRecord,
+        {
+          ...themeRecord,
+          id: "theme-2",
+          title: "障害報告を説明する",
+        },
+      ],
     },
   },
-])("GeneratePersonalizedPromptsResponseSchema", ({ input }) => {
-  test.each([{ label: "personalized prompt schema parse succeeds" }])(
+])("ListThemesResponseSchema", ({ input }) => {
+  test.each([{ label: "list response schema parse succeeds" }])(
     "$label",
     () => {
-      expect(GeneratePersonalizedPromptsResponseSchema.parse(input)).toEqual(
-        input,
-      );
+      expect(ListThemesResponseSchema.parse(input)).toEqual(input);
     },
   );
 });

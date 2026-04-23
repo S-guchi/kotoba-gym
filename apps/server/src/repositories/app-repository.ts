@@ -1,10 +1,8 @@
 import {
-  type PersonalizationProfile,
-  PersonalizationProfileSchema,
-  type PersonalizedPracticePrompt,
-  PersonalizedPracticePromptSchema,
   type PracticeSessionRecord,
   PracticeSessionRecordSchema,
+  type ThemeRecord,
+  ThemeRecordSchema,
 } from "@kotoba-gym/core";
 import {
   createPracticeSessionRecord,
@@ -13,42 +11,32 @@ import {
 } from "../lib/session-record.js";
 
 export interface AppRepository {
-  clearPersonalization(ownerKey: string): Promise<void>;
   createSession(params: {
     ownerKey: string;
-    prompt: PersonalizedPracticePrompt;
+    theme: ThemeRecord;
   }): Promise<PracticeSessionRecord>;
-  getProfile(ownerKey: string): Promise<PersonalizationProfile | null>;
-  getPrompt(params: {
-    ownerKey: string;
-    promptId: string;
-  }): Promise<PersonalizedPracticePrompt | null>;
   getSession(params: {
     ownerKey: string;
     sessionId: string;
   }): Promise<PracticeSessionRecord | null>;
-  listPrompts(ownerKey: string): Promise<PersonalizedPracticePrompt[]>;
+  getTheme(params: {
+    ownerKey: string;
+    themeId: string;
+  }): Promise<ThemeRecord | null>;
   listSessions(ownerKey: string): Promise<PracticeSessionRecord[]>;
-  saveProfile(params: {
-    ownerKey: string;
-    profile: PersonalizationProfile;
-  }): Promise<PersonalizationProfile>;
-  savePrompts(params: {
-    ownerKey: string;
-    prompts: PersonalizedPracticePrompt[];
-  }): Promise<PersonalizedPracticePrompt[]>;
+  listThemes(ownerKey: string): Promise<ThemeRecord[]>;
   saveSession(params: {
     ownerKey: string;
     session: PracticeSessionRecord;
   }): Promise<PracticeSessionRecord>;
+  saveTheme(params: {
+    ownerKey: string;
+    theme: ThemeRecord;
+  }): Promise<ThemeRecord>;
 }
 
-function parseProfile(raw: string) {
-  return PersonalizationProfileSchema.parse(JSON.parse(raw));
-}
-
-function parsePrompt(raw: string) {
-  return PersonalizedPracticePromptSchema.parse(JSON.parse(raw));
+function parseTheme(raw: string) {
+  return ThemeRecordSchema.parse(JSON.parse(raw));
 }
 
 function parseSession(raw: string) {
@@ -58,26 +46,14 @@ function parseSession(raw: string) {
 export class D1AppRepository implements AppRepository {
   constructor(private readonly db: D1Database) {}
 
-  async clearPersonalization(ownerKey: string) {
-    await this.db.batch([
-      this.db
-        .prepare("DELETE FROM sessions WHERE owner_key = ?")
-        .bind(ownerKey),
-      this.db.prepare("DELETE FROM prompts WHERE owner_key = ?").bind(ownerKey),
-      this.db
-        .prepare("DELETE FROM profiles WHERE owner_key = ?")
-        .bind(ownerKey),
-    ]);
-  }
-
   async createSession(params: {
     ownerKey: string;
-    prompt: PersonalizedPracticePrompt;
+    theme: ThemeRecord;
   }) {
     const now = new Date().toISOString();
     const session = createPracticeSessionRecord({
       id: createSessionId(),
-      prompt: params.prompt,
+      theme: params.theme,
       now,
     });
 
@@ -87,32 +63,6 @@ export class D1AppRepository implements AppRepository {
     });
 
     return session;
-  }
-
-  async getProfile(ownerKey: string) {
-    const row = await this.db
-      .prepare("SELECT profile_json FROM profiles WHERE owner_key = ?")
-      .bind(ownerKey)
-      .first<{ profile_json: string }>();
-
-    if (!row) {
-      return null;
-    }
-
-    return parseProfile(row.profile_json);
-  }
-
-  async getPrompt(params: { ownerKey: string; promptId: string }) {
-    const row = await this.db
-      .prepare("SELECT prompt_json FROM prompts WHERE owner_key = ? AND id = ?")
-      .bind(params.ownerKey, params.promptId)
-      .first<{ prompt_json: string }>();
-
-    if (!row) {
-      return null;
-    }
-
-    return parsePrompt(row.prompt_json);
   }
 
   async getSession(params: { ownerKey: string; sessionId: string }) {
@@ -130,15 +80,17 @@ export class D1AppRepository implements AppRepository {
     return parseSession(row.session_json);
   }
 
-  async listPrompts(ownerKey: string) {
-    const result = await this.db
-      .prepare(
-        "SELECT prompt_json FROM prompts WHERE owner_key = ? ORDER BY updated_at DESC, created_at DESC",
-      )
-      .bind(ownerKey)
-      .all<{ prompt_json: string }>();
+  async getTheme(params: { ownerKey: string; themeId: string }) {
+    const row = await this.db
+      .prepare("SELECT theme_json FROM themes WHERE owner_key = ? AND id = ?")
+      .bind(params.ownerKey, params.themeId)
+      .first<{ theme_json: string }>();
 
-    return (result.results ?? []).map((row) => parsePrompt(row.prompt_json));
+    if (!row) {
+      return null;
+    }
+
+    return parseTheme(row.theme_json);
   }
 
   async listSessions(ownerKey: string) {
@@ -154,55 +106,15 @@ export class D1AppRepository implements AppRepository {
     );
   }
 
-  async saveProfile(params: {
-    ownerKey: string;
-    profile: PersonalizationProfile;
-  }) {
-    const parsed = PersonalizationProfileSchema.parse(params.profile);
-    const now = new Date().toISOString();
-
-    await this.db
+  async listThemes(ownerKey: string) {
+    const result = await this.db
       .prepare(
-        `INSERT INTO profiles (owner_key, profile_json, updated_at)
-         VALUES (?, ?, ?)
-         ON CONFLICT(owner_key) DO UPDATE SET
-           profile_json = excluded.profile_json,
-           updated_at = excluded.updated_at`,
+        "SELECT theme_json FROM themes WHERE owner_key = ? ORDER BY updated_at DESC, created_at DESC",
       )
-      .bind(params.ownerKey, JSON.stringify(parsed), now)
-      .run();
+      .bind(ownerKey)
+      .all<{ theme_json: string }>();
 
-    return parsed;
-  }
-
-  async savePrompts(params: {
-    ownerKey: string;
-    prompts: PersonalizedPracticePrompt[];
-  }) {
-    const parsed = params.prompts.map((prompt) =>
-      PersonalizedPracticePromptSchema.parse(prompt),
-    );
-    const now = new Date().toISOString();
-
-    await this.db
-      .prepare("DELETE FROM prompts WHERE owner_key = ?")
-      .bind(params.ownerKey)
-      .run();
-
-    if (parsed.length > 0) {
-      await this.db.batch(
-        parsed.map((prompt) =>
-          this.db
-            .prepare(
-              `INSERT INTO prompts (owner_key, id, prompt_json, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?)`,
-            )
-            .bind(params.ownerKey, prompt.id, JSON.stringify(prompt), now, now),
-        ),
-      );
-    }
-
-    return parsed;
+    return (result.results ?? []).map((row) => parseTheme(row.theme_json));
   }
 
   async saveSession(params: {
@@ -229,32 +141,45 @@ export class D1AppRepository implements AppRepository {
 
     return parsed;
   }
+
+  async saveTheme(params: { ownerKey: string; theme: ThemeRecord }) {
+    const parsed = ThemeRecordSchema.parse(params.theme);
+
+    await this.db
+      .prepare(
+        `INSERT INTO themes (owner_key, id, theme_json, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(owner_key, id) DO UPDATE SET
+           theme_json = excluded.theme_json,
+           updated_at = excluded.updated_at`,
+      )
+      .bind(
+        params.ownerKey,
+        parsed.id,
+        JSON.stringify(parsed),
+        parsed.createdAt,
+        parsed.updatedAt,
+      )
+      .run();
+
+    return parsed;
+  }
 }
 
 export class InMemoryAppRepository implements AppRepository {
-  private readonly profiles = new Map<string, PersonalizationProfile>();
-  private readonly prompts = new Map<
-    string,
-    Map<string, PersonalizedPracticePrompt>
-  >();
+  private readonly themes = new Map<string, Map<string, ThemeRecord>>();
   private readonly sessions = new Map<
     string,
     Map<string, PracticeSessionRecord>
   >();
 
-  async clearPersonalization(ownerKey: string) {
-    this.profiles.delete(ownerKey);
-    this.prompts.delete(ownerKey);
-    this.sessions.delete(ownerKey);
-  }
-
   async createSession(params: {
     ownerKey: string;
-    prompt: PersonalizedPracticePrompt;
+    theme: ThemeRecord;
   }) {
     const session = createPracticeSessionRecord({
       id: createSessionId(),
-      prompt: params.prompt,
+      theme: params.theme,
       now: new Date().toISOString(),
     });
 
@@ -264,20 +189,12 @@ export class InMemoryAppRepository implements AppRepository {
     });
   }
 
-  async getProfile(ownerKey: string) {
-    return this.profiles.get(ownerKey) ?? null;
-  }
-
-  async getPrompt(params: { ownerKey: string; promptId: string }) {
-    return this.prompts.get(params.ownerKey)?.get(params.promptId) ?? null;
-  }
-
   async getSession(params: { ownerKey: string; sessionId: string }) {
     return this.sessions.get(params.ownerKey)?.get(params.sessionId) ?? null;
   }
 
-  async listPrompts(ownerKey: string) {
-    return [...(this.prompts.get(ownerKey)?.values() ?? [])];
+  async getTheme(params: { ownerKey: string; themeId: string }) {
+    return this.themes.get(params.ownerKey)?.get(params.themeId) ?? null;
   }
 
   async listSessions(ownerKey: string) {
@@ -286,27 +203,10 @@ export class InMemoryAppRepository implements AppRepository {
     ]);
   }
 
-  async saveProfile(params: {
-    ownerKey: string;
-    profile: PersonalizationProfile;
-  }) {
-    const parsed = PersonalizationProfileSchema.parse(params.profile);
-    this.profiles.set(params.ownerKey, parsed);
-    return parsed;
-  }
-
-  async savePrompts(params: {
-    ownerKey: string;
-    prompts: PersonalizedPracticePrompt[];
-  }) {
-    const parsed = params.prompts.map((prompt) =>
-      PersonalizedPracticePromptSchema.parse(prompt),
+  async listThemes(ownerKey: string) {
+    return [...(this.themes.get(ownerKey)?.values() ?? [])].sort(
+      (left, right) => right.updatedAt.localeCompare(left.updatedAt),
     );
-    this.prompts.set(
-      params.ownerKey,
-      new Map(parsed.map((prompt) => [prompt.id, prompt])),
-    );
-    return parsed;
   }
 
   async saveSession(params: {
@@ -314,9 +214,17 @@ export class InMemoryAppRepository implements AppRepository {
     session: PracticeSessionRecord;
   }) {
     const parsed = PracticeSessionRecordSchema.parse(params.session);
-    const ownedSessions = this.sessions.get(params.ownerKey) ?? new Map();
-    ownedSessions.set(parsed.id, parsed);
-    this.sessions.set(params.ownerKey, ownedSessions);
+    const bucket = this.sessions.get(params.ownerKey) ?? new Map();
+    bucket.set(parsed.id, parsed);
+    this.sessions.set(params.ownerKey, bucket);
+    return parsed;
+  }
+
+  async saveTheme(params: { ownerKey: string; theme: ThemeRecord }) {
+    const parsed = ThemeRecordSchema.parse(params.theme);
+    const bucket = this.themes.get(params.ownerKey) ?? new Map();
+    bucket.set(parsed.id, parsed);
+    this.themes.set(params.ownerKey, bucket);
     return parsed;
   }
 }

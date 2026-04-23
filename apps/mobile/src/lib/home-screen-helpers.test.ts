@@ -1,43 +1,39 @@
 import { describe, expect, test } from "vitest";
-import type {
-  PersonalizationProfile,
-  PersonalizedPracticePrompt,
-  PracticeSessionRecord,
-} from "@kotoba-gym/core";
+import type { PracticeSessionRecord, ThemeRecord } from "@kotoba-gym/core";
 import {
   buildHomeFeed,
-  buildProfileHighlights,
   buildResumeProgress,
   getResumeSession,
-  isPersonalizedPrompt,
 } from "./home-screen-helpers";
 
-const personalizedPrompt: PersonalizedPracticePrompt = {
-  id: "personalized-1",
-  category: "interview",
-  title: "Expo の強みを説明",
-  prompt: "面接で強みを説明してください。",
-  background:
-    "新しい案件で立ち上がりの速さが求められていました。一方で各 OS の実装差分が負担になっていたため、開発体験と保守性の観点で Expo の強みを説明する想定です。",
-  situation: "相手は実例を重視しています。",
-  goals: ["強みを先に言う", "具体例で裏付ける"],
+const theme: ThemeRecord = {
+  id: "theme-1",
+  title: "Expo の強みを説明する",
+  userInput: {
+    theme: "Expo の強み",
+    audience: "面接官",
+    goal: "強みを評価してほしい",
+  },
+  mission: "面接官に、Expo を選ぶ判断軸と強みが伝わるように説明してください。",
+  audienceSummary: "相手は実例と判断理由を重視しています。",
+  talkingPoints: [
+    "どんな課題に合っていたか",
+    "なぜ Expo が有効だったか",
+    "開発や運用でどう効いたか",
+  ],
+  recommendedStructure: [
+    "最初に強みを一言で述べる",
+    "課題との対応を話す",
+    "実例で締める",
+  ],
   durationLabel: "45〜60秒",
-  personalized: true,
-};
-
-const profile: PersonalizationProfile = {
-  role: "モバイル",
-  roleText: "React Native 中心です",
-  strengths: ["実装速度"],
-  strengthsText: "",
-  techStack: ["Expo", "TypeScript", "Supabase"],
-  techStackText: "",
-  scenarios: ["技術説明"],
+  createdAt: "2026-04-22T00:00:00.000Z",
+  updatedAt: "2026-04-22T00:00:00.000Z",
 };
 
 const resumeSession: PracticeSessionRecord = {
   id: "session-1",
-  prompt: personalizedPrompt,
+  theme,
   attempts: [
     {
       attemptNumber: 1,
@@ -63,26 +59,6 @@ const resumeSession: PracticeSessionRecord = {
   createdAt: "2026-04-22T00:00:00.000Z",
   updatedAt: "2026-04-22T00:00:00.000Z",
 };
-
-describe.each([
-  {
-    name: "profile highlights use role and first two stacks",
-    input: profile,
-    expected: ["モバイル", "Expo", "TypeScript"],
-  },
-  {
-    name: "no profile yields empty highlights",
-    input: null,
-    expected: [],
-  },
-])("buildProfileHighlights", ({ input, expected }) => {
-  test.each([{ label: "profile chips are derived deterministically" }])(
-    "$label",
-    () => {
-      expect(buildProfileHighlights(input)).toEqual(expected);
-    },
-  );
-});
 
 describe.each([
   {
@@ -129,69 +105,31 @@ describe.each([
 
 describe.each([
   {
-    name: "personalized prompt is detected",
-    prompt: personalizedPrompt,
-    expected: true,
-  },
-])("isPersonalizedPrompt", ({ prompt, expected }) => {
-  test.each([{ label: "personalization badge source is stable" }])(
-    "$label",
-    () => {
-      expect(isPersonalizedPrompt(prompt)).toBe(expected);
-    },
-  );
-});
-
-describe.each([
-  {
-    name: "profile and prompts drive hero section",
+    name: "themes and sessions drive home feed",
     input: {
-      prompts: [
-        personalizedPrompt,
-        { ...personalizedPrompt, id: "personalized-2", title: "別のお題" },
-      ],
+      themes: [theme, { ...theme, id: "theme-2", title: "別テーマ" }],
       sessions: [resumeSession],
-      profile,
     },
     expected: {
-      heroPromptId: "personalized-1",
-      candidatePromptIds: ["personalized-2"],
-      heroSectionLabel: "あなた向けのおすすめ",
-      showOnboardingCta: false,
-      shouldRedirectToOnboarding: false,
+      featuredThemeId: "theme-1",
+      recentThemeIds: ["theme-2"],
       resumeSessionId: "session-1",
+      shouldShowEmptyState: false,
+      recentSessionCount: 1,
     },
   },
   {
-    name: "empty prompt list shows onboarding state",
+    name: "empty state is derived from both lists",
     input: {
-      prompts: [],
+      themes: [],
       sessions: [],
-      profile: null,
     },
     expected: {
-      heroPromptId: null,
-      candidatePromptIds: [],
-      heroSectionLabel: "おすすめのお題",
-      showOnboardingCta: true,
-      shouldRedirectToOnboarding: true,
+      featuredThemeId: null,
+      recentThemeIds: [],
       resumeSessionId: null,
-    },
-  },
-  {
-    name: "empty prompt list with profile keeps onboarding CTA without redirect",
-    input: {
-      prompts: [],
-      sessions: [],
-      profile,
-    },
-    expected: {
-      heroPromptId: null,
-      candidatePromptIds: [],
-      heroSectionLabel: "おすすめのお題",
-      showOnboardingCta: true,
-      shouldRedirectToOnboarding: false,
-      resumeSessionId: null,
+      shouldShowEmptyState: true,
+      recentSessionCount: 0,
     },
   },
 ])("buildHomeFeed", ({ input, expected }) => {
@@ -200,14 +138,11 @@ describe.each([
     () => {
       const resolved = buildHomeFeed(input);
       expect({
-        heroPromptId: resolved.heroPrompt?.id ?? null,
-        candidatePromptIds: resolved.candidatePrompts.map(
-          (prompt) => prompt.id,
-        ),
-        heroSectionLabel: resolved.heroSectionLabel,
-        showOnboardingCta: resolved.showOnboardingCta,
-        shouldRedirectToOnboarding: resolved.shouldRedirectToOnboarding,
+        featuredThemeId: resolved.featuredTheme?.id ?? null,
+        recentThemeIds: resolved.recentThemes.map((item) => item.id),
         resumeSessionId: resolved.resumeSession?.id ?? null,
+        shouldShowEmptyState: resolved.shouldShowEmptyState,
+        recentSessionCount: resolved.recentSessionCount,
       }).toEqual(expected);
     },
   );

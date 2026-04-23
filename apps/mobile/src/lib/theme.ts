@@ -71,11 +71,3 @@ export const fonts = {
   mono: "DMMono_400Regular",
   monoMedium: "DMMono_500Medium",
 } as const;
-
-export const categoryLabels: Record<string, string> = {
-  "tech-explanation": "技術説明",
-  "design-decision": "設計判断",
-  reporting: "報連相",
-  interview: "面接",
-  escalation: "エスカレーション",
-};

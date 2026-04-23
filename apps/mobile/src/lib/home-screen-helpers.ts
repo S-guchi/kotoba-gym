@@ -1,24 +1,4 @@
-import type {
-  PersonalizationProfile,
-  PersonalizedPracticePrompt,
-  PracticeSessionRecord,
-} from "@kotoba-gym/core";
-
-export type HomePrompt = PersonalizedPracticePrompt;
-
-export function isPersonalizedPrompt(
-  prompt: HomePrompt,
-): prompt is PersonalizedPracticePrompt {
-  return "personalized" in prompt && prompt.personalized === true;
-}
-
-export function buildProfileHighlights(profile: PersonalizationProfile | null) {
-  if (!profile) {
-    return [];
-  }
-
-  return [profile.role, ...profile.techStack.slice(0, 2)];
-}
+import type { PracticeSessionRecord, ThemeRecord } from "@kotoba-gym/core";
 
 export function getResumeSession(sessions: PracticeSessionRecord[]) {
   return sessions.find((session) => session.attempts.length === 1) ?? null;
@@ -38,26 +18,15 @@ export function buildResumeProgress(session: PracticeSessionRecord) {
 }
 
 export function buildHomeFeed(params: {
-  prompts: HomePrompt[];
+  themes: ThemeRecord[];
   sessions: PracticeSessionRecord[];
-  profile: PersonalizationProfile | null;
 }) {
-  const heroPrompt = params.prompts[0] ?? null;
-  const candidatePrompts = params.prompts.slice(1, 9);
-
   return {
-    heroPrompt,
-    candidatePrompts,
+    featuredTheme: params.themes[0] ?? null,
+    recentThemes: params.themes.slice(1, 5),
     resumeSession: getResumeSession(params.sessions),
-    showOnboardingCta: params.prompts.length === 0,
-    shouldRedirectToOnboarding:
-      !params.profile &&
-      params.prompts.length === 0 &&
-      params.sessions.length === 0,
-    profileHighlights: buildProfileHighlights(params.profile),
-    heroSectionLabel:
-      params.profile && params.prompts.length > 0
-        ? "あなた向けのおすすめ"
-        : "おすすめのお題",
+    shouldShowEmptyState:
+      params.themes.length === 0 && params.sessions.length === 0,
+    recentSessionCount: params.sessions.length,
   };
 }

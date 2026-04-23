@@ -10,33 +10,35 @@ export const scoreAxes = [
 
 export const ScoreAxisSchema = z.enum(scoreAxes);
 
-export const PracticePromptCategorySchema = z.enum([
-  "tech-explanation",
-  "design-decision",
-  "reporting",
-  "interview",
-  "escalation",
-]);
+export const ThemeDurationSchema = z.enum(["30〜45秒", "45〜60秒", "60〜90秒"]);
 
-export const PracticePromptDurationSchema = z.enum([
-  "30〜45秒",
-  "45〜60秒",
-  "60〜90秒",
-]);
-
-export const PracticePromptSchema = z.object({
-  id: z.string(),
-  category: PracticePromptCategorySchema,
-  title: z.string(),
-  prompt: z.string(),
-  background: z.string().min(1),
-  situation: z.string(),
-  goals: z.array(z.string()).min(2).max(4),
-  durationLabel: PracticePromptDurationSchema,
+export const ThemeInputSchema = z.object({
+  theme: z.string().trim().min(1).max(120),
+  audience: z.string().trim().min(1).max(80),
+  goal: z.string().trim().min(1).max(80),
 });
 
-export const PersonalizedPracticePromptSchema = PracticePromptSchema.extend({
-  personalized: z.literal(true),
+export const ThemeRecordSchema = z.object({
+  id: z.string().trim().min(1),
+  title: z.string().trim().min(1).max(80),
+  userInput: ThemeInputSchema,
+  mission: z.string().trim().min(1).max(160),
+  audienceSummary: z.string().trim().min(1).max(120),
+  talkingPoints: z.array(z.string().trim().min(1).max(80)).min(3).max(4),
+  recommendedStructure: z.array(z.string().trim().min(1).max(80)).min(3).max(4),
+  durationLabel: ThemeDurationSchema,
+  createdAt: z.string().trim().min(1),
+  updatedAt: z.string().trim().min(1),
+});
+
+export const CreateThemeRequestSchema = ThemeInputSchema;
+
+export const CreateThemeResponseSchema = z.object({
+  theme: ThemeRecordSchema,
+});
+
+export const ListThemesResponseSchema = z.object({
+  themes: z.array(ThemeRecordSchema),
 });
 
 export const EvaluationScoreSchema = z.object({
@@ -89,23 +91,19 @@ export const PracticeSessionAttemptSchema = z.object({
 
 export const PracticeSessionRecordSchema = z.object({
   id: z.string(),
-  prompt: PersonalizedPracticePromptSchema,
+  theme: ThemeRecordSchema,
   attempts: z.array(PracticeSessionAttemptSchema).max(2),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 
 export type ScoreAxis = z.infer<typeof ScoreAxisSchema>;
-export type PracticePromptCategory = z.infer<
-  typeof PracticePromptCategorySchema
->;
-export type PracticePromptDuration = z.infer<
-  typeof PracticePromptDurationSchema
->;
-export type PracticePrompt = z.infer<typeof PracticePromptSchema>;
-export type PersonalizedPracticePrompt = z.infer<
-  typeof PersonalizedPracticePromptSchema
->;
+export type ThemeDuration = z.infer<typeof ThemeDurationSchema>;
+export type ThemeInput = z.infer<typeof ThemeInputSchema>;
+export type ThemeRecord = z.infer<typeof ThemeRecordSchema>;
+export type CreateThemeRequest = z.infer<typeof CreateThemeRequestSchema>;
+export type CreateThemeResponse = z.infer<typeof CreateThemeResponseSchema>;
+export type ListThemesResponse = z.infer<typeof ListThemesResponseSchema>;
 export type EvaluationScore = z.infer<typeof EvaluationScoreSchema>;
 export type AttemptComparison = z.infer<typeof AttemptComparisonSchema>;
 export type AttemptEvaluation = z.infer<typeof AttemptEvaluationSchema>;

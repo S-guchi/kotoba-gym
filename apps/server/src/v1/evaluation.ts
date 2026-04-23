@@ -1,7 +1,7 @@
 import {
   AttemptEvaluationSchema,
-  type PracticePrompt,
   type PreviousAttemptPayload,
+  type ThemeRecord,
 } from "@kotoba-gym/core";
 import type { ServerConfig } from "../config.js";
 import { createLLMClient } from "../lib/gemini-client.js";
@@ -17,20 +17,20 @@ import {
 export { ApiError } from "./api-error.js";
 
 function logGeminiEvaluation(params: {
-  promptId: string;
+  themeId: string;
   attemptNumber: number;
   mimeType: string;
   raw: string;
 }) {
   console.log(
-    `[gemini][evaluation] promptId=${params.promptId} attempt=${params.attemptNumber} mimeType=${params.mimeType}`,
+    `[gemini][evaluation] themeId=${params.themeId} attempt=${params.attemptNumber} mimeType=${params.mimeType}`,
   );
   console.log(params.raw);
 }
 
 export async function evaluateAttempt(params: {
   config: ServerConfig;
-  prompt: PracticePrompt;
+  theme: ThemeRecord;
   attemptNumber: number;
   audio: Uint8Array;
   mimeType: string;
@@ -47,7 +47,7 @@ export async function evaluateAttempt(params: {
       [
         {
           text: buildEvaluationPrompt({
-            prompt: params.prompt,
+            theme: params.theme,
             attemptNumber: params.attemptNumber,
             locale: params.locale,
             previousAttemptSummary: params.previousAttemptSummary,
@@ -68,7 +68,7 @@ export async function evaluateAttempt(params: {
       },
     );
     logGeminiEvaluation({
-      promptId: params.prompt.id,
+      themeId: params.theme.id,
       attemptNumber: params.attemptNumber,
       mimeType: params.mimeType,
       raw,

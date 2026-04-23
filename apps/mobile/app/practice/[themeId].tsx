@@ -18,7 +18,6 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { Tag } from "../../src/components/tag";
 import { Waveform } from "../../src/components/waveform";
 import {
   coachProfile,
@@ -35,7 +34,7 @@ import {
 import { savePendingRecordingPayload } from "../../src/lib/pending-recording-store";
 import { getPracticeSession } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
-import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
+import { fonts, type ThemePalette } from "../../src/lib/theme";
 import type { PracticeSessionRecord } from "@kotoba-gym/core";
 
 const characterImages: Record<RecordingCharacterVariant, number> = {
@@ -161,7 +160,7 @@ export default function PracticeScreen() {
   const palette = useThemePalette();
   const styles = createStyles(palette);
   const params = useLocalSearchParams<{
-    promptId: string;
+    themeId: string;
     sessionId: string;
   }>();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -384,7 +383,7 @@ export default function PracticeScreen() {
 
       savePendingRecordingPayload({
         sessionId: session.id,
-        promptId: session.prompt.id,
+        themeId: session.theme.id,
         attemptNumber: currentAttempt,
         audioUri: recorder.uri,
       });
@@ -440,11 +439,7 @@ export default function PracticeScreen() {
             <Ionicons name="chevron-back" size={18} color={palette.text2} />
             <Text style={styles.backText}>戻る</Text>
           </Pressable>
-          <Tag
-            label={
-              categoryLabels[session.prompt.category] ?? session.prompt.category
-            }
-          />
+          <Text style={styles.headerMeta}>{session.theme.durationLabel}</Text>
         </View>
 
         <View style={styles.heroSection}>
@@ -452,14 +447,14 @@ export default function PracticeScreen() {
           <View style={styles.heroShade} />
 
           <View style={styles.promptPanel}>
-            <Text style={styles.promptLabel}>{"TODAY'S PROMPT"}</Text>
-            <Text style={styles.promptTitle}>{session.prompt.title}</Text>
-            <Text style={styles.promptBody}>{session.prompt.prompt}</Text>
+            <Text style={styles.promptLabel}>{"TODAY'S THEME"}</Text>
+            <Text style={styles.promptTitle}>{session.theme.title}</Text>
+            <Text style={styles.promptBody}>{session.theme.mission}</Text>
 
             <View style={styles.contextCard}>
-              <Text style={styles.contextLabel}>背景</Text>
+              <Text style={styles.contextLabel}>相手</Text>
               <Text style={styles.contextText}>
-                {session.prompt.background}
+                {session.theme.audienceSummary}
               </Text>
             </View>
 
@@ -471,9 +466,9 @@ export default function PracticeScreen() {
                   style={styles.expectationImage}
                 />
                 <View style={styles.expectationBody}>
-                  <Text style={styles.expectationLabel}>相手の期待</Text>
+                  <Text style={styles.expectationLabel}>伝えるポイント</Text>
                   <Text style={styles.expectationText}>
-                    {session.prompt.situation}
+                    {session.theme.talkingPoints.join(" / ")}
                   </Text>
                 </View>
               </View>
@@ -653,6 +648,11 @@ function createStyles(palette: ThemePalette) {
       paddingTop: 10,
       paddingBottom: 16,
       backgroundColor: palette.background,
+    },
+    headerMeta: {
+      fontFamily: fonts.mono,
+      fontSize: 11,
+      color: palette.text3,
     },
     backBtn: {
       flexDirection: "row",

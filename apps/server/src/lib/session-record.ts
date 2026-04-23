@@ -1,8 +1,8 @@
 import type {
   AttemptEvaluation,
-  PersonalizedPracticePrompt,
   PracticeSessionRecord,
   PreviousAttemptPayload,
+  ThemeRecord,
 } from "@kotoba-gym/core";
 import { PreviousAttemptPayloadSchema } from "@kotoba-gym/core";
 
@@ -12,12 +12,12 @@ export function createSessionId(now = Date.now(), randomValue = Math.random()) {
 
 export function createPracticeSessionRecord(params: {
   id: string;
-  prompt: PersonalizedPracticePrompt;
+  theme: ThemeRecord;
   now: string;
 }): PracticeSessionRecord {
   return {
     id: params.id,
-    prompt: params.prompt,
+    theme: params.theme,
     attempts: [],
     createdAt: params.now,
     updatedAt: params.now,

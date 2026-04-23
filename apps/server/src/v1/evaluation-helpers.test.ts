@@ -1,7 +1,7 @@
 import type {
   AttemptEvaluation,
-  PracticePrompt,
   PreviousAttemptPayload,
+  ThemeRecord,
 } from "@kotoba-gym/core";
 import { scoreAxes } from "@kotoba-gym/core";
 import { describe, expect, test } from "vitest";
@@ -46,16 +46,30 @@ const previousEvaluation: PreviousAttemptPayload = {
   nextFocus: "数字を入れる",
 };
 
-const prompt: PracticePrompt = {
-  id: "personalized-1",
-  category: "tech-explanation",
-  title: "API キャッシュ戦略の説明",
-  prompt: "API レスポンスのキャッシュ戦略を説明してください。",
-  background:
-    "最近アクセス数が増え、一部 API の平均応答時間が悪化していました。特に商品一覧 API はピーク時に 900ms 前後まで遅くなっていたため、キャッシュ対象と TTL を見直しました。",
-  situation: "相手は結論先出しで要点を知りたがっています。",
-  goals: ["最初に結論を置く", "改善前後を分けて話す"],
+const theme: ThemeRecord = {
+  id: "theme-1",
+  title: "API キャッシュ戦略を説明する",
+  userInput: {
+    theme: "API キャッシュ戦略を見直した理由",
+    audience: "新メンバー",
+    goal: "設計意図を誤解なく理解してほしい",
+  },
+  mission:
+    "新メンバーに、キャッシュ戦略を見直した理由と設計意図が伝わるように説明してください。",
+  audienceSummary: "相手は背景知識が浅く、結論から短く知りたがっています。",
+  talkingPoints: [
+    "どんな問題が起きていたか",
+    "なぜ見直しが必要だったか",
+    "どのように変えたか",
+  ],
+  recommendedStructure: [
+    "最初に結論を一言で述べる",
+    "見直し前の問題を共有する",
+    "変更点と理由を順番に話す",
+  ],
   durationLabel: "60〜90秒",
+  createdAt: "2026-04-22T00:00:00.000Z",
+  updatedAt: "2026-04-22T00:00:00.000Z",
 };
 
 describe.each([
@@ -163,7 +177,7 @@ describe.each([
   {
     name: "initial prompt mentions null comparison",
     input: {
-      prompt,
+      theme,
       attemptNumber: 1,
       locale: "ja-JP",
     },
@@ -172,7 +186,7 @@ describe.each([
   {
     name: "retry prompt includes previous attempt summary",
     input: {
-      prompt,
+      theme,
       attemptNumber: 2,
       locale: "ja-JP",
       previousAttemptSummary: "前回は冗長でした。",
@@ -181,13 +195,13 @@ describe.each([
     expectedSnippet: "previousAttemptSummary: 前回は冗長でした。",
   },
   {
-    name: "prompt includes background context",
+    name: "prompt includes audience context",
     input: {
-      prompt,
+      theme,
       attemptNumber: 1,
       locale: "ja-JP",
     },
-    expectedSnippet: "## 背景",
+    expectedSnippet: "## 相手の前提",
   },
 ])("buildEvaluationPrompt", ({ input, expectedSnippet }) => {
   test.each([{ label: "prompt reflects attempt context" }])("$label", () => {

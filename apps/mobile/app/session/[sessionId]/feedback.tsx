@@ -25,22 +25,15 @@ export default function FeedbackScreen() {
     let alive = true;
 
     if (!sessionId) {
-      setSession(null);
       setNotFound(true);
-      setError(null);
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
-    setSession(null);
-    setNotFound(false);
-    setError(null);
-
     void (async () => {
       try {
+        setIsLoading(true);
         const nextSession = await getPracticeSession(sessionId);
-
         if (!alive) {
           return;
         }
@@ -55,7 +48,6 @@ export default function FeedbackScreen() {
         if (!alive) {
           return;
         }
-
         setError(
           cause instanceof Error
             ? cause.message
@@ -81,27 +73,17 @@ export default function FeedbackScreen() {
     );
   }
 
-  if (error) {
+  if (error || notFound || !session) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.emptyCenter}>
-          <Text style={styles.loadingText}>読み込みに失敗しました。</Text>
-          <Text style={styles.emptyText}>{error}</Text>
-          <PrimaryButton onPress={() => router.replace("/")}>
-            ホームへ戻る
-          </PrimaryButton>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (notFound || !session) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.emptyCenter}>
-          <Text style={styles.loadingText}>セッションが見つかりません。</Text>
+          <Text style={styles.loadingText}>
+            {notFound
+              ? "セッションが見つかりません。"
+              : "読み込みに失敗しました。"}
+          </Text>
           <Text style={styles.emptyText}>
-            最新の一覧からもう一度選び直してください。
+            {error ?? "最新の一覧からもう一度選び直してください。"}
           </Text>
           <PrimaryButton onPress={() => router.replace("/")}>
             ホームへ戻る
@@ -120,8 +102,8 @@ export default function FeedbackScreen() {
           <PrimaryButton
             onPress={() =>
               router.replace({
-                pathname: "/practice/[promptId]",
-                params: { promptId: session.prompt.id, sessionId: session.id },
+                pathname: "/practice/[themeId]",
+                params: { themeId: session.theme.id, sessionId: session.id },
               })
             }
           >
@@ -136,7 +118,9 @@ export default function FeedbackScreen() {
   const canCompare = session.attempts.length >= 2;
   const eval_ = latestAttempt.evaluation;
   const avgScore = Math.round(
-    (eval_.scores.reduce((s, x) => s + x.score, 0) / eval_.scores.length) * 20,
+    (eval_.scores.reduce((sum, item) => sum + item.score, 0) /
+      eval_.scores.length) *
+      20,
   );
 
   return (
@@ -155,12 +139,15 @@ export default function FeedbackScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>{session.prompt.title}</Text>
-        <Text style={styles.subtitle}>フィードバック</Text>
+        <Text style={styles.title}>{session.theme.title}</Text>
+        <Text style={styles.subtitle}>{session.theme.userInput.goal}</Text>
 
         <View style={styles.overallCard}>
           <ScoreDonut score={avgScore} />
-          <Text style={styles.summaryText}>{eval_.summary}</Text>
+          <View style={styles.overallBody}>
+            <Text style={styles.summaryText}>{eval_.summary}</Text>
+            <Text style={styles.missionText}>{session.theme.mission}</Text>
+          </View>
         </View>
 
         <Collapsible title="あなたの回答（文字起こし）">
@@ -208,13 +195,13 @@ export default function FeedbackScreen() {
         </View>
 
         <View style={styles.actions}>
-          {canRetry && (
+          {canRetry ? (
             <PrimaryButton
               onPress={() =>
                 router.replace({
-                  pathname: "/practice/[promptId]",
+                  pathname: "/practice/[themeId]",
                   params: {
-                    promptId: session.prompt.id,
+                    themeId: session.theme.id,
                     sessionId: session.id,
                   },
                 })
@@ -222,8 +209,8 @@ export default function FeedbackScreen() {
             >
               もう一度回答する
             </PrimaryButton>
-          )}
-          {canCompare && (
+          ) : null}
+          {canCompare ? (
             <PrimaryButton
               variant="ghost"
               onPress={() =>
@@ -235,9 +222,17 @@ export default function FeedbackScreen() {
             >
               比較を見る
             </PrimaryButton>
-          )}
-          <PrimaryButton variant="ghost" onPress={() => router.replace("/")}>
-            ホームへ戻る
+          ) : null}
+          <PrimaryButton
+            variant="ghost"
+            onPress={() =>
+              router.push({
+                pathname: "/theme/[themeId]",
+                params: { themeId: session.theme.id },
+              })
+            }
+          >
+            テーマ詳細へ戻る
           </PrimaryButton>
         </View>
       </ScrollView>
@@ -260,24 +255,24 @@ function createStyles(palette: ThemePalette) {
     },
     emptyCenter: {
       flex: 1,
-      padding: 20,
+      paddingHorizontal: 24,
       justifyContent: "center",
-      gap: 16,
+      gap: 14,
     },
     emptyText: {
       fontFamily: fonts.body,
-      color: palette.text2,
       fontSize: 14,
       lineHeight: 22,
+      color: palette.text2,
       textAlign: "center",
     },
     pageHeader: {
       flexDirection: "row",
-      alignItems: "center",
       justifyContent: "space-between",
+      alignItems: "center",
       paddingHorizontal: 20,
-      paddingTop: 8,
-      paddingBottom: 4,
+      paddingTop: 10,
+      paddingBottom: 6,
     },
     backBtn: {
       flexDirection: "row",
@@ -291,117 +286,116 @@ function createStyles(palette: ThemePalette) {
     },
     attemptLabel: {
       fontFamily: fonts.mono,
-      fontSize: 10,
+      fontSize: 11,
       color: palette.text3,
     },
     content: {
       paddingHorizontal: 20,
       paddingBottom: 32,
-      gap: 14,
+      gap: 12,
     },
     title: {
       fontFamily: fonts.heading,
-      fontSize: 22,
+      fontSize: 28,
       color: palette.text,
-      marginBottom: 2,
     },
     subtitle: {
-      fontFamily: fonts.mono,
-      fontSize: 10,
-      color: palette.text3,
-      marginBottom: 4,
-    },
-    overallCard: {
-      backgroundColor: palette.surface,
-      borderWidth: 1,
-      borderColor: palette.border,
-      borderRadius: 18,
-      padding: 16,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 16,
-    },
-    summaryText: {
       fontFamily: fonts.body,
       fontSize: 13,
       color: palette.text2,
-      lineHeight: 20,
+      marginTop: -4,
+    },
+    overallCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: palette.border,
+      borderRadius: 20,
+      padding: 16,
+    },
+    overallBody: {
       flex: 1,
+      gap: 6,
+    },
+    summaryText: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
+      lineHeight: 22,
+      color: palette.text,
+    },
+    missionText: {
+      fontFamily: fonts.body,
+      fontSize: 13,
+      lineHeight: 20,
+      color: palette.text2,
     },
     card: {
       backgroundColor: palette.surface,
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 16,
-      padding: 14,
-    },
-    cardAccent: {
-      backgroundColor: palette.accentDim,
-      borderColor: palette.accent,
-    },
-    cardDanger: {
-      backgroundColor: palette.dangerDim,
-      borderColor: palette.danger,
-    },
-    cardWarm: {
-      backgroundColor: palette.accentWarmDim,
-      borderColor: palette.accentWarm,
+      borderRadius: 20,
+      padding: 16,
+      gap: 8,
     },
     sectionLabel: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 10,
-      fontWeight: "500",
-      letterSpacing: 1,
-      textTransform: "uppercase",
-      color: palette.text3,
-      marginBottom: 10,
-    },
-    pointRow: {
-      flexDirection: "row",
-      gap: 8,
-      marginBottom: 6,
-      alignItems: "flex-start",
-    },
-    pointText: {
-      fontFamily: fonts.body,
-      fontSize: 13,
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
       color: palette.text,
-      lineHeight: 20,
-      flex: 1,
-    },
-    arrowDanger: {
-      color: palette.danger,
-      fontSize: 14,
     },
     transcriptText: {
       fontFamily: fonts.body,
-      fontSize: 13,
-      color: palette.text2,
+      fontSize: 14,
       lineHeight: 22,
+      color: palette.text2,
+    },
+    pointRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+    },
+    pointText: {
+      flex: 1,
+      fontFamily: fonts.body,
+      fontSize: 14,
+      lineHeight: 22,
+      color: palette.text,
+    },
+    cardAccent: {
+      backgroundColor: palette.accentDim,
+      borderColor: palette.accentDim,
+    },
+    cardDanger: {
+      backgroundColor: palette.dangerDim,
+      borderColor: palette.dangerDim,
+    },
+    arrowDanger: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 14,
+      color: palette.danger,
     },
     rewriteBlock: {
-      borderLeftWidth: 2,
-      borderLeftColor: palette.accent,
-      paddingLeft: 12,
+      paddingTop: 4,
+    },
+    cardWarm: {
+      backgroundColor: palette.surface2,
+      borderColor: palette.borderLight,
     },
     focusLabel: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 10,
-      fontWeight: "500",
-      color: palette.accentWarm,
-      letterSpacing: 1,
-      textTransform: "uppercase",
-      marginBottom: 8,
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
+      color: palette.text,
     },
     focusText: {
       fontFamily: fonts.body,
       fontSize: 14,
-      color: palette.text,
       lineHeight: 22,
+      color: palette.text2,
     },
     actions: {
       gap: 10,
-      marginTop: 10,
+      marginTop: 4,
     },
   });
 }

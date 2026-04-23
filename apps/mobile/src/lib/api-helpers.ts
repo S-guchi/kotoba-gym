@@ -43,14 +43,14 @@ export function toMobileApiErrorData(
 export function buildEvaluationRequestFields(params: {
   ownerKey: string;
   sessionId: string;
-  promptId: string;
+  themeId: string;
   attemptNumber: number;
   locale?: string;
 }) {
   return {
     ownerKey: params.ownerKey,
     sessionId: params.sessionId,
-    promptId: params.promptId,
+    themeId: params.themeId,
     attemptNumber: String(params.attemptNumber),
     locale: params.locale ?? "ja-JP",
   };

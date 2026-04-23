@@ -4,10 +4,9 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScoreDonut } from "../../src/components/score-donut";
-import { Tag } from "../../src/components/tag";
 import { listPracticeSessions } from "../../src/lib/storage";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
-import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
+import { fonts, type ThemePalette } from "../../src/lib/theme";
 import type { PracticeSessionRecord } from "@kotoba-gym/core";
 
 function formatDate(iso: string) {
@@ -23,9 +22,6 @@ export default function HistoryScreen() {
   useEffect(() => {
     void listPracticeSessions().then(setSessions);
   }, []);
-
-  const weekCount = sessions.length;
-  const bestAxis = "—";
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -45,76 +41,65 @@ export default function HistoryScreen() {
 
         <View style={styles.headerSection}>
           <Text style={styles.title}>練習の記録</Text>
-          <Text style={styles.subtitle}>あなたの積み上げ</Text>
+          <Text style={styles.subtitle}>
+            これまでに作ったテーマと回答セッション
+          </Text>
         </View>
 
-        <View style={styles.trendGrid}>
-          <View style={styles.trendCard}>
-            <Text style={styles.trendValue}>{weekCount}回</Text>
-            <Text style={styles.trendLabel}>今週の練習</Text>
-            <Text style={styles.trendSub}>先週比 +2</Text>
-          </View>
-          <View style={styles.trendCard}>
-            <Text style={styles.trendValue}>{bestAxis}</Text>
-            <Text style={styles.trendLabel}>最近伸びた軸</Text>
-            <Text style={styles.trendSub}>継続で見えてきます</Text>
-          </View>
-        </View>
-
-        <Text style={styles.sectionLabel}>履歴</Text>
-
-        {sessions.length === 0 && (
+        {sessions.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>まだ履歴はありません。</Text>
+            <Text style={styles.emptyTitle}>まだ履歴はありません。</Text>
+            <Text style={styles.emptyBody}>
+              ホームから新しいテーマを作ると、ここに練習の積み上げが残ります。
+            </Text>
           </View>
-        )}
+        ) : (
+          <View style={styles.list}>
+            {sessions.map((session) => {
+              const latest = session.attempts.at(-1);
+              const avgScore = latest
+                ? Math.round(
+                    (latest.evaluation.scores.reduce(
+                      (sum, item) => sum + item.score,
+                      0,
+                    ) /
+                      latest.evaluation.scores.length) *
+                      20,
+                  )
+                : 0;
 
-        <View style={styles.list}>
-          {sessions.map((session) => {
-            const latest = session.attempts.at(-1);
-            const avgScore = latest
-              ? Math.round(
-                  (latest.evaluation.scores.reduce((s, x) => s + x.score, 0) /
-                    latest.evaluation.scores.length) *
-                    20,
-                )
-              : 0;
-
-            return (
-              <Pressable
-                key={session.id}
-                style={styles.historyCard}
-                onPress={() =>
-                  router.push({
-                    pathname: "/session/[sessionId]/feedback",
-                    params: { sessionId: session.id },
-                  })
-                }
-              >
-                <ScoreDonut score={avgScore} size={44} />
-                <View style={styles.historyInfo}>
-                  <Text style={styles.historyTitle} numberOfLines={1}>
-                    {session.prompt.title}
-                  </Text>
-                  <View style={styles.historyMeta}>
-                    <Tag
-                      label={
-                        categoryLabels[session.prompt.category] ??
-                        session.prompt.category
-                      }
-                    />
-                    <Text style={styles.historyAttempts}>
-                      ×{session.attempts.length}
+              return (
+                <Pressable
+                  key={session.id}
+                  style={styles.historyCard}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/session/[sessionId]/feedback",
+                      params: { sessionId: session.id },
+                    })
+                  }
+                >
+                  <ScoreDonut score={avgScore} size={46} />
+                  <View style={styles.historyBody}>
+                    <Text style={styles.historyTitle}>
+                      {session.theme.title}
+                    </Text>
+                    <Text style={styles.historyMeta}>
+                      {session.theme.userInput.audience} /{" "}
+                      {session.attempts.length}回回答
+                    </Text>
+                    <Text numberOfLines={2} style={styles.historyMission}>
+                      {session.theme.mission}
                     </Text>
                   </View>
-                </View>
-                <Text style={styles.historyDate}>
-                  {formatDate(session.updatedAt)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text style={styles.historyDate}>
+                    {formatDate(session.updatedAt)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -146,100 +131,69 @@ function createStyles(palette: ThemePalette) {
       letterSpacing: 0.4,
     },
     headerSection: {
-      marginBottom: 2,
+      gap: 4,
     },
     title: {
       fontFamily: fonts.heading,
       fontSize: 28,
       color: palette.text,
-      marginBottom: 4,
     },
     subtitle: {
       fontFamily: fonts.body,
       fontSize: 12,
       color: palette.text3,
     },
-    trendGrid: {
-      flexDirection: "row",
-      gap: 10,
-    },
-    trendCard: {
-      flex: 1,
-      backgroundColor: palette.surface,
-      borderWidth: 1,
-      borderColor: palette.border,
-      borderRadius: 16,
-      padding: 14,
-    },
-    trendValue: {
-      fontFamily: fonts.mono,
-      fontSize: 16,
-      color: palette.accent,
-      marginBottom: 3,
-    },
-    trendLabel: {
-      fontFamily: fonts.body,
-      fontSize: 11,
-      color: palette.text3,
-      marginBottom: 3,
-    },
-    trendSub: {
-      fontFamily: fonts.mono,
-      fontSize: 10,
-      color: palette.accentWarm,
-    },
-    sectionLabel: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 10,
-      fontWeight: "500",
-      letterSpacing: 1,
-      textTransform: "uppercase",
-      color: palette.text3,
-    },
     emptyCard: {
       backgroundColor: palette.surface,
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 16,
-      padding: 16,
+      borderRadius: 18,
+      padding: 18,
+      gap: 8,
     },
-    emptyText: {
+    emptyTitle: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 16,
+      color: palette.text,
+    },
+    emptyBody: {
       fontFamily: fonts.body,
-      color: palette.text2,
       fontSize: 14,
+      lineHeight: 22,
+      color: palette.text2,
     },
     list: {
-      gap: 10,
+      gap: 12,
     },
     historyCard: {
       backgroundColor: palette.surface,
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 16,
+      borderRadius: 20,
       padding: 14,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
     },
-    historyInfo: {
+    historyBody: {
       flex: 1,
       gap: 4,
     },
     historyTitle: {
-      fontFamily: fonts.bodyMedium,
-      fontSize: 13,
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
       color: palette.text,
-      fontWeight: "500",
     },
     historyMeta: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    historyAttempts: {
       fontFamily: fonts.mono,
       fontSize: 10,
       color: palette.text3,
+    },
+    historyMission: {
+      fontFamily: fonts.body,
+      fontSize: 13,
+      lineHeight: 20,
+      color: palette.text2,
     },
     historyDate: {
       fontFamily: fonts.mono,

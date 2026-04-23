@@ -8,8 +8,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "biome check src react-native.ts personalization.react-native.ts",
-    "format": "biome format --write src react-native.ts personalization.react-native.ts"
+    "lint": "biome check src react-native.ts",
+    "format": "biome format --write src react-native.ts"
   },
   "dependencies": {
     "zod": "^3"

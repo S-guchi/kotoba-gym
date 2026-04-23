@@ -6,18 +6,17 @@ import {
 } from "../lib/session-record.js";
 import type { AppRepository } from "../repositories/app-repository.js";
 import { ApiError, evaluateAttempt } from "./evaluation.js";
-import { generatePersonalizedPrompts } from "./personalized-prompts.js";
 import {
   assertSupportedAudioMimeType,
   jsonApiError,
+  parseCreateThemePayload,
   parseEvaluationFields,
   parseOwnerKey,
-  parseProfilePayload,
-  parsePromptGenerationPayload,
   parseSessionCreatePayload,
   resolveAudioMimeType,
   toRouteApiError,
 } from "./route-helpers.js";
+import { generateTheme } from "./themes.js";
 
 type AppType = Hono<{
   Bindings: WorkerBindings;
@@ -28,73 +27,59 @@ type AppType = Hono<{
 }>;
 
 export function registerV1Routes(app: AppType) {
-  app.get("/v1/profile", async (c) => {
+  app.get("/v1/themes", async (c) => {
     try {
       const ownerKey = parseOwnerKey(c.req.query("ownerKey"));
-      const profile = await c.get("repository").getProfile(ownerKey);
-      return c.json({ profile });
+      const themes = await c.get("repository").listThemes(ownerKey);
+      return c.json({ themes });
     } catch (error) {
       return jsonApiError(toRouteApiError(error));
     }
   });
 
-  app.put("/v1/profile", async (c) => {
+  app.post("/v1/themes", async (c) => {
     try {
-      const payload = parseProfilePayload(await c.req.json());
-      const profile = await c.get("repository").saveProfile(payload);
-      return c.json({ profile });
-    } catch (error) {
-      return jsonApiError(toRouteApiError(error));
-    }
-  });
-
-  app.delete("/v1/personalization", async (c) => {
-    try {
-      const ownerKey = parseOwnerKey(c.req.query("ownerKey"));
-      await c.get("repository").clearPersonalization(ownerKey);
-      return c.json({ ok: true });
-    } catch (error) {
-      return jsonApiError(toRouteApiError(error));
-    }
-  });
-
-  app.get("/v1/prompts", async (c) => {
-    try {
-      const ownerKey = parseOwnerKey(c.req.query("ownerKey"));
-      const prompts = await c.get("repository").listPrompts(ownerKey);
-      return c.json({ prompts });
-    } catch (error) {
-      return jsonApiError(toRouteApiError(error));
-    }
-  });
-
-  app.post("/v1/personalized-prompts", async (c) => {
-    try {
-      const payload = parsePromptGenerationPayload(await c.req.json());
+      const payload = parseCreateThemePayload(await c.req.json());
       const repository = c.get("repository");
       const config = c.get("config");
 
-      await repository.saveProfile(payload);
-
-      const prompts = await generatePersonalizedPrompts({
+      const theme = await generateTheme({
         apiKey: config.geminiApiKey,
         model: config.geminiModel,
-        profile: payload.profile,
+        input: payload.input,
       });
 
-      const saved = await repository.savePrompts({
+      const saved = await repository.saveTheme({
         ownerKey: payload.ownerKey,
-        prompts,
+        theme,
       });
 
-      return c.json({ prompts: saved });
+      return c.json({ theme: saved });
     } catch (error) {
       return jsonApiError(
         toRouteApiError(error, {
-          message: "個人化お題の生成に失敗しました。",
-          code: "personalized_prompt_generation_failed",
+          message: "テーマの生成に失敗しました。",
+          code: "theme_generation_failed",
         }),
       );
+    }
+  });
+
+  app.get("/v1/themes/:themeId", async (c) => {
+    try {
+      const ownerKey = parseOwnerKey(c.req.query("ownerKey"));
+      const theme = await c.get("repository").getTheme({
+        ownerKey,
+        themeId: c.req.param("themeId"),
+      });
+
+      if (!theme) {
+        throw new ApiError("テーマが見つかりません。", 404, "theme_not_found");
+      }
+
+      return c.json({ theme });
+    } catch (error) {
+      return jsonApiError(toRouteApiError(error));
     }
   });
 
@@ -102,18 +87,18 @@ export function registerV1Routes(app: AppType) {
     try {
       const payload = parseSessionCreatePayload(await c.req.json());
       const repository = c.get("repository");
-      const prompt = await repository.getPrompt({
+      const theme = await repository.getTheme({
         ownerKey: payload.ownerKey,
-        promptId: payload.promptId,
+        themeId: payload.themeId,
       });
 
-      if (!prompt) {
-        throw new ApiError("お題が見つかりません。", 404, "prompt_not_found");
+      if (!theme) {
+        throw new ApiError("テーマが見つかりません。", 404, "theme_not_found");
       }
 
       const session = await repository.createSession({
         ownerKey: payload.ownerKey,
-        prompt,
+        theme,
       });
 
       return c.json({ session });
@@ -179,8 +164,8 @@ export function registerV1Routes(app: AppType) {
         );
       }
 
-      if (session.prompt.id !== parsedFields.promptId) {
-        throw new ApiError("お題が一致しません。", 400, "prompt_mismatch");
+      if (session.theme.id !== parsedFields.themeId) {
+        throw new ApiError("テーマが一致しません。", 400, "theme_mismatch");
       }
 
       if (session.attempts.length >= 2) {
@@ -204,7 +189,7 @@ export function registerV1Routes(app: AppType) {
         resolveAudioMimeType(audio),
       );
       console.log("[server][evaluation] received-audio", {
-        promptId: parsedFields.promptId,
+        themeId: parsedFields.themeId,
         attemptNumber: parsedFields.attemptNumber,
         fileName: audio.name,
         fileType: audio.type,
@@ -215,7 +200,7 @@ export function registerV1Routes(app: AppType) {
       const previousAttempt = session.attempts.at(-1);
       const evaluation = await evaluateAttempt({
         config,
-        prompt: session.prompt,
+        theme: session.theme,
         attemptNumber: parsedFields.attemptNumber,
         audio: new Uint8Array(await audio.arrayBuffer()),
         mimeType,

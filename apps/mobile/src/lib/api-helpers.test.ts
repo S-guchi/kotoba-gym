@@ -74,13 +74,13 @@ describe.each([
     input: {
       ownerKey: "owner-1",
       sessionId: "session-1",
-      promptId: "tech-api-cache",
+      themeId: "theme-api-cache",
       attemptNumber: 1,
     },
     expected: {
       ownerKey: "owner-1",
       sessionId: "session-1",
-      promptId: "tech-api-cache",
+      themeId: "theme-api-cache",
       attemptNumber: "1",
       locale: "ja-JP",
     },

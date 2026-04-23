@@ -2,7 +2,7 @@ import type { CreateThemeRequest } from "@kotoba-gym/core";
 
 export interface ThemeFormState {
   theme: string;
-  audience: string;
+  personaId: string;
   goal: string;
 }
 
@@ -25,13 +25,43 @@ function validateField(value: string, label: string, maxLength: number) {
 export function validateThemeForm(state: ThemeFormState): ThemeFormValidation {
   const errors = {
     theme: validateField(state.theme, "テーマ", 120) ?? undefined,
-    audience: validateField(state.audience, "相手", 80) ?? undefined,
+    personaId: validateField(state.personaId, "相手", 80) ?? undefined,
     goal: validateField(state.goal, "目的", 80) ?? undefined,
   };
 
   return {
-    isValid: !errors.theme && !errors.audience && !errors.goal,
+    isValid: !errors.theme && !errors.personaId && !errors.goal,
     errors,
+  };
+}
+
+export function validateThemeStep(theme: string): ThemeFormValidation {
+  const error = validateField(theme, "テーマ", 120) ?? undefined;
+  return {
+    isValid: !error,
+    errors: {
+      theme: error,
+    },
+  };
+}
+
+export function validatePersonaStep(personaId: string): ThemeFormValidation {
+  const error = validateField(personaId, "相手", 80) ?? undefined;
+  return {
+    isValid: !error,
+    errors: {
+      personaId: error,
+    },
+  };
+}
+
+export function validateGoalStep(goal: string): ThemeFormValidation {
+  const error = validateField(goal, "目的", 80) ?? undefined;
+  return {
+    isValid: !error,
+    errors: {
+      goal: error,
+    },
   };
 }
 
@@ -40,7 +70,7 @@ export function toCreateThemeRequest(
 ): CreateThemeRequest {
   return {
     theme: state.theme.trim(),
-    audience: state.audience.trim(),
+    personaId: state.personaId.trim(),
     goal: state.goal.trim(),
   };
 }

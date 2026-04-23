@@ -57,8 +57,15 @@ const theme: ThemeRecord = {
   title: "API キャッシュ戦略を説明する",
   userInput: {
     theme: "API キャッシュ戦略を見直した理由",
-    audience: "新メンバー",
+    personaId: "persona-new-member",
     goal: "設計意図を誤解なく理解してほしい",
+  },
+  persona: {
+    id: "persona-new-member",
+    name: "新メンバー",
+    description:
+      "最近チームに加わったばかりで、プロジェクトの背景知識が少ない。",
+    emoji: "🧑‍💻",
   },
   mission:
     "新メンバーに、キャッシュ戦略を見直した理由と設計意図が伝わるように説明してください。",

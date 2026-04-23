@@ -1,9 +1,11 @@
 import {
+  type Persona,
   type PracticeSessionRecord,
   PracticeSessionRecordSchema,
   type ThemeRecord,
   ThemeRecordSchema,
 } from "@kotoba-gym/core";
+import { defaultPersonas } from "../lib/personas.js";
 import {
   createPracticeSessionRecord,
   createSessionId,
@@ -15,6 +17,7 @@ export interface AppRepository {
     ownerKey: string;
     theme: ThemeRecord;
   }): Promise<PracticeSessionRecord>;
+  getPersona(personaId: string): Promise<Persona | null>;
   getSession(params: {
     ownerKey: string;
     sessionId: string;
@@ -27,6 +30,7 @@ export interface AppRepository {
     ownerKey: string;
     themeId?: string;
   }): Promise<PracticeSessionRecord[]>;
+  listPersonas(): Promise<Persona[]>;
   listThemes(ownerKey: string): Promise<ThemeRecord[]>;
   saveSession(params: {
     ownerKey: string;
@@ -83,6 +87,17 @@ export class D1AppRepository implements AppRepository {
     return parseSession(row.session_json);
   }
 
+  async getPersona(personaId: string) {
+    return (
+      (await this.db
+        .prepare(
+          "SELECT id, name, description, emoji FROM personas WHERE id = ?",
+        )
+        .bind(personaId)
+        .first<Persona>()) ?? null
+    );
+  }
+
   async getTheme(params: { ownerKey: string; themeId: string }) {
     const row = await this.db
       .prepare("SELECT theme_json FROM themes WHERE owner_key = ? AND id = ?")
@@ -114,6 +129,16 @@ export class D1AppRepository implements AppRepository {
     return sortPracticeSessions(
       (result.results ?? []).map((row) => parseSession(row.session_json)),
     );
+  }
+
+  async listPersonas() {
+    const result = await this.db
+      .prepare(
+        "SELECT id, name, description, emoji FROM personas ORDER BY created_at ASC",
+      )
+      .all<Persona>();
+
+    return result.results ?? [];
   }
 
   async listThemes(ownerKey: string) {
@@ -179,6 +204,9 @@ export class D1AppRepository implements AppRepository {
 }
 
 export class InMemoryAppRepository implements AppRepository {
+  private readonly personas = new Map(
+    defaultPersonas.map((persona) => [persona.id, persona]),
+  );
   private readonly themes = new Map<string, Map<string, ThemeRecord>>();
   private readonly sessions = new Map<
     string,
@@ -205,6 +233,10 @@ export class InMemoryAppRepository implements AppRepository {
     return this.sessions.get(params.ownerKey)?.get(params.sessionId) ?? null;
   }
 
+  async getPersona(personaId: string) {
+    return this.personas.get(personaId) ?? null;
+  }
+
   async getTheme(params: { ownerKey: string; themeId: string }) {
     return this.themes.get(params.ownerKey)?.get(params.themeId) ?? null;
   }
@@ -216,6 +248,10 @@ export class InMemoryAppRepository implements AppRepository {
         ? sessions.filter((session) => session.theme.id === params.themeId)
         : sessions,
     );
+  }
+
+  async listPersonas() {
+    return [...this.personas.values()];
   }
 
   async listThemes(ownerKey: string) {

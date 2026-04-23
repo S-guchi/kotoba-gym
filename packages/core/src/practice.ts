@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PersonaSchema } from "./persona.js";
 
 export const scoreAxes = [
   "conclusion",
@@ -14,7 +15,7 @@ export const ThemeDurationSchema = z.enum(["30〜45秒", "45〜60秒", "60〜90�
 
 export const ThemeInputSchema = z.object({
   theme: z.string().trim().min(1).max(120),
-  audience: z.string().trim().min(1).max(80),
+  personaId: z.string().trim().min(1).max(80),
   goal: z.string().trim().min(1).max(80),
 });
 
@@ -22,6 +23,7 @@ export const ThemeRecordSchema = z.object({
   id: z.string().trim().min(1),
   title: z.string().trim().min(1).max(80),
   userInput: ThemeInputSchema,
+  persona: PersonaSchema,
   mission: z.string().trim().min(1).max(160),
   audienceSummary: z.string().trim().min(1).max(120),
   talkingPoints: z.array(z.string().trim().min(1).max(80)).min(3).max(4),

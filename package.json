@@ -6,7 +6,7 @@
   "scripts": {
     "dev:mobile": "pnpm --filter @kotoba-gym/mobile dev",
     "dev:server": "pnpm --filter @kotoba-gym/server dev",
-    "db:local:reset": "pnpm exec wrangler d1 execute kotoba-gym --local --config apps/server/wrangler.jsonc --command \"DROP TABLE IF EXISTS sessions; DROP TABLE IF EXISTS themes; DROP TABLE IF EXISTS d1_migrations;\"",
+    "db:local:reset": "pnpm exec wrangler d1 execute kotoba-gym --local --config apps/server/wrangler.jsonc --command \"DROP TABLE IF EXISTS sessions; DROP TABLE IF EXISTS themes; DROP TABLE IF EXISTS personas; DROP TABLE IF EXISTS d1_migrations;\"",
     "db:local:migrate": "pnpm exec wrangler d1 migrations apply kotoba-gym --local --config apps/server/wrangler.jsonc",
     "db:local:fresh": "pnpm run db:local:reset && pnpm run db:local:migrate",
     "build": "pnpm -C packages/core build && pnpm -C apps/server build",

@@ -8,27 +8,35 @@ import {
 } from "../lib/session-record.js";
 import { InMemoryAppRepository } from "../repositories/app-repository.js";
 
-const { mockGenerateParts } = vi.hoisted(() => ({
+const { mockGenerate, mockGenerateParts } = vi.hoisted(() => ({
+  mockGenerate: vi.fn(),
   mockGenerateParts: vi.fn(),
 }));
 
 vi.mock("../lib/gemini-client.js", () => ({
   createLLMClient: () => ({
-    generate: vi.fn(),
+    generate: mockGenerate,
     generateParts: mockGenerateParts,
   }),
 }));
 
 const ownerKey = "owner-1";
+const persona = {
+  id: "persona-new-member",
+  name: "新メンバー",
+  description: "最近チームに加わったばかりで、プロジェクトの背景知識が少ない。",
+  emoji: "🧑‍💻",
+} as const;
 
 const theme: ThemeRecord = {
   id: "theme-1",
   title: "API キャッシュ戦略を説明する",
   userInput: {
     theme: "API キャッシュ戦略を見直した理由",
-    audience: "新メンバー",
+    personaId: persona.id,
     goal: "設計意図を誤解なく理解してほしい",
   },
+  persona,
   mission:
     "新メンバーに、キャッシュ戦略を見直した理由と設計意図が伝わるように説明してください。",
   audienceSummary: "相手は背景知識が浅く、結論から短く知りたがっています。",
@@ -109,7 +117,125 @@ async function createAppWithRepository() {
 }
 
 afterEach(() => {
+  mockGenerate.mockReset();
   mockGenerateParts.mockReset();
+});
+
+describe.each([
+  {
+    name: "returns seeded personas",
+    expectedIds: [
+      "persona-new-member",
+      "persona-interviewer",
+      "persona-manager",
+      "persona-non-engineer",
+    ],
+  },
+])("GET /v1/personas", ({ expectedIds }) => {
+  test.each([{ label: "persona list is returned" }])("$label", async () => {
+    const { app } = await createAppWithRepository();
+    const response = await app.request("/v1/personas");
+
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as {
+      personas: Array<typeof persona>;
+    };
+    expect(payload.personas.map((item) => item.id)).toEqual(expectedIds);
+  });
+});
+
+describe.each([
+  {
+    name: "theme is created with persona snapshot",
+    request: {
+      ownerKey,
+      input: {
+        theme: "API キャッシュ戦略を見直した理由",
+        personaId: persona.id,
+        goal: "設計意図を誤解なく理解してほしい",
+      },
+    },
+  },
+])("POST /v1/themes success", ({ request }) => {
+  test.each([{ label: "theme payload is persisted with persona" }])(
+    "$label",
+    async () => {
+      mockGenerate.mockResolvedValue(
+        JSON.stringify({
+          theme: {
+            title: "API キャッシュ戦略を説明する",
+            mission:
+              "新メンバーに、キャッシュ戦略を見直した理由と設計意図が伝わるように説明してください。",
+            audienceSummary:
+              "相手は背景知識が浅く、結論から短く知りたがっています。",
+            talkingPoints: [
+              "どんな問題が起きていたか",
+              "なぜ見直しが必要だったか",
+              "どのように変えたか",
+            ],
+            recommendedStructure: [
+              "最初に結論を一言で述べる",
+              "見直し前の問題を共有する",
+              "変更点と理由を順番に話す",
+            ],
+            durationLabel: "60〜90秒",
+          },
+        }),
+      );
+      const { app } = await createAppWithRepository();
+      const response = await app.request("/v1/themes", {
+        method: "POST",
+        body: JSON.stringify(request),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toMatchObject({
+        theme: {
+          userInput: request.input,
+          persona,
+        },
+      });
+    },
+  );
+});
+
+describe.each([
+  {
+    name: "unknown persona id is rejected",
+    request: {
+      ownerKey,
+      input: {
+        theme: "API キャッシュ戦略を見直した理由",
+        personaId: "persona-unknown",
+        goal: "設計意図を誤解なく理解してほしい",
+      },
+    },
+  },
+])("POST /v1/themes guards", ({ request }) => {
+  test.each([{ label: "missing persona is rejected before generation" }])(
+    "$label",
+    async () => {
+      const { app } = await createAppWithRepository();
+      const response = await app.request("/v1/themes", {
+        method: "POST",
+        body: JSON.stringify(request),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      expect(response.status).toBe(404);
+      await expect(response.json()).resolves.toMatchObject({
+        error: {
+          code: "persona_not_found",
+        },
+      });
+      expect(mockGenerate).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe.each([

@@ -10,6 +10,13 @@ import {
   scoreAxes,
 } from "./index.js";
 
+const persona = {
+  id: "persona-new-member",
+  name: "新メンバー",
+  description: "最近チームに加わったばかりで、プロジェクトの背景知識が少ない。",
+  emoji: "🧑‍💻",
+};
+
 const baseScores = scoreAxes.map((axis, index) => ({
   axis,
   score: Math.min(index + 1, 5),
@@ -32,9 +39,10 @@ const themeRecord = {
   title: "API キャッシュ戦略を説明する",
   userInput: {
     theme: "API キャッシュ戦略を見直した理由",
-    audience: "新メンバー",
+    personaId: persona.id,
     goal: "設計意図を誤解なく理解してほしい",
   },
+  persona,
   mission:
     "新メンバーに、キャッシュ戦略を見直した理由と設計意図が伝わるように説明してください。",
   audienceSummary: "相手は背景知識が浅く、結論から短く知りたがっています。",
@@ -70,6 +78,21 @@ describe.each([{ name: "request parses", input: themeRecord.userInput }])(
     });
   },
 );
+
+describe.each([
+  {
+    name: "legacy audience field is rejected",
+    input: {
+      theme: "API キャッシュ戦略を見直した理由",
+      audience: "新メンバー",
+      goal: "設計意図を誤解なく理解してほしい",
+    },
+  },
+])("CreateThemeRequestSchema invalid shape", ({ input }) => {
+  test.each([{ label: "legacy request schema parse fails" }])("$label", () => {
+    expect(() => CreateThemeRequestSchema.parse(input)).toThrow();
+  });
+});
 
 describe.each([
   {

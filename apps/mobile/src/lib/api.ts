@@ -1,6 +1,7 @@
 import Constants from "expo-constants";
 import type {
   CreateThemeRequest,
+  Persona,
   PracticeSessionRecord,
   AttemptEvaluation,
   ThemeRecord,
@@ -101,6 +102,13 @@ export async function createRemoteTheme(
     },
   );
   return payload.theme;
+}
+
+export async function fetchPersonas(): Promise<Persona[]> {
+  const payload = await fetchJson<{ personas: Persona[] }>(
+    `${API_BASE_URL}/v1/personas`,
+  );
+  return payload.personas;
 }
 
 export async function createRemotePracticeSession(

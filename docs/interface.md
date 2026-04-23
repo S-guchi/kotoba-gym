@@ -2,7 +2,7 @@
 
 ## 1. 概要
 
-現在の `kotoba-gym` は、ユーザーが `テーマ / 相手 / 目的` を入力し、
+現在の `kotoba-gym` は、ユーザーが `テーマ / ペルソナ / 目的` を入力し、
 サーバー側の LLM が練習用の `Theme` を生成し、
 そのテーマに対して何度でも音声練習できる構成です。
 
@@ -21,8 +21,21 @@
 ```ts
 type ThemeInput = {
   theme: string;
-  audience: string;
+  personaId: string;
   goal: string;
+};
+```
+
+### 2.1.1 Persona
+
+テーマ作成時に選ぶ固定ペルソナです。
+
+```ts
+type Persona = {
+  id: string;
+  name: string;
+  description: string;
+  emoji: string;
 };
 ```
 
@@ -35,6 +48,7 @@ type ThemeRecord = {
   id: string;
   title: string;
   userInput: ThemeInput;
+  persona: Persona;
   mission: string;
   audienceSummary: string;
   talkingPoints: string[];
@@ -91,7 +105,17 @@ type PracticeSessionRecord = {
 { "ok": true }
 ```
 
-### 4.2 `GET /v1/themes`
+### 4.2 `GET /v1/personas`
+
+レスポンス:
+
+```json
+{
+  "personas": [Persona]
+}
+```
+
+### 4.3 `GET /v1/themes`
 
 クエリ:
 
@@ -107,7 +131,7 @@ type PracticeSessionRecord = {
 }
 ```
 
-### 4.3 `POST /v1/themes`
+### 4.4 `POST /v1/themes`
 
 リクエスト:
 
@@ -116,7 +140,7 @@ type PracticeSessionRecord = {
   "ownerKey": "owner-...",
   "input": {
     "theme": "APIキャッシュ戦略を見直した理由",
-    "audience": "新メンバー",
+    "personaId": "persona-new-member",
     "goal": "設計意図を誤解なく理解してほしい"
   }
 }
@@ -130,7 +154,7 @@ type PracticeSessionRecord = {
 }
 ```
 
-### 4.4 `GET /v1/themes/:themeId`
+### 4.5 `GET /v1/themes/:themeId`
 
 クエリ:
 
@@ -148,7 +172,7 @@ type PracticeSessionRecord = {
 
 未存在時は `404 theme_not_found`。
 
-### 4.5 `POST /v1/sessions`
+### 4.6 `POST /v1/sessions`
 
 リクエスト:
 
@@ -167,7 +191,7 @@ type PracticeSessionRecord = {
 }
 ```
 
-### 4.6 `GET /v1/sessions`
+### 4.7 `GET /v1/sessions`
 
 クエリ:
 
@@ -186,7 +210,7 @@ type PracticeSessionRecord = {
 
 `themeId` を付けると、そのテーマの session のみ返します。
 
-### 4.7 `GET /v1/sessions/:sessionId`
+### 4.8 `GET /v1/sessions/:sessionId`
 
 クエリ:
 
@@ -202,7 +226,7 @@ type PracticeSessionRecord = {
 }
 ```
 
-### 4.8 `POST /v1/evaluations`
+### 4.9 `POST /v1/evaluations`
 
 `multipart/form-data` で送信します。
 

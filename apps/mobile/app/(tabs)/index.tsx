@@ -37,7 +37,7 @@ function ThemeCard({
       </View>
       <Text style={styles.themeTitle}>{theme.title}</Text>
       <Text style={styles.themeMeta}>
-        {theme.userInput.audience}に向けて / {theme.userInput.goal}
+        {theme.persona.name}に向けて / {theme.userInput.goal}
       </Text>
       <Text style={styles.themeMission}>{theme.mission}</Text>
       <View style={styles.themePointList}>

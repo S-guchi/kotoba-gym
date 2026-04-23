@@ -1,6 +1,7 @@
 import { Type } from "@google/genai";
 import {
   type CreateThemeRequest,
+  type Persona,
   ThemeDurationSchema,
   type ThemeRecord,
 } from "@kotoba-gym/core";
@@ -55,19 +56,23 @@ export const CREATE_THEME_RESPONSE_SCHEMA = {
   required: ["theme"],
 };
 
-export function buildCreateThemePrompt(input: CreateThemeRequest) {
+export function buildCreateThemePrompt(params: {
+  input: CreateThemeRequest;
+  persona: Persona;
+}) {
   return `あなたは口頭説明の練習コーチです。
 ユーザーが持ち込んだ説明テーマを、すぐ練習できる形に日本語で整理してください。
 
 ## ユーザー入力
-- テーマ: ${input.theme}
-- 相手: ${input.audience}
-- 目的: ${input.goal}
+- テーマ: ${params.input.theme}
+- ペルソナ: ${params.persona.name}
+- ペルソナ補足: ${params.persona.description}
+- 目的: ${params.input.goal}
 
 ## 生成ルール
 1. title はテーマを短く言い換えた見出しにしてください。
-2. mission は相手と目的が一文で伝わる行動目標にしてください。
-3. audienceSummary は相手の前提知識や期待を短くまとめてください。
+2. mission はペルソナと目的が一文で伝わる行動目標にしてください。
+3. audienceSummary はペルソナの前提知識や期待を短くまとめてください。
 4. talkingPoints は3〜4個に絞り、話すべき論点だけを具体的に書いてください。
 5. recommendedStructure は3〜4個に絞り、自然な説明順を短い文で示してください。
 6. durationLabel は 30〜45秒 / 45〜60秒 / 60〜90秒 から選んでください。
@@ -83,19 +88,25 @@ function hashText(text: string) {
   return hash.toString(36);
 }
 
-export function createThemeId(input: CreateThemeRequest, now: string) {
-  return `theme-${hashText(`${input.theme}:${input.audience}:${input.goal}:${now}`)}`;
+export function createThemeId(params: {
+  input: CreateThemeRequest;
+  persona: Persona;
+  now: string;
+}) {
+  return `theme-${hashText(`${params.input.theme}:${params.persona.id}:${params.input.goal}:${params.now}`)}`;
 }
 
 export function normalizeGeneratedTheme(params: {
   input: CreateThemeRequest;
+  persona: Persona;
   rawTheme: z.infer<typeof ThemeDraftSchema>;
   now: string;
 }): ThemeRecord {
   return {
-    id: createThemeId(params.input, params.now),
+    id: createThemeId(params),
     title: params.rawTheme.title,
     userInput: params.input,
+    persona: params.persona,
     mission: params.rawTheme.mission,
     audienceSummary: params.rawTheme.audienceSummary,
     talkingPoints: params.rawTheme.talkingPoints,

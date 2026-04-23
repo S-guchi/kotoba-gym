@@ -120,7 +120,8 @@ ${params.theme.title}
 
 ## ユーザーが説明したいこと
 - テーマ: ${params.theme.userInput.theme}
-- 相手: ${params.theme.userInput.audience}
+- 相手: ${params.theme.persona.name}
+- 相手の特徴: ${params.theme.persona.description}
 - 目的: ${params.theme.userInput.goal}
 
 ## 今回のミッション

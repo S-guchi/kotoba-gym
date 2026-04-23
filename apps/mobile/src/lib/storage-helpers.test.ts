@@ -12,8 +12,14 @@ const theme: ThemeRecord = {
   title: "障害報告を説明する",
   userInput: {
     theme: "障害報告",
-    audience: "上司",
+    personaId: "persona-manager",
     goal: "判断してほしい",
+  },
+  persona: {
+    id: "persona-manager",
+    name: "上司",
+    description: "ビジネスインパクトと優先度を気にするマネージャー。",
+    emoji: "📊",
   },
   mission: "上司に、いま判断が必要な障害状況だと伝わるように説明してください。",
   audienceSummary: "相手は現状と次のアクションを短く知りたがっています。",

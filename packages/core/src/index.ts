@@ -25,3 +25,9 @@ export {
   ThemeRecordSchema,
   scoreAxes,
 } from "./practice.js";
+export {
+  type ListPersonasResponse,
+  ListPersonasResponseSchema,
+  type Persona,
+  PersonaSchema,
+} from "./persona.js";

@@ -27,6 +27,15 @@ type AppType = Hono<{
 }>;
 
 export function registerV1Routes(app: AppType) {
+  app.get("/v1/personas", async (c) => {
+    try {
+      const personas = await c.get("repository").listPersonas();
+      return c.json({ personas });
+    } catch (error) {
+      return jsonApiError(toRouteApiError(error));
+    }
+  });
+
   app.get("/v1/themes", async (c) => {
     try {
       const ownerKey = parseOwnerKey(c.req.query("ownerKey"));
@@ -42,11 +51,21 @@ export function registerV1Routes(app: AppType) {
       const payload = parseCreateThemePayload(await c.req.json());
       const repository = c.get("repository");
       const config = c.get("config");
+      const persona = await repository.getPersona(payload.input.personaId);
+
+      if (!persona) {
+        throw new ApiError(
+          "ペルソナが見つかりません。",
+          404,
+          "persona_not_found",
+        );
+      }
 
       const theme = await generateTheme({
         apiKey: config.geminiApiKey,
         model: config.geminiModel,
         input: payload.input,
+        persona,
       });
 
       const saved = await repository.saveTheme({

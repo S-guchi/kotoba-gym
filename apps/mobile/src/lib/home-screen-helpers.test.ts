@@ -7,8 +7,14 @@ const theme: ThemeRecord = {
   title: "Expo の強みを説明する",
   userInput: {
     theme: "Expo の強み",
-    audience: "面接官",
+    personaId: "persona-interviewer",
     goal: "強みを評価してほしい",
+  },
+  persona: {
+    id: "persona-interviewer",
+    name: "面接官",
+    description: "技術的な深さと論理的な説明力を重視する採用担当。",
+    emoji: "👔",
   },
   mission: "面接官に、Expo を選ぶ判断軸と強みが伝わるように説明してください。",
   audienceSummary: "相手は実例と判断理由を重視しています。",

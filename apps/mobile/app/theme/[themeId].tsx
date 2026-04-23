@@ -128,13 +128,21 @@ export default function ThemeDetailScreen() {
           <Text style={styles.heroEyebrow}>THEME BRIEF</Text>
           <Text style={styles.heroTitle}>{theme.title}</Text>
           <Text style={styles.heroMeta}>
-            {theme.userInput.audience} / {theme.userInput.goal}
+            {theme.persona.name} / {theme.userInput.goal}
           </Text>
           <Text style={styles.heroMission}>{theme.mission}</Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>相手</Text>
+          <Text style={styles.personaName}>
+            {theme.persona.emoji} {theme.persona.name}
+          </Text>
+          <Text style={styles.bodyText}>{theme.persona.description}</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>相手への前提整理</Text>
           <Text style={styles.bodyText}>{theme.audienceSummary}</Text>
         </View>
 
@@ -306,6 +314,12 @@ function createStyles(palette: ThemePalette) {
       fontSize: 14,
       lineHeight: 22,
       color: palette.text2,
+    },
+    personaName: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
+      color: palette.text,
+      marginBottom: 6,
     },
     pointText: {
       fontFamily: fonts.body,

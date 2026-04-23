@@ -13,7 +13,7 @@ describe.each([
       ownerKey: "owner-1",
       input: {
         theme: "障害報告",
-        audience: "上司",
+        personaId: "persona-manager",
         goal: "判断してほしい",
       },
     },
@@ -21,7 +21,7 @@ describe.each([
       ownerKey: "owner-1",
       input: {
         theme: "障害報告",
-        audience: "上司",
+        personaId: "persona-manager",
         goal: "判断してほしい",
       },
     },

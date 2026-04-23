@@ -84,7 +84,7 @@ export default function HistoryScreen() {
                       {session.theme.title}
                     </Text>
                     <Text style={styles.historyMeta}>
-                      {session.theme.userInput.audience}
+                      {session.theme.persona.name}
                     </Text>
                     <Text numberOfLines={2} style={styles.historyMission}>
                       {session.evaluation?.summary ?? session.theme.mission}

@@ -13,6 +13,7 @@ export {
   ThemeRecordSchema,
   scoreAxes,
 } from "./src/practice";
+export { ListPersonasResponseSchema, PersonaSchema } from "./src/persona";
 export type {
   AttemptComparison,
   AttemptEvaluation,
@@ -27,3 +28,4 @@ export type {
   ThemeInput,
   ThemeRecord,
 } from "./src/practice";
+export type { ListPersonasResponse, Persona } from "./src/persona";

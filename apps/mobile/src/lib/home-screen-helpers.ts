@@ -13,6 +13,7 @@ type EvaluatedSession = PracticeSessionRecord & {
 };
 
 export type HomeFeed = ReturnType<typeof buildHomeFeed>;
+export type ThemeListRowItem = ReturnType<typeof buildThemeRows>[number];
 
 export function buildHomeFeed(params: {
   themes: ThemeRecord[];
@@ -47,6 +48,44 @@ export function buildHomeFeed(params: {
       params.themes.length === 0 && params.sessions.length === 0,
     sessionCount: params.sessions.length,
   };
+}
+
+export function getHomeThemePreviewRows(
+  rows: ThemeListRowItem[],
+  maxCount = 3,
+) {
+  return rows.slice(0, maxCount);
+}
+
+export function formatLastPracticed(iso: string | null) {
+  if (!iso) {
+    return "未挑戦";
+  }
+
+  const date = new Date(iso);
+  const today = new Date();
+  const startToday = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const startDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  );
+  const days = Math.floor(
+    (startToday.getTime() - startDate.getTime()) / 86_400_000,
+  );
+
+  if (days <= 0) {
+    return "今日";
+  }
+  if (days === 1) {
+    return "昨日";
+  }
+
+  return `${days}日前`;
 }
 
 function hasEvaluation(

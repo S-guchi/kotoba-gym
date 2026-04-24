@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { PracticeSessionRecord, ThemeRecord } from "@kotoba-gym/core";
-import { buildHomeFeed } from "./home-screen-helpers";
+import { buildHomeFeed, getHomeThemePreviewRows } from "./home-screen-helpers";
 
 const theme: ThemeRecord = {
   id: "theme-1",
@@ -221,6 +221,52 @@ describe.each([
         previousScore: resolved.todaysRun?.previousScore ?? null,
         targetScore: resolved.todaysRun?.targetScore ?? null,
       }).toEqual(expected);
+    },
+  );
+});
+
+describe.each([
+  {
+    name: "returns all rows when theme count is under limit",
+    rows: [
+      { theme, previousScore: 60, lastPracticedAt: "2026-04-22T10:00:00.000Z" },
+      {
+        theme: { ...theme, id: "theme-2", title: "別テーマ" },
+        previousScore: null,
+        lastPracticedAt: null,
+      },
+    ],
+    expectedIds: ["theme-1", "theme-2"],
+  },
+  {
+    name: "clips rows to three when theme count exceeds limit",
+    rows: [
+      { theme, previousScore: 60, lastPracticedAt: "2026-04-22T10:00:00.000Z" },
+      {
+        theme: { ...theme, id: "theme-2", title: "別テーマ" },
+        previousScore: null,
+        lastPracticedAt: null,
+      },
+      {
+        theme: { ...theme, id: "theme-3", title: "三つ目" },
+        previousScore: 70,
+        lastPracticedAt: "2026-04-21T10:00:00.000Z",
+      },
+      {
+        theme: { ...theme, id: "theme-4", title: "四つ目" },
+        previousScore: 80,
+        lastPracticedAt: "2026-04-20T10:00:00.000Z",
+      },
+    ],
+    expectedIds: ["theme-1", "theme-2", "theme-3"],
+  },
+])("getHomeThemePreviewRows", ({ rows, expectedIds }) => {
+  test.each([{ label: "home theme preview is capped deterministically" }])(
+    "$label",
+    () => {
+      expect(getHomeThemePreviewRows(rows).map((row) => row.theme.id)).toEqual(
+        expectedIds,
+      );
     },
   );
 });

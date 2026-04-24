@@ -83,6 +83,7 @@ type PracticeSessionRecord = {
 | ルート                            | 用途                 | 主な入力                |
 | --------------------------------- | -------------------- | ----------------------- |
 | `/`                               | ホーム               | なし                    |
+| `/themes`                         | テーマ一覧           | なし                    |
 | `/theme/new`                      | テーマ作成           | なし                    |
 | `/theme/[themeId]`                | テーマ詳細           | `themeId`               |
 | `/practice/[themeId]`             | 録音画面             | `themeId`, `sessionId`  |

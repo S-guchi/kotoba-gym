@@ -5,9 +5,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "../../src/components/primary-button";
-import { ScoreDonut } from "../../src/components/score-donut";
+import { ThemeListRow } from "../../src/components/theme-list-row";
 import {
   buildHomeFeed,
+  getHomeThemePreviewRows,
   type HomeFeed,
 } from "../../src/lib/home-screen-helpers";
 import {
@@ -20,7 +21,6 @@ import { useThemePalette } from "../../src/lib/use-theme-palette";
 import type { PracticeSessionRecord, ThemeRecord } from "@kotoba-gym/core";
 
 type TodayRun = NonNullable<HomeFeed["todaysRun"]>;
-type ThemeRow = HomeFeed["themeRows"][number];
 
 const WEEKDAY_DOT_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 
@@ -30,37 +30,6 @@ function formatWeekDiff(diff: number) {
   }
 
   return diff > 0 ? `+${diff}` : `${diff}`;
-}
-
-function formatLastPracticed(iso: string | null) {
-  if (!iso) {
-    return "未挑戦";
-  }
-
-  const date = new Date(iso);
-  const today = new Date();
-  const startToday = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
-  const startDate = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-  );
-  const days = Math.floor(
-    (startToday.getTime() - startDate.getTime()) / 86_400_000,
-  );
-
-  if (days <= 0) {
-    return "今日";
-  }
-  if (days === 1) {
-    return "昨日";
-  }
-
-  return `${days}日前`;
 }
 
 function Header({
@@ -203,43 +172,6 @@ function TodayRunCard({
   );
 }
 
-function ThemeListRow({
-  row,
-  onPress,
-}: {
-  row: ThemeRow;
-  onPress: () => void;
-}) {
-  const palette = useThemePalette();
-  const styles = createStyles(palette);
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      style={({ pressed }) => [styles.themeRow, pressed && styles.pressedCard]}
-      onPress={onPress}
-    >
-      <View style={styles.scoreBadge}>
-        {row.previousScore === null ? (
-          <Text style={styles.emptyScoreText}>—</Text>
-        ) : (
-          <ScoreDonut score={row.previousScore} size={42} />
-        )}
-      </View>
-      <View style={styles.themeRowBody}>
-        <Text numberOfLines={1} style={styles.themeRowTitle}>
-          {row.theme.title}
-        </Text>
-        <Text numberOfLines={1} style={styles.themeRowMeta}>
-          {row.theme.persona.name} / {row.theme.durationLabel} /{" "}
-          {formatLastPracticed(row.lastPracticedAt)}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={palette.text3} />
-    </Pressable>
-  );
-}
-
 export default function HomeScreen() {
   const palette = useThemePalette();
   const styles = createStyles(palette);
@@ -312,6 +244,7 @@ export default function HomeScreen() {
   }
 
   const homeFeed = buildHomeFeed({ themes, sessions });
+  const previewThemeRows = getHomeThemePreviewRows(homeFeed.themeRows);
 
   if (isInitialLoading) {
     return (
@@ -362,38 +295,44 @@ export default function HomeScreen() {
             ) : null}
 
             {homeFeed.themeRows.length > 0 ? (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionLabel}>THEMES</Text>
-                  <Text style={styles.sectionMeta}>
-                    {homeFeed.sessionCount} sessions
-                  </Text>
-                </View>
-                <View style={styles.themeList}>
-                  {homeFeed.themeRows.map((row) => (
-                    <ThemeListRow
-                      key={row.theme.id}
-                      row={row}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/theme/[themeId]",
-                          params: { themeId: row.theme.id },
-                        })
-                      }
-                    />
-                  ))}
-                </View>
-              </View>
-            ) : null}
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.createThemeButton}
+                  onPress={() => router.push("/theme/new")}
+                >
+                  <Ionicons name="add" size={18} color={palette.text2} />
+                  <Text style={styles.createThemeText}>新しいテーマを作る</Text>
+                </Pressable>
 
-            <Pressable
-              accessibilityRole="button"
-              style={styles.createThemeButton}
-              onPress={() => router.push("/theme/new")}
-            >
-              <Ionicons name="add" size={18} color={palette.text2} />
-              <Text style={styles.createThemeText}>新しいテーマを作る</Text>
-            </Pressable>
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionLabel}>THEMES</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      onPress={() => router.push("/themes")}
+                    >
+                      <Text style={styles.sectionLink}>more..</Text>
+                    </Pressable>
+                  </View>
+                  <View style={styles.themeList}>
+                    {previewThemeRows.map((row) => (
+                      <ThemeListRow
+                        key={row.theme.id}
+                        row={row}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/theme/[themeId]",
+                            params: { themeId: row.theme.id },
+                          })
+                        }
+                      />
+                    ))}
+                  </View>
+                </View>
+              </>
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -650,59 +589,14 @@ function createStyles(palette: ThemePalette) {
       letterSpacing: 1.3,
       color: palette.text3,
     },
-    sectionMeta: {
-      fontFamily: fonts.mono,
-      fontSize: 10,
-      color: palette.text3,
+    sectionLink: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 11,
+      color: palette.accentWarm,
+      letterSpacing: 0.2,
     },
     themeList: {
       gap: 8,
-    },
-    themeRow: {
-      minHeight: 68,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      backgroundColor: palette.surface,
-      borderWidth: 1,
-      borderColor: palette.border,
-      borderRadius: 18,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
-    scoreBadge: {
-      width: 46,
-      height: 46,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    emptyScoreText: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      borderWidth: 1,
-      borderColor: palette.border,
-      textAlign: "center",
-      lineHeight: 40,
-      fontFamily: fonts.monoMedium,
-      fontSize: 16,
-      color: palette.text3,
-      backgroundColor: palette.surface2,
-    },
-    themeRowBody: {
-      flex: 1,
-      gap: 4,
-      minWidth: 0,
-    },
-    themeRowTitle: {
-      fontFamily: fonts.bodySemiBold,
-      fontSize: 15,
-      color: palette.text,
-    },
-    themeRowMeta: {
-      fontFamily: fonts.body,
-      fontSize: 12,
-      color: palette.text2,
     },
     createThemeButton: {
       minHeight: 52,

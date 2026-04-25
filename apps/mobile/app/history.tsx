@@ -4,7 +4,6 @@ import { useCallback, useState } from "react";
 import { Pressable, Text } from "react-native";
 import { fetchSessions } from "@/src/lib/api";
 import { getOwnerKey } from "@/src/lib/owner-key";
-import { getSceneOption } from "@/src/lib/scenes";
 import { Body, Card, ErrorState, Screen, Title } from "@/src/ui/components";
 import { palette } from "@/src/ui/theme";
 
@@ -60,10 +59,7 @@ export default function HistoryScreen() {
               >
                 {session.title}
               </Text>
-              <Body>
-                {getSceneOption(session.scene).title} /{" "}
-                {session.feedback ? "フィードバック済み" : "整理中"}
-              </Body>
+              <Body>{session.feedback ? "フィードバック済み" : "整理中"}</Body>
             </Card>
           </Pressable>
         ))

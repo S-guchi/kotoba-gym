@@ -85,6 +85,21 @@ export function createApp(deps?: {
 
   app.onError((error, c) => {
     console.error(error);
+    if (
+      error instanceof Error &&
+      error.message === "GEMINI_API_KEY is required"
+    ) {
+      return c.json(
+        {
+          error: {
+            code: "missing_gemini_api_key",
+            message: "GEMINI_API_KEY が設定されていません",
+          },
+        },
+        503,
+      );
+    }
+
     return c.json(
       { error: { code: "internal_error", message: "処理に失敗しました" } },
       500,

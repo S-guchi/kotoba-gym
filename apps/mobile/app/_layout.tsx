@@ -15,7 +15,6 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="index" options={{ title: "Kotoba Gym" }} />
-        <Stack.Screen name="input" options={{ title: "雑入力" }} />
         <Stack.Screen name="history" options={{ title: "過去の整理" }} />
         <Stack.Screen
           name="session/[sessionId]/index"

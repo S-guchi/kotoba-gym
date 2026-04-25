@@ -1,6 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Text, View } from "react-native";
-import { getSceneOption } from "@/src/lib/scenes";
 import { useSession } from "@/src/lib/use-session";
 import {
   Body,
@@ -40,7 +39,7 @@ export default function SessionDetailScreen() {
     <Screen>
       <View style={{ gap: 8 }}>
         <Title>{session.title}</Title>
-        <Body>シーン: {getSceneOption(session.scene).title}</Body>
+        <Body>最初に話した内容から整理しています。</Body>
       </View>
 
       {session.selectedConclusion ? (

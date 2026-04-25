@@ -2,7 +2,6 @@ import type {
   GeneratedScript,
   MaterialItem,
   RehearsalResult,
-  Scene,
   SessionRecord,
 } from "@kotoba-gym/core";
 
@@ -17,20 +16,13 @@ export function getInputSupportMessage(text: string) {
   return null;
 }
 
-export function buildSessionTitle(scene: Scene, text: string) {
+export function buildSessionTitle(text: string) {
   const firstLine = text.trim().split(/\n/)[0]?.trim();
   if (firstLine) {
     return firstLine.slice(0, 24);
   }
 
-  const titles: Record<Scene, string> = {
-    work_consultation: "仕事の相談",
-    meeting: "会議で話すこと",
-    interview: "面接回答",
-    partner: "伝えたいこと",
-    free: "自由な整理",
-  };
-  return titles[scene];
+  return "新しい整理";
 }
 
 export function formatDuration(seconds: number) {

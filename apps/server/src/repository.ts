@@ -9,7 +9,6 @@ import type { D1DatabaseLike } from "./config.js";
 type SessionRow = {
   id: string;
   owner_key: string;
-  scene: string;
   title: string;
   raw_input: string;
   materials_json: string | null;
@@ -41,7 +40,6 @@ function rowToSession(row: SessionRow): SessionRecord {
   return SessionRecordSchema.parse({
     id: row.id,
     ownerKey: row.owner_key,
-    scene: row.scene,
     title: row.title,
     rawInput: row.raw_input,
     materials: parseJson(row.materials_json, null),
@@ -71,19 +69,10 @@ export class D1SessionRepository implements SessionRepository {
     await this.db
       .prepare(
         `INSERT INTO sessions (
-          id, owner_key, scene, title, raw_input, conclusions_json, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          id, owner_key, title, raw_input, conclusions_json, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .bind(
-        id,
-        input.ownerKey,
-        input.scene,
-        title,
-        input.rawInput,
-        "[]",
-        now,
-        now,
-      )
+      .bind(id, input.ownerKey, title, input.rawInput, "[]", now, now)
       .run();
 
     const session = await this.get(id, input.ownerKey);

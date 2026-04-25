@@ -13,7 +13,6 @@ function createRepository(): SessionRepository {
       const session: SessionRecord = {
         id: `session-${sessions.size + 1}`,
         ownerKey: input.ownerKey,
-        scene: input.scene,
         title: input.title ?? "新しい整理",
         rawInput: input.rawInput,
         materials: null,
@@ -100,15 +99,31 @@ describe.each([
   });
 });
 
+test("GEMINI_API_KEY 未設定時は設定エラーを返す", async () => {
+  const app = createApp({
+    repository: createRepository(),
+  });
+  const response = await app.request("/v1/organize", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      rawInput: "CIについて相談したい",
+    }),
+  });
+  expect(response.status).toBe(503);
+  await expect(response.json()).resolves.toMatchObject({
+    error: { code: "missing_gemini_api_key" },
+  });
+});
+
 describe.each([
   ["/v1/transcribe", { audioBase64: "AAAA", mimeType: "audio/m4a" }, 200],
   ["/v1/transcribe", { audioBase64: "", mimeType: "audio/m4a" }, 400],
-  ["/v1/organize", { scene: "free", rawInput: "CIについて相談したい" }, 200],
-  ["/v1/organize", { scene: "invalid", rawInput: "" }, 400],
+  ["/v1/organize", { rawInput: "CIについて相談したい" }, 200],
+  ["/v1/organize", { rawInput: "" }, 400],
   [
     "/v1/conclusions",
     {
-      scene: "free",
       rawInput: "CIについて相談したい",
       materials: {
         title: "CI導入の相談",

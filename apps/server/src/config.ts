@@ -20,7 +20,7 @@ export interface ServerConfig {
   geminiModel: string;
 }
 
-export function loadConfig(env: WorkerBindings): ServerConfig {
+export function loadConfig(env: Partial<WorkerBindings> = {}): ServerConfig {
   if (!env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is required");
   }

@@ -52,7 +52,6 @@ export default function OrganizingScreen() {
       try {
         if (step === "organize") {
           const result = await organize({
-            scene: readySession.scene,
             rawInput: readySession.rawInput,
           });
           await updateSession(readySessionId, {
@@ -71,7 +70,6 @@ export default function OrganizingScreen() {
 
         if (step === "conclusions" && readySession.materials) {
           const result = await generateConclusions({
-            scene: readySession.scene,
             rawInput: readySession.rawInput,
             materials: readySession.materials,
           });
@@ -94,7 +92,6 @@ export default function OrganizingScreen() {
           readySession.selectedConclusion
         ) {
           const result = await generateSpeechPlan({
-            scene: readySession.scene,
             materials: readySession.materials,
             conclusion: readySession.selectedConclusion,
           });
@@ -118,7 +115,6 @@ export default function OrganizingScreen() {
           readySession.speechPlan
         ) {
           const result = await generateScript({
-            scene: readySession.scene,
             materials: readySession.materials,
             conclusion: readySession.selectedConclusion,
             speechPlan: readySession.speechPlan,

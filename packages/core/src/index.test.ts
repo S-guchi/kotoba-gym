@@ -2,28 +2,14 @@ import { describe, expect, test } from "vitest";
 import {
   CreateSessionRequestSchema,
   FeedbackSchema,
-  SceneSchema,
   SessionRecordSchema,
   TranscribeAudioRequestSchema,
 } from "./index.js";
 
 describe.each([
-  ["work_consultation", true],
-  ["meeting", true],
-  ["interview", true],
-  ["partner", true],
-  ["free", true],
-  ["unknown", false],
-])("SceneSchema", (value, expected) => {
-  test(`scene=${value} の検証結果が ${expected} になる`, () => {
-    expect(SceneSchema.safeParse(value).success).toBe(expected);
-  });
-});
-
-describe.each([
-  [{ ownerKey: "owner-1", scene: "free", rawInput: "相談したい" }, true],
-  [{ ownerKey: "", scene: "free", rawInput: "相談したい" }, false],
-  [{ ownerKey: "owner-1", scene: "other", rawInput: "相談したい" }, false],
+  [{ ownerKey: "owner-1", rawInput: "相談したい" }, true],
+  [{ ownerKey: "", rawInput: "相談したい" }, false],
+  [{ ownerKey: "owner-1", rawInput: "" }, true],
 ])("CreateSessionRequestSchema", (value, expected) => {
   test("作成リクエストを検証する", () => {
     expect(CreateSessionRequestSchema.safeParse(value).success).toBe(expected);
@@ -76,7 +62,6 @@ describe.each([
     {
       id: "session-1",
       ownerKey: "owner-1",
-      scene: "free",
       title: "相談",
       rawInput: "相談したい",
       materials: null,
@@ -95,7 +80,6 @@ describe.each([
     {
       id: "session-1",
       ownerKey: "owner-1",
-      scene: "free",
       title: "相談",
       rawInput: "相談したい",
       createdAt: "invalid",

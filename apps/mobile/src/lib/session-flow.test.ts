@@ -22,11 +22,11 @@ describe.each([
 });
 
 describe.each([
-  ["free", "CI導入について相談したい\n詳細", "CI導入について相談したい"],
-  ["meeting", "", "会議で話すこと"],
-])("buildSessionTitle", (scene, input, expected) => {
+  ["CI導入について相談したい\n詳細", "CI導入について相談したい"],
+  ["", "新しい整理"],
+])("buildSessionTitle", (input, expected) => {
   test("セッションタイトルを作る", () => {
-    expect(buildSessionTitle(scene as never, input)).toBe(expected);
+    expect(buildSessionTitle(input)).toBe(expected);
   });
 });
 

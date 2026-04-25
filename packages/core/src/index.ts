@@ -1,14 +1,5 @@
 import { z } from "zod";
 
-export const SceneSchema = z.enum([
-  "work_consultation",
-  "meeting",
-  "interview",
-  "partner",
-  "free",
-]);
-export type Scene = z.infer<typeof SceneSchema>;
-
 export const MaterialKeySchema = z.enum([
   "current",
   "issue",
@@ -21,7 +12,6 @@ export const MaterialKeySchema = z.enum([
 export type MaterialKey = z.infer<typeof MaterialKeySchema>;
 
 export const DraftInputSchema = z.object({
-  scene: SceneSchema,
   text: z.string().min(1),
 });
 export type DraftInput = z.infer<typeof DraftInputSchema>;
@@ -90,7 +80,6 @@ export type Feedback = z.infer<typeof FeedbackSchema>;
 export const SessionRecordSchema = z.object({
   id: z.string().min(1),
   ownerKey: z.string().min(1),
-  scene: SceneSchema,
   title: z.string().min(1),
   rawInput: z.string(),
   materials: OrganizedMaterialsSchema.nullable(),
@@ -107,7 +96,6 @@ export type SessionRecord = z.infer<typeof SessionRecordSchema>;
 
 export const CreateSessionRequestSchema = z.object({
   ownerKey: z.string().min(1),
-  scene: SceneSchema,
   rawInput: z.string(),
   title: z.string().optional(),
 });
@@ -128,7 +116,6 @@ export const UpdateSessionRequestSchema = z.object({
 export type UpdateSessionRequest = z.infer<typeof UpdateSessionRequestSchema>;
 
 export const OrganizeRequestSchema = z.object({
-  scene: SceneSchema,
   rawInput: z.string().min(1),
 });
 export type OrganizeRequest = z.infer<typeof OrganizeRequestSchema>;
@@ -154,7 +141,6 @@ export type TranscribeAudioResponse = z.infer<
 >;
 
 export const ConclusionsRequestSchema = z.object({
-  scene: SceneSchema,
   rawInput: z.string().min(1),
   materials: OrganizedMaterialsSchema,
   userHint: z.string().optional(),
@@ -167,7 +153,6 @@ export const ConclusionsResponseSchema = z.object({
 export type ConclusionsResponse = z.infer<typeof ConclusionsResponseSchema>;
 
 export const SpeechPlanRequestSchema = z.object({
-  scene: SceneSchema,
   materials: OrganizedMaterialsSchema,
   conclusion: ConclusionCandidateSchema,
 });
@@ -179,7 +164,6 @@ export const SpeechPlanResponseSchema = z.object({
 export type SpeechPlanResponse = z.infer<typeof SpeechPlanResponseSchema>;
 
 export const ScriptRequestSchema = z.object({
-  scene: SceneSchema,
   materials: OrganizedMaterialsSchema,
   conclusion: ConclusionCandidateSchema,
   speechPlan: SpeechPlanSchema,

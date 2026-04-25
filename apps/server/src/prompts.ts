@@ -22,7 +22,6 @@ JSON shape:
 export function buildOrganizePrompt(input: OrganizeRequest) {
   return `
 次の未整理な入力を、話す前の材料に分解してください。
-scene: ${input.scene}
 rawInput:
 ${input.rawInput}
 
@@ -47,7 +46,6 @@ JSON shape:
 export function buildConclusionsPrompt(input: ConclusionsRequest) {
   return `
 次の材料から「一番伝えたいこと」の候補を3つ作ってください。
-scene: ${input.scene}
 rawInput: ${input.rawInput}
 materials: ${JSON.stringify(input.materials)}
 userHint: ${input.userHint ?? ""}
@@ -67,7 +65,6 @@ export function buildSpeechPlanPrompt(input: SpeechPlanRequest) {
   return `
 次の材料と結論をもとに、相手に伝わりやすい順番を作ってください。
 PREP法などの型の名前は前面に出さず、自然な説明順にしてください。
-scene: ${input.scene}
 materials: ${JSON.stringify(input.materials)}
 conclusion: ${JSON.stringify(input.conclusion)}
 
@@ -88,7 +85,6 @@ export function buildScriptPrompt(input: ScriptRequest) {
   return `
 次の整理内容を、30秒で話せる説明文にしてください。
 丸読み前提ではなく、ユーザーが自分の言葉で練習できるキーワードも出してください。
-scene: ${input.scene}
 materials: ${JSON.stringify(input.materials)}
 conclusion: ${JSON.stringify(input.conclusion)}
 speechPlan: ${JSON.stringify(input.speechPlan)}

@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   owner_key TEXT NOT NULL,
-  scene TEXT NOT NULL,
   title TEXT NOT NULL,
   raw_input TEXT NOT NULL,
   materials_json TEXT,

@@ -2,22 +2,41 @@ import { describe, expect, test } from "vitest";
 import {
   buildSessionTitle,
   formatDuration,
-  getInputSupportMessage,
+  getHomeRecordingMessage,
   getScriptModes,
+  hasDraftInput,
 } from "./session-flow";
 
 describe.each([
-  ["", "まずは一言だけでも大丈夫です。"],
-  ["CI", "もう少しだけ材料があると整理しやすいです。"],
-  ["CI導入について、今は手動で確認していて相談したいです", null],
-])("getInputSupportMessage", (input, expectedPrefix) => {
-  test("入力量に応じた補助文を返す", () => {
-    const message = getInputSupportMessage(input);
-    if (expectedPrefix === null) {
-      expect(message).toBeNull();
-    } else {
-      expect(message?.startsWith(expectedPrefix)).toBe(true);
-    }
+  ["", false],
+  ["   ", false],
+  ["相談したい", true],
+])("hasDraftInput", (input, expected) => {
+  test("入力済みかどうかを返す", () => {
+    expect(hasDraftInput(input)).toBe(expected);
+  });
+});
+
+describe.each([
+  [
+    { isRecording: true, isTranscribing: false, hasRecordedAudio: false },
+    "録音中",
+  ],
+  [
+    { isRecording: false, isTranscribing: true, hasRecordedAudio: false },
+    "文字起こし中",
+  ],
+  [
+    { isRecording: false, isTranscribing: false, hasRecordedAudio: true },
+    "文字起こしを確認できます",
+  ],
+  [
+    { isRecording: false, isTranscribing: false, hasRecordedAudio: false },
+    null,
+  ],
+])("getHomeRecordingMessage", (state, expected) => {
+  test("録音状態に応じた短い表示文を返す", () => {
+    expect(getHomeRecordingMessage(state)).toBe(expected);
   });
 });
 

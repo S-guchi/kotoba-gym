@@ -1,4 +1,4 @@
-import type { SessionRecord } from "@kotoba-gym/core";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import {
   AudioModule,
   RecordingPresets,
@@ -7,39 +7,35 @@ import {
   useAudioRecorderState,
 } from "expo-audio";
 import { File } from "expo-file-system";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
-import { createSession, fetchSessions, transcribeAudio } from "@/src/lib/api";
+import { createSession, transcribeAudio } from "@/src/lib/api";
 import { getOwnerKey } from "@/src/lib/owner-key";
 import {
   buildSessionTitle,
   formatDuration,
-  getInputSupportMessage,
+  getHomeRecordingMessage,
+  hasDraftInput,
 } from "@/src/lib/session-flow";
-import {
-  Body,
-  Card,
-  ErrorState,
-  Hero,
-  PrimaryButton,
-  Screen,
-  SecondaryButton,
-  Title,
-} from "@/src/ui/components";
+import { Card, ErrorState, PrimaryButton, Screen } from "@/src/ui/components";
 import { palette } from "@/src/ui/theme";
 
 export default function HomeScreen() {
   const router = useRouter();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
-  const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
-  const supportMessage = getInputSupportMessage(text);
+  const hasInput = hasDraftInput(text);
+  const recordingMessage = getHomeRecordingMessage({
+    hasRecordedAudio: Boolean(recordedUri),
+    isRecording: recorderState.isRecording,
+    isTranscribing: transcribing,
+  });
 
   useEffect(() => {
     AudioModule.requestRecordingPermissionsAsync().then((status) => {
@@ -53,27 +49,6 @@ export default function HomeScreen() {
       }
     });
   }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      getOwnerKey()
-        .then(fetchSessions)
-        .then((items) => {
-          if (active) {
-            setSessions(items);
-          }
-        })
-        .catch(() => {
-          if (active) {
-            setSessions([]);
-          }
-        });
-      return () => {
-        active = false;
-      };
-    }, []),
-  );
 
   function getAudioMimeType(uri: string) {
     if (uri.endsWith(".webm")) {
@@ -146,119 +121,121 @@ export default function HomeScreen() {
 
   return (
     <Screen>
-      <Hero
-        eyebrow="Kotoba Gym"
-        title="まず、思いついた順で話す"
-        body="シーン選択は不要です。頭の中にある言葉をそのまま出せば、AIが材料・結論・話す順番に整理します。"
-      />
+      <View style={{ gap: 12 }}>
+        {recordingMessage ? (
+          <Text
+            accessibilityLiveRegion="polite"
+            selectable
+            style={{
+              color: palette.muted,
+              fontSize: 15,
+              fontWeight: "700",
+              textAlign: "center",
+            }}
+          >
+            {recordingMessage}
+          </Text>
+        ) : null}
 
-      <View style={{ gap: 8 }}>
-        <Title>雑入力</Title>
-        <Body>
-          途中で止まっても、言い直しても大丈夫です。録音後に文字起こしを直せます。
-        </Body>
+        {recorderState.isRecording ? (
+          <Card style={{ alignItems: "center", gap: 18, padding: 24 }}>
+            <Text
+              selectable
+              style={{
+                color: palette.ink,
+                fontSize: 46,
+                fontVariant: ["tabular-nums"],
+                fontWeight: "900",
+              }}
+            >
+              {formatDuration(Math.floor(recorderState.durationMillis / 1000))}
+            </Text>
+            <PrimaryButton onPress={stopRecording}>
+              停止して文字起こし
+            </PrimaryButton>
+          </Card>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            disabled={transcribing}
+            onPress={startRecording}
+            style={{
+              alignItems: "center",
+              backgroundColor: transcribing ? palette.line : palette.accent,
+              borderRadius: 999,
+              minHeight: 104,
+              justifyContent: "center",
+              paddingHorizontal: 24,
+              paddingVertical: 22,
+            }}
+          >
+            <Text style={{ color: "#FFFDF8", fontSize: 22, fontWeight: "800" }}>
+              {transcribing ? "文字起こし中..." : "音声で話す"}
+            </Text>
+          </Pressable>
+        )}
       </View>
 
-      <Card style={{ alignItems: "center", padding: 28 }}>
-        <Text
-          selectable
+      <View>
+        <TextInput
+          multiline
+          onChangeText={setText}
+          placeholder="話しても、書いてもOK"
+          placeholderTextColor="#A08F7A"
           style={{
+            backgroundColor: palette.panel,
+            borderColor: palette.line,
+            borderRadius: 24,
+            borderWidth: 1,
             color: palette.ink,
-            fontSize: 46,
-            fontVariant: ["tabular-nums"],
-            fontWeight: "900",
+            fontSize: 18,
+            lineHeight: 28,
+            minHeight: 260,
+            padding: 18,
+            paddingRight: hasInput ? 54 : 18,
+            textAlignVertical: "top",
           }}
-        >
-          {formatDuration(Math.floor(recorderState.durationMillis / 1000))}
-        </Text>
-        <Body>
-          {recorderState.isRecording
-            ? "録音中です。詰まってもそのままでOKです。"
-            : recordedUri
-              ? "録音できました。文字起こしを確認してください。"
-              : "まずは音声で、頭に浮かんでいることをそのまま出してください。"}
-        </Body>
-        {recorderState.isRecording ? (
-          <PrimaryButton onPress={stopRecording}>
-            停止して文字起こし
-          </PrimaryButton>
-        ) : (
-          <PrimaryButton disabled={transcribing} onPress={startRecording}>
-            {transcribing ? "文字起こし中..." : "音声で話す"}
-          </PrimaryButton>
-        )}
-      </Card>
-
-      <TextInput
-        multiline
-        onChangeText={setText}
-        placeholder="文字起こし結果がここに入ります。テキストで直接書くこともできます。"
-        placeholderTextColor="#A08F7A"
-        style={{
-          backgroundColor: palette.panel,
-          borderColor: palette.line,
-          borderRadius: 24,
-          borderWidth: 1,
-          color: palette.ink,
-          fontSize: 17,
-          lineHeight: 26,
-          minHeight: 220,
-          padding: 18,
-          textAlignVertical: "top",
-        }}
-        value={text}
-      />
-
-      {supportMessage ? (
-        <Card>
-          <Text selectable style={{ color: palette.ink, fontWeight: "800" }}>
-            困ったら、下の質問に答えてみてください。
-          </Text>
-          <Body>{supportMessage}</Body>
-          <Body>
-            ・何に困っていますか？{"\n"}・誰に伝えたいですか？{"\n"}
-            ・相手に何をしてほしいですか？
-          </Body>
-        </Card>
-      ) : null}
+          value={text}
+        />
+        {hasInput ? (
+          <Pressable
+            accessibilityLabel="テキストを消す"
+            accessibilityRole="button"
+            onPress={() => setText("")}
+            style={{
+              alignItems: "center",
+              height: 40,
+              justifyContent: "center",
+              position: "absolute",
+              right: 10,
+              top: 10,
+              width: 40,
+            }}
+          >
+            <MaterialIcons color={palette.muted} name="close" size={24} />
+          </Pressable>
+        ) : null}
+      </View>
 
       {error ? <ErrorState message={error} /> : null}
 
-      <PrimaryButton
-        disabled={!text.trim() || submitting || transcribing}
-        onPress={handleSubmit}
-      >
-        {submitting ? "送信中..." : "整理する"}
-      </PrimaryButton>
-      <SecondaryButton onPress={() => setText("")}>
-        テキストを消す
-      </SecondaryButton>
+      {hasInput ? (
+        <PrimaryButton
+          disabled={submitting || transcribing}
+          onPress={handleSubmit}
+        >
+          {submitting ? "送信中..." : "整理する"}
+        </PrimaryButton>
+      ) : null}
 
       <Pressable
         accessibilityRole="button"
         onPress={() => router.push("/history")}
+        style={{ alignItems: "center", paddingVertical: 8 }}
       >
-        <Card style={{ backgroundColor: "#EFE2D2" }}>
-          <Text
-            selectable
-            style={{ color: palette.ink, fontSize: 20, fontWeight: "800" }}
-          >
-            最近の整理
-          </Text>
-          {sessions.length ? (
-            sessions.slice(0, 3).map((session) => (
-              <Text
-                key={session.id}
-                selectable
-                style={{ color: palette.muted, fontSize: 16, lineHeight: 24 }}
-              >
-                ・{session.title}
-              </Text>
-            ))
-          ) : (
-            <Body>保存された整理はまだありません。</Body>
-          )}
-        </Card>
+        <Text style={{ color: palette.muted, fontSize: 15, fontWeight: "700" }}>
+          過去の整理を見る
+        </Text>
       </Pressable>
     </Screen>
   );

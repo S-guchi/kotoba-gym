@@ -5,13 +5,27 @@ import type {
   SessionRecord,
 } from "@kotoba-gym/core";
 
-export function getInputSupportMessage(text: string) {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    return "まずは一言だけでも大丈夫です。「何について整理したいか」だけ教えてください。";
+export function hasDraftInput(text: string) {
+  return text.trim().length > 0;
+}
+
+export function getHomeRecordingMessage({
+  isRecording,
+  isTranscribing,
+  hasRecordedAudio,
+}: {
+  isRecording: boolean;
+  isTranscribing: boolean;
+  hasRecordedAudio: boolean;
+}) {
+  if (isRecording) {
+    return "録音中";
   }
-  if (trimmed.length < 20) {
-    return "もう少しだけ材料があると整理しやすいです。何に困っているか、誰に伝えたいかも足してみてください。";
+  if (isTranscribing) {
+    return "文字起こし中";
+  }
+  if (hasRecordedAudio) {
+    return "文字起こしを確認できます";
   }
   return null;
 }

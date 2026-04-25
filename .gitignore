@@ -6,6 +6,7 @@ logs/
 .DS_Store
 .env
 *.log
+*.tsbuildinfo
 apps/server/.wrangler/
 apps/server/.dev.vars
 apps/server/.dev.vars.*

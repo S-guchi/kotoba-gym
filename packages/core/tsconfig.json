@@ -1,12 +1,8 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "composite": true,
     "declaration": true,
     "declarationMap": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx",
-    "lib": ["ESNext"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "outDir": "dist",

@@ -1,9 +1,10 @@
 import Constants from "expo-constants";
 import type {
-  PersonalizationProfile,
-  PersonalizedPracticePrompt,
+  CreateThemeRequest,
+  Persona,
   PracticeSessionRecord,
   AttemptEvaluation,
+  ThemeRecord,
 } from "@kotoba-gym/core";
 import {
   buildEvaluationRequestFields,
@@ -25,7 +26,6 @@ export class MobileApiError extends Error {
 }
 
 interface EvaluationResponse {
-  attemptNumber: number;
   evaluation: AttemptEvaluation;
   session: PracticeSessionRecord;
 }
@@ -64,72 +64,55 @@ async function fetchJson<T>(input: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function fetchPrompts(): Promise<PersonalizedPracticePrompt[]> {
+export async function fetchThemes(): Promise<ThemeRecord[]> {
   const ownerKey = await getOwnerKey();
-  const payload = await fetchJson<{ prompts: PersonalizedPracticePrompt[] }>(
-    `${API_BASE_URL}/v1/prompts?ownerKey=${encodeURIComponent(ownerKey)}`,
+  const payload = await fetchJson<{ themes: ThemeRecord[] }>(
+    `${API_BASE_URL}/v1/themes?ownerKey=${encodeURIComponent(ownerKey)}`,
   );
-  return payload.prompts;
+  return payload.themes;
 }
 
-export async function fetchPersonalizationProfile(): Promise<PersonalizationProfile | null> {
+export async function fetchTheme(themeId: string): Promise<ThemeRecord | null> {
   const ownerKey = await getOwnerKey();
-  const payload = await fetchJson<{
-    profile: PersonalizationProfile | null;
-  }>(`${API_BASE_URL}/v1/profile?ownerKey=${encodeURIComponent(ownerKey)}`);
-  return payload.profile;
-}
-
-export async function savePersonalizationProfile(
-  profile: PersonalizationProfile,
-): Promise<PersonalizationProfile> {
-  const ownerKey = await getOwnerKey();
-  const payload = await fetchJson<{ profile: PersonalizationProfile }>(
-    `${API_BASE_URL}/v1/profile`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ ownerKey, profile }),
-    },
-  );
-  return payload.profile;
-}
-
-export async function resetPersonalization(): Promise<void> {
-  const ownerKey = await getOwnerKey();
-  const response = await fetch(
-    `${API_BASE_URL}/v1/personalization?ownerKey=${encodeURIComponent(ownerKey)}`,
-    {
-      method: "DELETE",
-    },
-  );
-  if (!response.ok) {
-    throw await parseApiError(response);
+  try {
+    const payload = await fetchJson<{ theme: ThemeRecord }>(
+      `${API_BASE_URL}/v1/themes/${encodeURIComponent(themeId)}?ownerKey=${encodeURIComponent(ownerKey)}`,
+    );
+    return payload.theme;
+  } catch (cause) {
+    if (cause instanceof MobileApiError && cause.code === "theme_not_found") {
+      return null;
+    }
+    throw cause;
   }
 }
 
-export async function generatePersonalizedPrompts(
-  profile: PersonalizationProfile,
-): Promise<PersonalizedPracticePrompt[]> {
+export async function createRemoteTheme(
+  input: CreateThemeRequest,
+): Promise<ThemeRecord> {
   const ownerKey = await getOwnerKey();
-  const payload = await fetchJson<{ prompts: PersonalizedPracticePrompt[] }>(
-    `${API_BASE_URL}/v1/personalized-prompts`,
+  const payload = await fetchJson<{ theme: ThemeRecord }>(
+    `${API_BASE_URL}/v1/themes`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ ownerKey, profile }),
+      body: JSON.stringify({ ownerKey, input }),
     },
   );
+  return payload.theme;
+}
 
-  return payload.prompts;
+export async function fetchPersonas(): Promise<Persona[]> {
+  const payload = await fetchJson<{ personas: Persona[] }>(
+    `${API_BASE_URL}/v1/personas`,
+  );
+  return payload.personas;
 }
 
 export async function createRemotePracticeSession(
-  promptId: string,
+  themeId: string,
 ): Promise<PracticeSessionRecord> {
   const ownerKey = await getOwnerKey();
   const payload = await fetchJson<{ session: PracticeSessionRecord }>(
@@ -139,7 +122,7 @@ export async function createRemotePracticeSession(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ ownerKey, promptId }),
+      body: JSON.stringify({ ownerKey, themeId }),
     },
   );
 
@@ -163,43 +146,44 @@ export async function fetchPracticeSession(
   }
 }
 
-export async function fetchPracticeSessions(): Promise<
-  PracticeSessionRecord[]
-> {
+export async function fetchPracticeSessions(
+  themeId?: string,
+): Promise<PracticeSessionRecord[]> {
   const ownerKey = await getOwnerKey();
+  const query = new URLSearchParams({ ownerKey });
+  if (themeId) {
+    query.set("themeId", themeId);
+  }
   const payload = await fetchJson<{ sessions: PracticeSessionRecord[] }>(
-    `${API_BASE_URL}/v1/sessions?ownerKey=${encodeURIComponent(ownerKey)}`,
+    `${API_BASE_URL}/v1/sessions?${query.toString()}`,
   );
   return payload.sessions;
 }
 
 export async function submitEvaluation(params: {
   sessionId: string;
-  promptId: string;
-  attemptNumber: number;
+  themeId: string;
   audioUri: string;
 }): Promise<EvaluationResponse> {
   const ownerKey = await getOwnerKey();
   const fields = buildEvaluationRequestFields({
     ownerKey,
     sessionId: params.sessionId,
-    promptId: params.promptId,
-    attemptNumber: params.attemptNumber,
+    themeId: params.themeId,
   });
   const form = new FormData();
   form.append("ownerKey", fields.ownerKey);
   form.append("sessionId", fields.sessionId);
-  form.append("promptId", fields.promptId);
-  form.append("attemptNumber", fields.attemptNumber);
+  form.append("themeId", fields.themeId);
   form.append("locale", fields.locale);
 
   const audioFile = createAudioUploadDescriptor(
     params.audioUri,
-    params.attemptNumber,
+    params.sessionId,
   ) as ReactNativeAudioFile;
   console.log("[mobile][evaluation] upload", {
-    promptId: params.promptId,
-    attemptNumber: params.attemptNumber,
+    themeId: params.themeId,
+    sessionId: params.sessionId,
     audioUri: params.audioUri,
     fileName: audioFile.name,
     fileType: audioFile.type,

@@ -4,11 +4,20 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryButton } from "../../../src/components/primary-button";
-import { Tag } from "../../../src/components/tag";
 import { getPracticeSession } from "../../../src/lib/storage";
 import { useThemePalette } from "../../../src/lib/use-theme-palette";
 import { fonts, type ThemePalette } from "../../../src/lib/theme";
 import type { PracticeSessionRecord } from "@kotoba-gym/core";
+
+function toAverageScore(
+  scoreDiff: { before: number; after: number }[],
+  key: "before" | "after",
+) {
+  return Math.round(
+    (scoreDiff.reduce((sum, item) => sum + item[key], 0) / scoreDiff.length) *
+      20,
+  );
+}
 
 export default function ComparisonScreen() {
   const palette = useThemePalette();
@@ -23,22 +32,15 @@ export default function ComparisonScreen() {
     let alive = true;
 
     if (!sessionId) {
-      setSession(null);
       setNotFound(true);
-      setError(null);
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
-    setSession(null);
-    setNotFound(false);
-    setError(null);
-
     void (async () => {
       try {
+        setIsLoading(true);
         const nextSession = await getPracticeSession(sessionId);
-
         if (!alive) {
           return;
         }
@@ -74,102 +76,71 @@ export default function ComparisonScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe}>
+        <Text style={styles.loading}>読み込み中...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || notFound || !session) {
+    return (
+      <SafeAreaView style={styles.safe}>
         <View style={styles.emptyCard}>
-          <Text style={styles.body}>読み込み中...</Text>
+          <Text style={styles.body}>
+            {notFound
+              ? "セッションが見つかりません。"
+              : "読み込みに失敗しました。"}
+          </Text>
+          <Text style={styles.errorText}>
+            {error ?? "最新の一覧からもう一度選び直してください。"}
+          </Text>
+          <PrimaryButton onPress={() => router.replace("/")}>
+            ホームへ戻る
+          </PrimaryButton>
         </View>
       </SafeAreaView>
     );
   }
 
-  if (error) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.content}>
-          <View style={styles.card}>
-            <Text style={styles.body}>読み込みに失敗しました。</Text>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-          <View style={styles.actions}>
-            <PrimaryButton onPress={() => router.replace("/")}>
-              ホームへ戻る
-            </PrimaryButton>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (notFound || !session) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.content}>
-          <View style={styles.card}>
-            <Text style={styles.body}>セッションが見つかりません。</Text>
-            <Text style={styles.errorText}>
-              最新の一覧からもう一度選び直してください。
-            </Text>
-          </View>
-          <View style={styles.actions}>
-            <PrimaryButton onPress={() => router.replace("/")}>
-              ホームへ戻る
-            </PrimaryButton>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const comparison = session?.attempts[1]?.evaluation.comparison;
-
-  const attempt1Scores = session?.attempts[0]?.evaluation.scores;
-  const attempt2Scores = session?.attempts[1]?.evaluation.scores;
-  const avg1 = attempt1Scores
-    ? Math.round(
-        (attempt1Scores.reduce((s, x) => s + x.score, 0) /
-          attempt1Scores.length) *
-          20,
-      )
-    : 0;
-  const avg2 = attempt2Scores
-    ? Math.round(
-        (attempt2Scores.reduce((s, x) => s + x.score, 0) /
-          attempt2Scores.length) *
-          20,
-      )
-    : 0;
+  const comparison = session.evaluation?.comparison;
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.pageHeader}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={18} color={palette.text2} />
-          <Text style={styles.backText}>ホーム</Text>
+          <Text style={styles.backText}>フィードバック</Text>
         </Pressable>
-        <Tag label="比較" variant="warm" />
+        <Text style={styles.badge}>比較</Text>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>{session?.prompt.title ?? "—"}</Text>
-        <Text style={styles.subtitle}>Attempt 1 → Attempt 2</Text>
+        <Text style={styles.title}>{session.theme.title}</Text>
+        <Text style={styles.subtitle}>前回 → 今回</Text>
 
         {!comparison ? (
           <View style={styles.card}>
-            <Text style={styles.body}>比較できるのは2回回答した後です。</Text>
+            <Text style={styles.body}>
+              比較は、同じテーマで前回の練習がある場合に表示されます。
+            </Text>
           </View>
         ) : (
           <>
             <View style={styles.deltaCard}>
               <View style={styles.deltaCol}>
-                <Text style={styles.deltaBefore}>{avg1}</Text>
-                <Text style={styles.deltaLabel}>Attempt 1</Text>
+                <Text style={styles.deltaBefore}>
+                  {toAverageScore(comparison.scoreDiff, "before")}
+                </Text>
+                <Text style={styles.deltaLabel}>前回</Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={palette.accent} />
               <View style={styles.deltaCol}>
-                <Text style={styles.deltaAfter}>{avg2}</Text>
-                <Text style={styles.deltaLabel}>Attempt 2</Text>
+                <Text style={styles.deltaAfter}>
+                  {toAverageScore(comparison.scoreDiff, "after")}
+                </Text>
+                <Text style={styles.deltaLabel}>今回</Text>
               </View>
             </View>
 
@@ -178,17 +149,9 @@ export default function ComparisonScreen() {
                 <Text style={[styles.breakdownLabel, styles.flexLabel]}>
                   軸
                 </Text>
-                <Text
-                  style={[styles.breakdownLabel, styles.breakdownLabelMuted]}
-                >
-                  1st
-                </Text>
+                <Text style={styles.breakdownLabel}>前回</Text>
                 <Text style={styles.breakdownLabel}>→</Text>
-                <Text
-                  style={[styles.breakdownLabel, styles.breakdownLabelAccent]}
-                >
-                  2nd
-                </Text>
+                <Text style={styles.breakdownLabel}>今回</Text>
               </View>
               {comparison.scoreDiff.map((item) => (
                 <View key={item.axis} style={styles.breakdownRow}>
@@ -262,19 +225,12 @@ export default function ComparisonScreen() {
               ))}
             </View>
 
-            <View style={[styles.card, styles.cardSurface2]}>
-              <Text style={styles.compSummary}>
-                {comparison.comparisonSummary}
-              </Text>
+            <View style={styles.card}>
+              <Text style={styles.sectionLabel}>総評</Text>
+              <Text style={styles.body}>{comparison.comparisonSummary}</Text>
             </View>
           </>
         )}
-
-        <View style={styles.actions}>
-          <PrimaryButton onPress={() => router.replace("/")}>
-            ホームへ戻る
-          </PrimaryButton>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -286,12 +242,19 @@ function createStyles(palette: ThemePalette) {
       flex: 1,
       backgroundColor: palette.background,
     },
+    loading: {
+      fontFamily: fonts.body,
+      color: palette.text2,
+      fontSize: 14,
+      textAlign: "center",
+      marginTop: 40,
+    },
     pageHeader: {
       flexDirection: "row",
-      alignItems: "center",
       justifyContent: "space-between",
+      alignItems: "center",
       paddingHorizontal: 20,
-      paddingTop: 8,
+      paddingTop: 10,
       paddingBottom: 6,
     },
     backBtn: {
@@ -304,173 +267,159 @@ function createStyles(palette: ThemePalette) {
       fontSize: 14,
       color: palette.text2,
     },
+    badge: {
+      fontFamily: fonts.mono,
+      fontSize: 11,
+      color: palette.text3,
+      letterSpacing: 1.1,
+    },
     content: {
       paddingHorizontal: 20,
-      paddingBottom: 32,
+      paddingBottom: 28,
       gap: 14,
-    },
-    emptyCard: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 24,
     },
     title: {
       fontFamily: fonts.heading,
-      fontSize: 24,
+      fontSize: 30,
       color: palette.text,
-      marginBottom: 4,
     },
     subtitle: {
       fontFamily: fonts.body,
-      fontSize: 12,
+      fontSize: 14,
       color: palette.text3,
-      marginBottom: 6,
+      marginTop: -6,
+    },
+    emptyCard: {
+      flex: 1,
+      margin: 20,
+      backgroundColor: palette.surface,
+      borderWidth: 1,
+      borderColor: palette.border,
+      borderRadius: 24,
+      padding: 20,
+      justifyContent: "center",
+      gap: 10,
+    },
+    errorText: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      lineHeight: 22,
+      color: palette.text2,
     },
     card: {
       backgroundColor: palette.surface,
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 16,
-      padding: 14,
+      borderRadius: 22,
+      padding: 18,
+      gap: 10,
     },
     cardAccent: {
       backgroundColor: palette.accentDim,
-      borderColor: palette.accent,
-    },
-    cardSurface2: {
-      backgroundColor: palette.surface2,
-    },
-    body: {
-      fontFamily: fonts.body,
-      fontSize: 14,
-      color: palette.text,
-      lineHeight: 22,
-    },
-    errorText: {
-      marginTop: 8,
-      fontFamily: fonts.body,
-      fontSize: 13,
-      color: palette.text2,
-      lineHeight: 20,
     },
     deltaCard: {
-      backgroundColor: palette.surface,
-      borderWidth: 1,
-      borderColor: palette.border,
-      borderRadius: 18,
-      padding: 16,
       flexDirection: "row",
       alignItems: "center",
-      gap: 16,
+      justifyContent: "center",
+      gap: 18,
+      backgroundColor: palette.surface2,
+      borderRadius: 24,
+      padding: 20,
     },
     deltaCol: {
-      flex: 1,
       alignItems: "center",
+      gap: 4,
     },
     deltaBefore: {
-      fontFamily: fonts.mono,
-      fontSize: 32,
-      color: palette.text2,
+      fontFamily: fonts.heading,
+      fontSize: 34,
+      color: palette.text3,
     },
     deltaAfter: {
-      fontFamily: fonts.mono,
-      fontSize: 32,
+      fontFamily: fonts.heading,
+      fontSize: 34,
       color: palette.accent,
     },
     deltaLabel: {
       fontFamily: fonts.body,
-      fontSize: 10,
-      color: palette.text3,
-      marginTop: 2,
+      fontSize: 13,
+      color: palette.text2,
     },
     breakdownHeader: {
       flexDirection: "row",
-      gap: 10,
-      marginBottom: 12,
+      alignItems: "center",
+      gap: 8,
     },
     breakdownLabel: {
       fontFamily: fonts.mono,
       fontSize: 10,
       color: palette.text3,
+      width: 32,
+      textAlign: "center",
     },
     flexLabel: {
       flex: 1,
-    },
-    breakdownLabelMuted: {
-      color: palette.text2,
-    },
-    breakdownLabelAccent: {
-      color: palette.accent,
+      textAlign: "left",
     },
     breakdownRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      marginBottom: 12,
     },
     axisLabel: {
-      fontFamily: fonts.body,
-      fontSize: 12,
+      flex: 1,
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 13,
       color: palette.text,
-      minWidth: 56,
     },
     barPair: {
-      flex: 1,
-      flexDirection: "row",
-      gap: 4,
+      width: 120,
+      gap: 6,
     },
     barTrack: {
-      flex: 1,
-      height: 4,
-      backgroundColor: palette.borderLight,
-      borderRadius: 2,
+      height: 6,
+      backgroundColor: palette.border,
+      borderRadius: 999,
       overflow: "hidden",
     },
     barFill: {
       height: "100%",
-      borderRadius: 2,
+      borderRadius: 999,
     },
     diffText: {
+      width: 28,
       fontFamily: fonts.mono,
       fontSize: 11,
-      minWidth: 24,
       textAlign: "right",
     },
     sectionLabel: {
-      fontFamily: fonts.monoMedium,
-      fontSize: 10,
-      fontWeight: "500",
-      letterSpacing: 1,
-      textTransform: "uppercase",
-      color: palette.text3,
-      marginBottom: 10,
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
+      color: palette.text,
     },
     pointRow: {
       flexDirection: "row",
-      gap: 8,
-      marginBottom: 6,
       alignItems: "flex-start",
-    },
-    remainingArrow: {
-      color: palette.accentWarm,
+      gap: 8,
     },
     pointText: {
-      fontFamily: fonts.body,
-      fontSize: 13,
-      color: palette.text,
-      lineHeight: 20,
       flex: 1,
-    },
-    compSummary: {
       fontFamily: fonts.body,
-      fontSize: 13,
-      color: palette.text2,
-      lineHeight: 20,
+      fontSize: 14,
+      lineHeight: 22,
+      color: palette.text,
     },
-    actions: {
-      gap: 10,
-      marginTop: 10,
+    remainingArrow: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 14,
+      color: palette.text3,
+      marginTop: 1,
+    },
+    body: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      lineHeight: 22,
+      color: palette.text2,
     },
   });
 }

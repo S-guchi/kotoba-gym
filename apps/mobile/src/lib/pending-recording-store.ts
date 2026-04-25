@@ -1,7 +1,6 @@
 export interface PendingRecordingPayload {
   sessionId: string;
-  promptId: string;
-  attemptNumber: number;
+  themeId: string;
   audioUri: string;
 }
 

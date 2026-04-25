@@ -4,109 +4,170 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StatsStrip } from "../../src/components/stats-strip";
-import { Tag } from "../../src/components/tag";
+import { PrimaryButton } from "../../src/components/primary-button";
+import { ThemeListRow } from "../../src/components/theme-list-row";
 import {
   buildHomeFeed,
-  buildResumeProgress,
-  isPersonalizedPrompt,
-  type HomePrompt,
+  getHomeThemePreviewRows,
+  type HomeFeed,
 } from "../../src/lib/home-screen-helpers";
 import {
-  getPersonalizationProfile,
-  getPersonalizedPrompts,
-} from "../../src/lib/personalization-storage";
-import { listPracticeSessions } from "../../src/lib/storage";
+  createPracticeSession,
+  listPracticeSessions,
+  listThemes,
+} from "../../src/lib/storage";
+import { fonts, type ThemePalette } from "../../src/lib/theme";
 import { useThemePalette } from "../../src/lib/use-theme-palette";
-import { categoryLabels, fonts, type ThemePalette } from "../../src/lib/theme";
-import type {
-  PersonalizationProfile,
-  PersonalizedPracticePrompt,
-  PracticeSessionRecord,
-} from "@kotoba-gym/core";
+import type { PracticeSessionRecord, ThemeRecord } from "@kotoba-gym/core";
 
-function HeroCard({
-  prompt,
-  label,
-  actionLabel,
-  onActionPress,
+type TodayRun = NonNullable<HomeFeed["todaysRun"]>;
+
+const WEEKDAY_DOT_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
+
+function formatWeekDiff(diff: number) {
+  if (diff === 0) {
+    return "±0";
+  }
+
+  return diff > 0 ? `+${diff}` : `${diff}`;
+}
+
+function Header({
+  feed,
+  onHistoryPress,
 }: {
-  prompt: HomePrompt;
-  label: string;
-  actionLabel: string;
-  onActionPress: () => void;
+  feed: HomeFeed;
+  onHistoryPress: () => void;
 }) {
   const palette = useThemePalette();
   const styles = createStyles(palette);
 
   return (
-    <View>
-      <View style={styles.heroHeader}>
-        <View style={styles.heroHeaderLabel}>
-          <Text style={styles.heroSparkle}>✦</Text>
-          <Text style={styles.heroSectionLabel}>{label}</Text>
-        </View>
-        <Pressable onPress={onActionPress}>
-          <Text style={styles.heroActionLabel}>{actionLabel}</Text>
-        </Pressable>
+    <View style={styles.header}>
+      <View style={styles.headerCopy}>
+        <Text style={styles.dayLabel}>{feed.header.label}</Text>
+        <Text style={styles.greeting}>{feed.header.greeting}</Text>
       </View>
-
       <Pressable
-        style={styles.heroCard}
-        onPress={() =>
-          router.push({
-            pathname: "/topic/[promptId]",
-            params: { promptId: prompt.id },
-          })
-        }
+        accessibilityRole="button"
+        style={styles.historyButton}
+        onPress={onHistoryPress}
       >
-        <View style={styles.heroDecor} />
-        <View style={styles.heroMetaRow}>
-          <Tag label={categoryLabels[prompt.category] ?? prompt.category} />
-          {isPersonalizedPrompt(prompt) ? (
-            <View style={styles.personalizedBadge}>
-              <Text style={styles.personalizedBadgeText}>👤 あなた向け</Text>
-            </View>
-          ) : null}
-          <Text style={styles.heroDuration}>⏱ {prompt.durationLabel}</Text>
-        </View>
-
-        <Text style={styles.heroTitle}>{prompt.title}</Text>
-        <Text style={styles.heroDescription}>{prompt.prompt}</Text>
-
-        <View style={styles.heroCta}>
-          <Text style={styles.heroCtaText}>練習する</Text>
-          <Ionicons name="arrow-forward" size={16} color={palette.background} />
-        </View>
+        <Ionicons name="time-outline" size={18} color={palette.text2} />
       </Pressable>
     </View>
   );
 }
 
-function CandidateCard({ prompt }: { prompt: HomePrompt }) {
+function StreakCard({ feed }: { feed: HomeFeed }) {
   const palette = useThemePalette();
   const styles = createStyles(palette);
 
   return (
-    <Pressable
-      style={styles.candidateCard}
-      onPress={() =>
-        router.push({
-          pathname: "/topic/[promptId]",
-          params: { promptId: prompt.id },
-        })
-      }
-    >
-      <View style={styles.candidateMetaRow}>
-        <Tag label={categoryLabels[prompt.category] ?? prompt.category} />
-        <Text style={styles.candidateDuration}>
-          {prompt.durationLabel.split("〜")[0]}〜
-        </Text>
+    <View style={styles.streakCard}>
+      <View style={styles.streakMetrics}>
+        <View style={styles.metric}>
+          <Text style={styles.metricLabel}>STREAK</Text>
+          <Text style={styles.metricValue}>
+            {feed.stats.streakDays}
+            <Text style={styles.metricUnit}>日</Text>
+          </Text>
+        </View>
+        <View style={styles.metricDivider} />
+        <View style={styles.metric}>
+          <Text style={styles.metricLabel}>THIS WEEK</Text>
+          <Text style={styles.metricValue}>
+            {feed.stats.weeklySessionCount}
+            <Text style={styles.metricUnit}>本</Text>
+          </Text>
+        </View>
+        <View style={styles.metricDivider} />
+        <View style={styles.metric}>
+          <Text style={styles.metricLabel}>VS LAST</Text>
+          <Text style={styles.metricValue}>
+            {formatWeekDiff(feed.stats.weekOverWeekDiff)}
+          </Text>
+        </View>
       </View>
-      <Text style={styles.candidateTitle}>{prompt.title}</Text>
-      <Text numberOfLines={2} style={styles.candidateDescription}>
-        {prompt.prompt}
+
+      <View style={styles.weekRow}>
+        {feed.stats.practicedWeekdays.map((isPracticed, index) => (
+          <View
+            key={`${WEEKDAY_DOT_LABELS[index]}-${index}`}
+            style={styles.dayDotBox}
+          >
+            <View
+              style={[
+                styles.dayDot,
+                isPracticed ? styles.dayDotActive : styles.dayDotInactive,
+              ]}
+            />
+            <Text style={styles.dayDotLabel}>{WEEKDAY_DOT_LABELS[index]}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={styles.streakCaption}>
+        {feed.stats.daysUntilWeeklyGoal === 0
+          ? "今週は毎日分のリズムを作れています"
+          : `あと${feed.stats.daysUntilWeeklyGoal}日で1週間分のリズム`}
       </Text>
+    </View>
+  );
+}
+
+function TodayRunCard({
+  run,
+  isStarting,
+  onStart,
+}: {
+  run: TodayRun;
+  isStarting: boolean;
+  onStart: (theme: ThemeRecord) => void;
+}) {
+  const palette = useThemePalette();
+  const styles = createStyles(palette);
+  const challengeText =
+    run.previousScore === null
+      ? "まず1本録って、次回の基準点を作る"
+      : `前回${run.previousScore}点 → ${run.targetScore}点超えを狙う`;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.todayCard,
+        pressed && styles.pressedCard,
+        isStarting && styles.disabledCard,
+      ]}
+      disabled={isStarting}
+      onPress={() => onStart(run.theme)}
+    >
+      <View style={styles.todayHeader}>
+        <View>
+          <Text style={styles.cardEyebrow}>TODAY RUN</Text>
+          <Text numberOfLines={2} style={styles.todayTitle}>
+            {run.theme.title}
+          </Text>
+        </View>
+        <View style={styles.flameBadge}>
+          <Text style={styles.flameText}>🔥</Text>
+        </View>
+      </View>
+
+      <Text style={styles.todayChallenge}>{challengeText}</Text>
+
+      <View style={styles.todayFooter}>
+        <Text numberOfLines={1} style={styles.todayMeta}>
+          {run.theme.persona.name} / {run.theme.durationLabel}
+        </Text>
+        <View style={styles.startPill}>
+          <Text style={styles.startPillText}>
+            {isStarting ? "準備中" : "始める"}
+          </Text>
+          <Ionicons name="mic" size={14} color={palette.background} />
+        </View>
+      </View>
     </Pressable>
   );
 }
@@ -115,79 +176,77 @@ export default function HomeScreen() {
   const palette = useThemePalette();
   const styles = createStyles(palette);
   const isFocused = useIsFocused();
-  const [prompts, setPrompts] = useState<PersonalizedPracticePrompt[]>([]);
+  const [themes, setThemes] = useState<ThemeRecord[]>([]);
   const [sessions, setSessions] = useState<PracticeSessionRecord[]>([]);
-  const [profile, setProfile] = useState<PersonalizationProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [startingThemeId, setStartingThemeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isFocused) {
       return;
     }
 
+    let isActive = true;
+
     void (async () => {
       try {
-        setIsLoading(true);
-        const [promptList, sessionList, personalizationProfile] =
-          await Promise.all([
-            getPersonalizedPrompts(),
-            listPracticeSessions(),
-            getPersonalizationProfile(),
-          ]);
-
-        setPrompts(promptList);
+        const [themeList, sessionList] = await Promise.all([
+          listThemes(),
+          listPracticeSessions(),
+        ]);
+        if (!isActive) {
+          return;
+        }
+        setThemes(themeList);
         setSessions(sessionList);
-        setProfile(personalizationProfile);
         setError(null);
+        setStartingThemeId(null);
       } catch (cause) {
+        if (!isActive) {
+          return;
+        }
         setError(
           cause instanceof Error ? cause.message : "読み込みに失敗しました。",
         );
       } finally {
-        setIsLoading(false);
+        if (isActive) {
+          setIsInitialLoading(false);
+        }
       }
     })();
+
+    return () => {
+      isActive = false;
+    };
   }, [isFocused]);
 
-  const weekCount = sessions.length;
-  const topCategory = sessions.length
-    ? (() => {
-        const counts: Record<string, number> = {};
-        for (const session of sessions) {
-          const category =
-            categoryLabels[session.prompt.category] ?? session.prompt.category;
-          counts[category] = (counts[category] ?? 0) + 1;
-        }
-        return (
-          Object.entries(counts).sort(
-            (left, right) => right[1] - left[1],
-          )[0]?.[0] ?? "—"
-        );
-      })()
-    : "—";
-
-  const homeFeed = buildHomeFeed({
-    prompts: prompts.filter(isPersonalizedPrompt),
-    sessions,
-    profile,
-  });
-  const resumeSession = homeFeed.resumeSession;
-
-  useEffect(() => {
-    if (
-      !isFocused ||
-      isLoading ||
-      error ||
-      !homeFeed.shouldRedirectToOnboarding
-    ) {
+  async function handleStartPractice(theme: ThemeRecord) {
+    if (startingThemeId) {
       return;
     }
 
-    router.replace("/onboarding");
-  }, [error, homeFeed.shouldRedirectToOnboarding, isFocused, isLoading]);
+    try {
+      setStartingThemeId(theme.id);
+      const session = await createPracticeSession(theme);
+      router.push({
+        pathname: "/practice/[themeId]",
+        params: { themeId: theme.id, sessionId: session.id },
+      });
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "セッションを開始できませんでした。",
+      );
+      setStartingThemeId(null);
+    }
+  }
 
-  if (isLoading || homeFeed.shouldRedirectToOnboarding) {
+  const homeFeed = buildHomeFeed({ themes, sessions });
+  const previewThemeRows = getHomeThemePreviewRows(homeFeed.themeRows);
+
+  if (isInitialLoading) {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.loadingText}>読み込み中...</Text>
@@ -201,192 +260,81 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerSection}>
-          <View style={styles.headerRow}>
-            <View style={styles.headerCopy}>
-              <Text style={styles.eyebrow}>KOTOBA-GYM</Text>
-              <Text style={styles.heroHeading}>今日は何を練習しますか？</Text>
-              {homeFeed.profileHighlights.length > 0 ? (
-                <View style={styles.profileChipRow}>
-                  {homeFeed.profileHighlights.map((item) => (
-                    <View key={item} style={styles.profileChip}>
-                      <Text style={styles.profileChipText}>{item}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-            </View>
-
-            <View style={styles.headerActions}>
-              <Pressable
-                style={styles.headerIconButton}
-                onPress={() => router.push("/history")}
-              >
-                <Ionicons name="time-outline" size={18} color={palette.text2} />
-              </Pressable>
-              <Pressable
-                style={styles.headerIconButton}
-                onPress={() => router.push("/profile")}
-              >
-                <Ionicons
-                  name="person-outline"
-                  size={18}
-                  color={palette.text2}
-                />
-              </Pressable>
-            </View>
-          </View>
-
-          <StatsStrip
-            items={[
-              {
-                label: "今週の練習",
-                value: String(weekCount),
-                unit: "回",
-                icon: "📅",
-              },
-              {
-                label: "連続日数",
-                value: sessions.length > 0 ? "1" : "0",
-                unit: "日",
-                icon: "🔥",
-              },
-              {
-                label: "最多カテゴリ",
-                value: topCategory,
-                icon: "🏆",
-              },
-            ]}
-          />
-
-          {homeFeed.showOnboardingCta ? (
-            <View style={styles.onboardingCard}>
-              <Text style={styles.onboardingIcon}>🏋️</Text>
-              <View style={styles.onboardingCopy}>
-                <Text style={styles.onboardingTitle}>
-                  {profile
-                    ? "お題を再生成しませんか"
-                    : "あなた向けのお題を生成しませんか"}
-                </Text>
-                <Text style={styles.onboardingDescription}>
-                  {profile
-                    ? "プロフィールに合わせて、新しいお題を作り直せます"
-                    : "4問答えるだけで、専用のお題が届きます"}
-                </Text>
-              </View>
-              <Pressable
-                style={styles.onboardingButton}
-                onPress={() =>
-                  router.push(profile ? "/profile" : "/onboarding")
-                }
-              >
-                <Text style={styles.onboardingButtonText}>
-                  {profile ? "見る" : "試す"}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          {homeFeed.heroPrompt ? (
-            <HeroCard
-              actionLabel={profile ? "プロフィールを見る →" : "設定する →"}
-              label={homeFeed.heroSectionLabel}
-              onActionPress={() =>
-                router.push(profile ? "/profile" : "/onboarding")
-              }
-              prompt={homeFeed.heroPrompt}
-            />
-          ) : null}
-        </View>
-
-        {homeFeed.candidatePrompts.length > 0 ? (
-          <View style={styles.sectionBlock}>
-            <Text style={styles.sectionLabel}>他の候補</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.candidateScroll}
-            >
-              {homeFeed.candidatePrompts.map((prompt) => (
-                <CandidateCard key={prompt.id} prompt={prompt} />
-              ))}
-            </ScrollView>
-          </View>
-        ) : null}
-
-        {resumeSession ? (
-          <View style={styles.sectionBlock}>
-            <View style={styles.resumeHeader}>
-              <View style={styles.resumeLabelRow}>
-                <Ionicons name="time-outline" size={14} color={palette.text3} />
-                <Text style={styles.resumeLabel}>前回の続き</Text>
-              </View>
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/practice/[promptId]",
-                    params: {
-                      promptId: resumeSession.prompt.id,
-                      sessionId: resumeSession.id,
-                    },
-                  })
-                }
-              >
-                <Text style={styles.resumeAction}>続きから練習 →</Text>
-              </Pressable>
-            </View>
-
-            <Pressable
-              style={styles.resumeCard}
-              onPress={() =>
-                router.push({
-                  pathname: "/practice/[promptId]",
-                  params: {
-                    promptId: resumeSession.prompt.id,
-                    sessionId: resumeSession.id,
-                  },
-                })
-              }
-            >
-              <View style={styles.resumeIconWrap}>
-                <Ionicons
-                  name="chatbox-ellipses-outline"
-                  size={22}
-                  color={palette.accent}
-                />
-              </View>
-              <View style={styles.resumeBody}>
-                <Text style={styles.resumeTitle}>
-                  {resumeSession.prompt.title}
-                </Text>
-                <Text style={styles.resumeFocus}>
-                  {buildResumeProgress(resumeSession).focusText}
-                </Text>
-                <View style={styles.resumeProgressRow}>
-                  <View style={styles.resumeTrack}>
-                    <View
-                      style={[
-                        styles.resumeFill,
-                        {
-                          width: `${buildResumeProgress(resumeSession).ratio * 100}%`,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.resumeProgressLabel}>
-                    {buildResumeProgress(resumeSession).label}
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          </View>
-        ) : null}
+        <Header
+          feed={homeFeed}
+          onHistoryPress={() => router.push("/history")}
+        />
 
         {error ? (
           <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorTitle}>読み込みに失敗しました</Text>
+            <Text style={styles.errorBody}>{error}</Text>
           </View>
         ) : null}
+
+        {homeFeed.shouldShowEmptyState ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>最初のテーマを作りましょう</Text>
+            <Text style={styles.emptyBody}>
+              面接の自己紹介、障害報告、設計意図の共有など、いま説明したいことから始められます。
+            </Text>
+            <PrimaryButton onPress={() => router.push("/theme/new")}>
+              テーマを作る
+            </PrimaryButton>
+          </View>
+        ) : (
+          <>
+            <StreakCard feed={homeFeed} />
+
+            {homeFeed.todaysRun ? (
+              <TodayRunCard
+                run={homeFeed.todaysRun}
+                isStarting={startingThemeId === homeFeed.todaysRun.theme.id}
+                onStart={handleStartPractice}
+              />
+            ) : null}
+
+            {homeFeed.themeRows.length > 0 ? (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.createThemeButton}
+                  onPress={() => router.push("/theme/new")}
+                >
+                  <Ionicons name="add" size={18} color={palette.text2} />
+                  <Text style={styles.createThemeText}>新しいテーマを作る</Text>
+                </Pressable>
+
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionLabel}>THEMES</Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      hitSlop={8}
+                      onPress={() => router.push("/themes")}
+                    >
+                      <Text style={styles.sectionLink}>more..</Text>
+                    </Pressable>
+                  </View>
+                  <View style={styles.themeList}>
+                    {previewThemeRows.map((row) => (
+                      <ThemeListRow
+                        key={row.theme.id}
+                        row={row}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/theme/[themeId]",
+                            params: { themeId: row.theme.id },
+                          })
+                        }
+                      />
+                    ))}
+                  </View>
+                </View>
+              </>
+            ) : null}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -398,366 +346,274 @@ function createStyles(palette: ThemePalette) {
       flex: 1,
       backgroundColor: palette.background,
     },
+    scroll: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+      gap: 16,
+    },
     loadingText: {
-      marginTop: 40,
-      color: palette.text2,
       fontFamily: fonts.body,
+      color: palette.text2,
       fontSize: 14,
       textAlign: "center",
+      marginTop: 40,
     },
-    scroll: {
-      paddingTop: 8,
-      paddingBottom: 28,
-      gap: 20,
-    },
-    headerSection: {
-      paddingHorizontal: 20,
-      gap: 18,
-    },
-    headerRow: {
+    header: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       justifyContent: "space-between",
-      gap: 12,
-      marginTop: 8,
+      gap: 16,
     },
     headerCopy: {
       flex: 1,
+      gap: 3,
     },
-    eyebrow: {
-      fontFamily: fonts.mono,
-      fontSize: 10,
-      color: palette.accent,
-      letterSpacing: 1.5,
-      textTransform: "uppercase",
-      marginBottom: 6,
+    dayLabel: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 11,
+      letterSpacing: 1.2,
+      color: palette.accentWarm,
     },
-    heroHeading: {
+    greeting: {
       fontFamily: fonts.heading,
-      fontSize: 28,
-      lineHeight: 32,
+      fontSize: 32,
+      lineHeight: 36,
       color: palette.text,
-      letterSpacing: -0.5,
-      marginBottom: 10,
     },
-    profileChipRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 6,
-    },
-    profileChip: {
-      backgroundColor: palette.surface2,
-      borderWidth: 1,
-      borderColor: palette.borderLight,
-      borderRadius: 20,
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-    },
-    profileChipText: {
-      fontFamily: fonts.body,
-      fontSize: 12,
-      color: palette.text2,
-    },
-    headerActions: {
-      flexDirection: "row",
-      gap: 8,
-    },
-    headerIconButton: {
+    historyButton: {
       width: 42,
       height: 42,
       borderRadius: 21,
-      backgroundColor: palette.surface2,
-      borderWidth: 1,
-      borderColor: palette.borderLight,
       alignItems: "center",
       justifyContent: "center",
-    },
-    onboardingCard: {
-      backgroundColor: palette.surface2,
-      borderWidth: 1,
-      borderColor: palette.borderLight,
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-    },
-    onboardingIcon: {
-      fontSize: 22,
-    },
-    onboardingCopy: {
-      flex: 1,
-      gap: 2,
-    },
-    onboardingTitle: {
-      fontFamily: fonts.bodyMedium,
-      fontSize: 13,
-      color: palette.text,
-      fontWeight: "500",
-    },
-    onboardingDescription: {
-      fontFamily: fonts.body,
-      fontSize: 11,
-      color: palette.text3,
-    },
-    onboardingButton: {
-      backgroundColor: palette.accent,
-      borderRadius: 10,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-    },
-    onboardingButtonText: {
-      fontFamily: fonts.bodySemiBold,
-      fontSize: 12,
-      color: palette.background,
-      fontWeight: "600",
-    },
-    heroHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 12,
-    },
-    heroHeaderLabel: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-    heroSparkle: {
-      color: palette.accent,
-      fontSize: 13,
-    },
-    heroSectionLabel: {
-      fontFamily: fonts.mono,
-      fontSize: 11,
-      color: palette.text2,
-      letterSpacing: 0.5,
-    },
-    heroActionLabel: {
-      fontFamily: fonts.mono,
-      fontSize: 11,
-      color: palette.accent,
-      letterSpacing: 0.5,
-    },
-    heroCard: {
       backgroundColor: palette.surface,
       borderWidth: 1,
       borderColor: palette.border,
-      borderRadius: 20,
-      paddingHorizontal: 18,
-      paddingTop: 18,
-      paddingBottom: 14,
-      overflow: "hidden",
-    },
-    heroDecor: {
-      position: "absolute",
-      top: 14,
-      right: 14,
-      width: 70,
-      height: 70,
-      borderRadius: 35,
-      backgroundColor: palette.accentDim,
-      opacity: 0.7,
-    },
-    heroMetaRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      marginBottom: 12,
-      paddingRight: 72,
-    },
-    personalizedBadge: {
-      backgroundColor: palette.surface2,
-      borderWidth: 1,
-      borderColor: palette.borderLight,
-      borderRadius: 20,
-      paddingHorizontal: 9,
-      paddingVertical: 3,
-    },
-    personalizedBadgeText: {
-      fontFamily: fonts.body,
-      fontSize: 10,
-      color: palette.text2,
-    },
-    heroDuration: {
-      marginLeft: "auto",
-      fontFamily: fonts.mono,
-      fontSize: 10,
-      color: palette.text3,
-    },
-    heroTitle: {
-      fontFamily: fonts.heading,
-      fontSize: 26,
-      lineHeight: 32,
-      color: palette.text,
-      marginBottom: 10,
-      paddingRight: 72,
-    },
-    heroDescription: {
-      fontFamily: fonts.body,
-      fontSize: 13,
-      color: palette.text2,
-      lineHeight: 20,
-      marginBottom: 16,
-    },
-    heroCta: {
-      backgroundColor: palette.accent,
-      borderRadius: 14,
-      paddingVertical: 14,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-    },
-    heroCtaText: {
-      fontFamily: fonts.bodySemiBold,
-      fontSize: 16,
-      color: palette.background,
-      fontWeight: "700",
-      letterSpacing: -0.2,
-    },
-    sectionBlock: {
-      gap: 10,
-    },
-    sectionLabel: {
-      paddingHorizontal: 20,
-      fontFamily: fonts.mono,
-      fontSize: 11,
-      color: palette.text3,
-      letterSpacing: 0.5,
-    },
-    candidateScroll: {
-      paddingHorizontal: 20,
-      gap: 10,
-    },
-    candidateCard: {
-      width: 150,
-      backgroundColor: palette.surface,
-      borderWidth: 1,
-      borderColor: palette.border,
-      borderRadius: 16,
-      paddingHorizontal: 14,
-      paddingVertical: 13,
-    },
-    candidateMetaRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 8,
-    },
-    candidateDuration: {
-      fontFamily: fonts.mono,
-      fontSize: 9,
-      color: palette.text3,
-    },
-    candidateTitle: {
-      fontFamily: fonts.heading,
-      fontSize: 14,
-      lineHeight: 18,
-      color: palette.text,
-      marginBottom: 6,
-    },
-    candidateDescription: {
-      fontFamily: fonts.body,
-      fontSize: 11,
-      lineHeight: 16,
-      color: palette.text3,
-    },
-    resumeHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 20,
-    },
-    resumeLabelRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-    resumeLabel: {
-      fontFamily: fonts.mono,
-      fontSize: 11,
-      color: palette.text2,
-      letterSpacing: 0.3,
-    },
-    resumeAction: {
-      fontFamily: fonts.mono,
-      fontSize: 11,
-      color: palette.accent,
-      letterSpacing: 0.3,
-    },
-    resumeCard: {
-      marginHorizontal: 20,
-      backgroundColor: palette.surface,
-      borderWidth: 1,
-      borderColor: palette.border,
-      borderRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 14,
-    },
-    resumeIconWrap: {
-      width: 48,
-      height: 48,
-      borderRadius: 14,
-      backgroundColor: palette.accentDim,
-      borderWidth: 1,
-      borderColor: palette.accent,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    resumeBody: {
-      flex: 1,
-      gap: 6,
-    },
-    resumeTitle: {
-      fontFamily: fonts.bodyMedium,
-      fontSize: 14,
-      color: palette.text,
-      fontWeight: "500",
-    },
-    resumeFocus: {
-      fontFamily: fonts.body,
-      fontSize: 12,
-      color: palette.text3,
-    },
-    resumeProgressRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    resumeTrack: {
-      flex: 1,
-      height: 4,
-      backgroundColor: palette.borderLight,
-      borderRadius: 2,
-      overflow: "hidden",
-    },
-    resumeFill: {
-      height: "100%",
-      backgroundColor: palette.accent,
-      borderRadius: 2,
-    },
-    resumeProgressLabel: {
-      fontFamily: fonts.mono,
-      fontSize: 10,
-      color: palette.text3,
     },
     errorCard: {
-      marginHorizontal: 20,
       backgroundColor: palette.dangerDim,
-      borderWidth: 1,
-      borderColor: palette.danger,
-      borderRadius: 16,
-      padding: 14,
+      borderRadius: 18,
+      padding: 16,
+      gap: 6,
     },
-    errorText: {
-      fontFamily: fonts.body,
+    errorTitle: {
+      fontFamily: fonts.bodySemiBold,
       fontSize: 14,
       color: palette.danger,
+    },
+    errorBody: {
+      fontFamily: fonts.body,
+      fontSize: 13,
+      lineHeight: 20,
+      color: palette.text2,
+    },
+    emptyCard: {
+      backgroundColor: palette.surface,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: palette.border,
+      padding: 20,
+      gap: 12,
+    },
+    emptyTitle: {
+      fontFamily: fonts.heading,
+      fontSize: 28,
+      color: palette.text,
+    },
+    emptyBody: {
+      fontFamily: fonts.body,
+      fontSize: 14,
+      lineHeight: 22,
+      color: palette.text2,
+    },
+    streakCard: {
+      backgroundColor: palette.surface,
+      borderRadius: 22,
+      borderWidth: 1,
+      borderColor: palette.border,
+      padding: 16,
+      gap: 14,
+    },
+    streakMetrics: {
+      flexDirection: "row",
+      alignItems: "stretch",
+      gap: 12,
+    },
+    metric: {
+      flex: 1,
+      gap: 5,
+    },
+    metricDivider: {
+      width: 1,
+      backgroundColor: palette.border,
+    },
+    metricLabel: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 10,
+      letterSpacing: 0.8,
+      color: palette.text3,
+    },
+    metricValue: {
+      fontFamily: fonts.heading,
+      fontSize: 32,
+      lineHeight: 34,
+      color: palette.text,
+    },
+    metricUnit: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 13,
+      color: palette.text2,
+    },
+    weekRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    dayDotBox: {
+      flex: 1,
+      alignItems: "center",
+      gap: 5,
+    },
+    dayDot: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+    },
+    dayDotActive: {
+      backgroundColor: palette.accent,
+    },
+    dayDotInactive: {
+      backgroundColor: palette.surface2,
+      borderWidth: 1,
+      borderColor: palette.border,
+    },
+    dayDotLabel: {
+      fontFamily: fonts.mono,
+      fontSize: 10,
+      color: palette.text3,
+    },
+    streakCaption: {
+      fontFamily: fonts.bodyMedium,
+      fontSize: 12,
+      color: palette.text2,
+    },
+    todayCard: {
+      backgroundColor: palette.accent,
+      borderRadius: 24,
+      padding: 18,
+      gap: 16,
+    },
+    pressedCard: {
+      opacity: 0.78,
+    },
+    disabledCard: {
+      opacity: 0.6,
+    },
+    todayHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: 14,
+    },
+    cardEyebrow: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 11,
+      letterSpacing: 1.2,
+      color: palette.background,
+      opacity: 0.72,
+    },
+    todayTitle: {
+      marginTop: 5,
+      fontFamily: fonts.heading,
+      fontSize: 30,
+      lineHeight: 33,
+      color: palette.background,
+      maxWidth: 250,
+    },
+    flameBadge: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: palette.white,
+    },
+    flameText: {
+      fontSize: 22,
+    },
+    todayChallenge: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 15,
+      lineHeight: 22,
+      color: palette.background,
+    },
+    todayFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    todayMeta: {
+      flex: 1,
+      fontFamily: fonts.bodyMedium,
+      fontSize: 12,
+      color: palette.background,
+      opacity: 0.74,
+    },
+    startPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: palette.text,
+    },
+    startPillText: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 12,
+      color: palette.background,
+    },
+    section: {
+      gap: 10,
+    },
+    sectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 2,
+    },
+    sectionLabel: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 11,
+      letterSpacing: 1.3,
+      color: palette.text3,
+    },
+    sectionLink: {
+      fontFamily: fonts.monoMedium,
+      fontSize: 11,
+      color: palette.accentWarm,
+      letterSpacing: 0.2,
+    },
+    themeList: {
+      gap: 8,
+    },
+    createThemeButton: {
+      minHeight: 52,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderStyle: "dashed",
+      borderColor: palette.borderLight,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: palette.accentDim,
+    },
+    createThemeText: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 14,
+      color: palette.text2,
     },
   });
 }

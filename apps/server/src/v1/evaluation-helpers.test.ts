@@ -1,7 +1,7 @@
 import type {
   AttemptEvaluation,
-  PracticePrompt,
-  PreviousAttemptPayload,
+  PreviousEvaluationPayload,
+  ThemeRecord,
 } from "@kotoba-gym/core";
 import { scoreAxes } from "@kotoba-gym/core";
 import { describe, expect, test } from "vitest";
@@ -10,6 +10,7 @@ import {
   buildEvaluationPrompt,
   buildScoreDiff,
   inferApiError,
+  normalizeModelEvaluationPayload,
   normalizeScores,
   withDeterministicComparison,
 } from "./evaluation-helpers.js";
@@ -33,8 +34,14 @@ const baseEvaluation: AttemptEvaluation = {
   comparison: null,
 };
 
-const previousEvaluation: PreviousAttemptPayload = {
-  attemptNumber: 1,
+const evaluationWithoutGoodPoints: AttemptEvaluation = {
+  ...baseEvaluation,
+  transcript: "[無音]",
+  summary: "音声が確認できませんでした。",
+  goodPoints: [],
+};
+
+const previousEvaluation: PreviousEvaluationPayload = {
   transcript: "前回の発話",
   summary: "前回の総評",
   scores: orderedScores.map((score) => ({
@@ -46,16 +53,47 @@ const previousEvaluation: PreviousAttemptPayload = {
   nextFocus: "数字を入れる",
 };
 
-const prompt: PracticePrompt = {
-  id: "personalized-1",
-  category: "tech-explanation",
-  title: "API キャッシュ戦略の説明",
-  prompt: "API レスポンスのキャッシュ戦略を説明してください。",
-  background:
-    "最近アクセス数が増え、一部 API の平均応答時間が悪化していました。特に商品一覧 API はピーク時に 900ms 前後まで遅くなっていたため、キャッシュ対象と TTL を見直しました。",
-  situation: "相手は結論先出しで要点を知りたがっています。",
-  goals: ["最初に結論を置く", "改善前後を分けて話す"],
+const evaluationWithEmptyComparisonArrays: AttemptEvaluation = {
+  ...baseEvaluation,
+  comparison: {
+    scoreDiff: buildScoreDiff(previousEvaluation.scores, reversedScores),
+    improvedPoints: [],
+    remainingPoints: [],
+    comparisonSummary: "比較結果です。",
+  },
+};
+
+const theme: ThemeRecord = {
+  id: "theme-1",
+  title: "API キャッシュ戦略を説明する",
+  userInput: {
+    theme: "API キャッシュ戦略を見直した理由",
+    personaId: "persona-new-member",
+    goal: "設計意図を誤解なく理解してほしい",
+  },
+  persona: {
+    id: "persona-new-member",
+    name: "新メンバー",
+    description:
+      "最近チームに加わったばかりで、プロジェクトの背景知識が少ない。",
+    emoji: "🧑‍💻",
+  },
+  mission:
+    "新メンバーに、キャッシュ戦略を見直した理由と設計意図が伝わるように説明してください。",
+  audienceSummary: "相手は背景知識が浅く、結論から短く知りたがっています。",
+  talkingPoints: [
+    "どんな問題が起きていたか",
+    "なぜ見直しが必要だったか",
+    "どのように変えたか",
+  ],
+  recommendedStructure: [
+    "最初に結論を一言で述べる",
+    "見直し前の問題を共有する",
+    "変更点と理由を順番に話す",
+  ],
   durationLabel: "60〜90秒",
+  createdAt: "2026-04-22T00:00:00.000Z",
+  updatedAt: "2026-04-22T00:00:00.000Z",
 };
 
 describe.each([
@@ -68,6 +106,41 @@ describe.each([
   test.each([{ label: "score order follows scoreAxes" }])("$label", () => {
     expect(normalizeScores(input)).toEqual(expected);
   });
+});
+
+describe.each([
+  {
+    name: "empty comparison arrays remain empty",
+    input: evaluationWithEmptyComparisonArrays,
+    expected: {
+      improvedPoints: [],
+      remainingPoints: [],
+    },
+  },
+  {
+    name: "empty comparison arrays remain empty even without good points",
+    input: {
+      ...evaluationWithoutGoodPoints,
+      comparison: {
+        scoreDiff: buildScoreDiff(previousEvaluation.scores, reversedScores),
+        improvedPoints: [],
+        remainingPoints: [],
+        comparisonSummary: "比較結果です。",
+      },
+    },
+    expected: {
+      improvedPoints: [],
+      remainingPoints: [],
+    },
+  },
+])("normalizeModelEvaluationPayload", ({ input, expected }) => {
+  test.each([{ label: "model payload is normalized before schema parse" }])(
+    "$label",
+    () => {
+      const normalized = normalizeModelEvaluationPayload(input);
+      expect(normalized.comparison).toMatchObject(expected);
+    },
+  );
 });
 
 describe.each([
@@ -101,13 +174,13 @@ describe.each([
 
 describe.each([
   {
-    name: "first attempt forces null comparison",
+    name: "first practice forces null comparison",
     raw: baseEvaluation,
     previous: undefined,
     expectedComparison: null,
   },
   {
-    name: "second attempt injects fallback comparison",
+    name: "retry practice injects fallback comparison",
     raw: baseEvaluation,
     previous: previousEvaluation,
     expectedComparison: {
@@ -115,7 +188,24 @@ describe.each([
       improvedPoints: baseEvaluation.goodPoints.slice(0, 2),
       remainingPoints: baseEvaluation.improvementPoints.slice(0, 2),
       comparisonSummary:
-        "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の回答に反映してください。",
+        "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の練習に反映してください。",
+    },
+  },
+  {
+    name: "retry practice without good points injects default improved point",
+    raw: evaluationWithoutGoodPoints,
+    previous: previousEvaluation,
+    expectedComparison: {
+      scoreDiff: buildScoreDiff(previousEvaluation.scores, reversedScores),
+      improvedPoints: [
+        "今回は改善点を特定できる十分な発話がありませんでした。",
+      ],
+      remainingPoints: evaluationWithoutGoodPoints.improvementPoints.slice(
+        0,
+        2,
+      ),
+      comparisonSummary:
+        "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の練習に反映してください。",
     },
   },
 ])("withDeterministicComparison", ({ raw, previous, expectedComparison }) => {
@@ -163,34 +253,32 @@ describe.each([
   {
     name: "initial prompt mentions null comparison",
     input: {
-      prompt,
-      attemptNumber: 1,
+      theme,
       locale: "ja-JP",
     },
-    expectedSnippet: "comparison は null を返してください。",
+    expectedSnippet:
+      "今回がこのテーマの初回練習です。comparison は null を返してください。",
   },
   {
-    name: "retry prompt includes previous attempt summary",
+    name: "retry prompt includes previous summary",
     input: {
-      prompt,
-      attemptNumber: 2,
+      theme,
       locale: "ja-JP",
-      previousAttemptSummary: "前回は冗長でした。",
+      previousEvaluationSummary: "前回は冗長でした。",
       previousEvaluation,
     },
-    expectedSnippet: "previousAttemptSummary: 前回は冗長でした。",
+    expectedSnippet: "previousEvaluationSummary: 前回は冗長でした。",
   },
   {
-    name: "prompt includes background context",
+    name: "prompt includes audience context",
     input: {
-      prompt,
-      attemptNumber: 1,
+      theme,
       locale: "ja-JP",
     },
-    expectedSnippet: "## 背景",
+    expectedSnippet: "## 相手の前提",
   },
 ])("buildEvaluationPrompt", ({ input, expectedSnippet }) => {
-  test.each([{ label: "prompt reflects attempt context" }])("$label", () => {
+  test.each([{ label: "prompt reflects session context" }])("$label", () => {
     expect(buildEvaluationPrompt(input)).toContain(expectedSnippet);
   });
 });

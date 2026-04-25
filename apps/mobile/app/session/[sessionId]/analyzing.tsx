@@ -33,7 +33,7 @@ export default function AnalyzingScreen() {
     }
 
     const payload = getPendingRecordingPayload(sessionId);
-    if (!payload || !sessionId) {
+    if (!payload) {
       setError("録音データが見つかりません。");
       return;
     }
@@ -47,8 +47,7 @@ export default function AnalyzingScreen() {
       try {
         const result = await submitEvaluation({
           sessionId: payload.sessionId,
-          promptId: payload.promptId,
-          attemptNumber: payload.attemptNumber,
+          themeId: payload.themeId,
           audioUri: payload.audioUri,
         });
         cachePracticeSession(result.session);
@@ -118,14 +117,14 @@ export default function AnalyzingScreen() {
                     step === i && styles.stepDotActive,
                   ]}
                 >
-                  {step > i && (
+                  {step > i ? (
                     <Ionicons
                       name="checkmark"
                       size={10}
                       color={palette.background}
                     />
-                  )}
-                  {step === i && <View style={styles.stepDotPulse} />}
+                  ) : null}
+                  {step === i ? <View style={styles.stepDotPulse} /> : null}
                 </View>
                 <Text
                   style={[
@@ -218,11 +217,12 @@ function createStyles(palette: ThemePalette) {
     },
     stepLabel: {
       fontFamily: fonts.body,
-      fontSize: 13,
+      fontSize: 14,
+      flex: 1,
     },
     errorTitle: {
       fontFamily: fonts.heading,
-      fontSize: 20,
+      fontSize: 24,
       color: palette.text,
       marginTop: 16,
       marginBottom: 8,
@@ -230,13 +230,13 @@ function createStyles(palette: ThemePalette) {
     errorText: {
       fontFamily: fonts.body,
       fontSize: 14,
+      lineHeight: 22,
       color: palette.text2,
       textAlign: "center",
-      lineHeight: 20,
     },
     errorAction: {
+      marginTop: 18,
       width: "100%",
-      marginTop: 20,
     },
   });
 }

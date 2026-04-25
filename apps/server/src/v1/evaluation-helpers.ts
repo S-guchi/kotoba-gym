@@ -2,8 +2,8 @@ import { Type } from "@google/genai";
 import {
   type AttemptEvaluation,
   type EvaluationScore,
-  type PracticePrompt,
-  type PreviousAttemptPayload,
+  type PreviousEvaluationPayload,
+  type ThemeRecord,
   scoreAxes,
 } from "@kotoba-gym/core";
 import { ApiError } from "./api-error.js";
@@ -89,19 +89,14 @@ export const EVALUATION_RESPONSE_SCHEMA = {
 };
 
 export function buildEvaluationPrompt(params: {
-  prompt: PracticePrompt;
-  attemptNumber: number;
+  theme: ThemeRecord;
   locale: string;
-  previousAttemptSummary?: string;
-  previousEvaluation?: PreviousAttemptPayload;
+  previousEvaluationSummary?: string;
+  previousEvaluation?: PreviousEvaluationPayload;
 }): string {
-  const backgroundSection = params.prompt.background
-    ? `\n## 背景\n${params.prompt.background}\n`
-    : "";
   const previousSection = params.previousEvaluation
     ? `
-## 前回の回答結果
-- attemptNumber: ${params.previousEvaluation.attemptNumber}
+## 前回の練習結果
 - summary: ${params.previousEvaluation.summary}
 - nextFocus: ${params.previousEvaluation.nextFocus}
 - goodPoints:
@@ -112,29 +107,37 @@ ${params.previousEvaluation.improvementPoints.map((item) => `  - ${item}`).join(
 ${params.previousEvaluation.scores
   .map((item) => `  - ${item.axis}: ${item.score} / ${item.comment}`)
   .join("\n")}
-${params.previousAttemptSummary ? `- previousAttemptSummary: ${params.previousAttemptSummary}` : ""}`
-    : "\n## 前回の回答結果\n今回は初回回答です。comparison は null を返してください。";
+${params.previousEvaluationSummary ? `- previousEvaluationSummary: ${params.previousEvaluationSummary}` : ""}`
+    : "\n## 前回の練習結果\n今回がこのテーマの初回練習です。comparison は null を返してください。";
 
   return `あなたはエンジニア向け口頭コミュニケーション練習コーチです。添付された音声を聞いて、回答を日本語で評価してください。
 
 ## 回答言語
 ${params.locale}
 
-## お題カテゴリ
-${params.prompt.category}
+## テーマタイトル
+${params.theme.title}
 
-## お題タイトル
-${params.prompt.title}
+## ユーザーが説明したいこと
+- テーマ: ${params.theme.userInput.theme}
+- 相手: ${params.theme.persona.name}
+- 相手の特徴: ${params.theme.persona.description}
+- 目的: ${params.theme.userInput.goal}
 
-## お題本文
-${params.prompt.prompt}
-${backgroundSection}
+## 今回のミッション
+${params.theme.mission}
 
-## 想定状況
-${params.prompt.situation}
+## 相手の前提
+${params.theme.audienceSummary}
 
-## この回答で確認したいこと
-${params.prompt.goals.map((item) => `- ${item}`).join("\n")}
+## 話すべきポイント
+${params.theme.talkingPoints.map((item) => `- ${item}`).join("\n")}
+
+## おすすめ構成
+${params.theme.recommendedStructure.map((item) => `- ${item}`).join("\n")}
+
+## 目安時間
+${params.theme.durationLabel}
 
 ## 評価軸
 - conclusion: 結論が先に出ているか
@@ -153,15 +156,15 @@ ${previousSection}
 5. summary は一言総評として2文以内でまとめてください。
 6. scores は5軸すべてを必ず含めてください。score は1から5です。判断材料が不足する場合は低めに評価し、comment で不足理由を明示してください。
 7. goodPoints と improvementPoints は transcript に根拠がある内容だけを書いてください。引用や言い換えはよいですが、transcript に存在しない事実を追加してはいけません。
-8. goodPoints は2個から3個、improvementPoints は2個から3個にしてください。十分な内容がない場合は、「結論がまだ出ていない」「具体例が不足している」のように不足自体を指摘してください。
+8. goodPoints は通常2個から3個ですが、十分な内容がなく良かった点を挙げられない場合は 0個でもかまいません。improvementPoints は2個から3個を基本としつつ、最低1個は返してください。十分な内容がない場合は、「結論がまだ出ていない」「相手に必要な背景が不足している」のように不足自体を指摘してください。
 9. exampleAnswer は次回の参考になる短い改善例を1つ返してください。ただし今回の transcript に存在しない過去エピソードを事実として断定してはいけません。
 10. nextFocus は次回の意識点を1文で返してください。
-11. 前回結果がある場合だけ comparison を埋めてください。scoreDiff は全軸を含め、improvedPoints と remainingPoints は各1個から3個にしてください。
+11. 前回結果がある場合だけ comparison を埋めてください。scoreDiff は全軸を含め、improvedPoints と remainingPoints は各0個から3個にしてください。
 12. 前回結果がない場合は comparison を null にしてください。
-13. 抽象論ではなく、このお題と今回の発話内容に即して評価してください。
+13. 抽象論ではなく、このテーマと今回の発話内容に即して評価してください。相手と目的に合った説明になっているかを重視してください。
 
 ## 最重要
-- 音声から確認できない内容を「それっぽい技術文脈」で埋めないこと。
+- 音声から確認できない内容を「それっぽい文脈」で埋めないこと。
 - 迷ったら保守的に判定し、不足として返すこと。`;
 }
 
@@ -181,8 +184,38 @@ export function normalizeScores(scores: EvaluationScore[]): EvaluationScore[] {
   });
 }
 
+export function normalizeModelEvaluationPayload(raw: AttemptEvaluation) {
+  const normalizedImprovementPoints = selectArrayItems(raw.improvementPoints, [
+    "次回は相手に伝えるべき要点を一つ以上含めてください。",
+  ]);
+
+  if (!raw.comparison) {
+    return {
+      ...raw,
+      goodPoints: raw.goodPoints.slice(0, 3),
+      improvementPoints: normalizedImprovementPoints,
+      comparison: null,
+    };
+  }
+
+  return {
+    ...raw,
+    goodPoints: raw.goodPoints.slice(0, 3),
+    improvementPoints: normalizedImprovementPoints,
+    comparison: {
+      ...raw.comparison,
+      improvedPoints: raw.comparison.improvedPoints
+        .filter((item) => item.trim().length > 0)
+        .slice(0, 3),
+      remainingPoints: raw.comparison.remainingPoints
+        .filter((item) => item.trim().length > 0)
+        .slice(0, 3),
+    },
+  };
+}
+
 export function buildScoreDiff(
-  previousScores: PreviousAttemptPayload["scores"],
+  previousScores: PreviousEvaluationPayload["scores"],
   currentScores: EvaluationScore[],
 ) {
   const previousMap = new Map(
@@ -213,7 +246,7 @@ export function buildScoreDiff(
 
 export function withDeterministicComparison(params: {
   raw: AttemptEvaluation;
-  previousEvaluation?: PreviousAttemptPayload;
+  previousEvaluation?: PreviousEvaluationPayload;
 }): AttemptEvaluation {
   if (!params.previousEvaluation) {
     return {
@@ -236,12 +269,36 @@ export function withDeterministicComparison(params: {
         }
       : {
           scoreDiff,
-          improvedPoints: params.raw.goodPoints.slice(0, 2),
+          improvedPoints: selectFallbackImprovedPoints(params.raw.goodPoints),
           remainingPoints: params.raw.improvementPoints.slice(0, 2),
           comparisonSummary:
-            "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の回答に反映してください。",
+            "前回より改善した点と残課題を比較できました。スコア差分を見ながら次の練習に反映してください。",
         },
   };
+}
+
+function selectFallbackImprovedPoints(goodPoints: string[]) {
+  if (goodPoints.length > 0) {
+    return goodPoints.slice(0, 2);
+  }
+
+  return ["今回は改善点を特定できる十分な発話がありませんでした。"];
+}
+
+function selectArrayItems(items: string[], fallback: string[]) {
+  const normalized = items.filter((item) => item.trim().length > 0).slice(0, 3);
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  const fallbackItems = fallback
+    .filter((item) => item.trim().length > 0)
+    .slice(0, 3);
+  if (fallbackItems.length > 0) {
+    return fallbackItems;
+  }
+
+  return ["今回は十分な比較材料がありませんでした。"];
 }
 
 export function inferApiError(error: unknown): ApiError {

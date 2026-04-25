@@ -1,192 +1,167 @@
 import { describe, expect, test } from "vitest";
-import { scoreAxes } from "@kotoba-gym/core";
-import type {
-  AttemptEvaluation,
-  PersonalizedPracticePrompt,
-} from "@kotoba-gym/core";
+import type { AttemptEvaluation, ThemeRecord } from "@kotoba-gym/core";
 import {
   createPracticeSessionRecord,
-  createSessionId,
+  setSessionEvaluation,
   sortPracticeSessions,
-  toPreviousAttemptPayload,
-  upsertPracticeSessionAttempt,
+  toPreviousEvaluationPayload,
 } from "./storage-helpers";
 
-const prompt: PersonalizedPracticePrompt = {
-  id: "personalized-1",
-  category: "tech-explanation",
-  title: "API キャッシュ戦略の説明",
-  prompt:
-    "新しく入ったメンバーに、なぜ API レスポンスのキャッシュ戦略を見直したのか説明してください。",
-  background:
-    "最近アクセス数が増え、一部 API の平均応答時間が悪化していました。特に商品一覧 API はピーク時に 900ms 前後まで遅くなっていたため、キャッシュ対象と TTL を見直しました。",
-  situation:
-    "相手はバックエンド経験が浅く、結論先出しで要点を知りたがっています。",
-  goals: ["最初に結論を置く", "現状の問題と改善後の違いを分けて話す"],
-  durationLabel: "60〜90秒",
-  personalized: true,
+const theme: ThemeRecord = {
+  id: "theme-1",
+  title: "障害報告を説明する",
+  userInput: {
+    theme: "障害報告",
+    personaId: "persona-manager",
+    goal: "判断してほしい",
+  },
+  persona: {
+    id: "persona-manager",
+    name: "上司",
+    description: "ビジネスインパクトと優先度を気にするマネージャー。",
+    emoji: "📊",
+  },
+  mission: "上司に、いま判断が必要な障害状況だと伝わるように説明してください。",
+  audienceSummary: "相手は現状と次のアクションを短く知りたがっています。",
+  talkingPoints: [
+    "何が起きているか",
+    "影響範囲はどこか",
+    "次に何を判断してほしいか",
+  ],
+  recommendedStructure: [
+    "最初に障害の要点を述べる",
+    "影響範囲を続ける",
+    "必要な判断を最後に伝える",
+  ],
+  durationLabel: "30〜45秒",
+  createdAt: "2026-04-22T00:00:00.000Z",
+  updatedAt: "2026-04-22T00:00:00.000Z",
 };
+
 const evaluation: AttemptEvaluation = {
-  transcript: "結論から説明します。",
-  summary: "簡潔に話せています。",
-  scores: scoreAxes.map((axis, index) => ({
-    axis,
-    score: Math.min(index + 1, 5),
-    comment: `${axis} comment`,
-  })),
-  goodPoints: ["結論が早い", "簡潔"],
-  improvementPoints: ["数字不足", "例が少ない"],
-  exampleAnswer: "結論、背景、効果を順に話します。",
-  nextFocus: "数字を一つ加える",
+  transcript: "現在障害が起きています。",
+  summary: "要点は伝えられています。",
+  scores: [
+    { axis: "conclusion", score: 3, comment: "a" },
+    { axis: "structure", score: 4, comment: "b" },
+    { axis: "specificity", score: 3, comment: "c" },
+    { axis: "technicalValidity", score: 4, comment: "d" },
+    { axis: "brevity", score: 3, comment: "e" },
+  ],
+  goodPoints: ["要点が先にある"],
+  improvementPoints: ["数字が足りない"],
+  exampleAnswer: "障害の要点から説明します。",
+  nextFocus: "影響範囲を数字で示す",
   comparison: null,
 };
 
 describe.each([
   {
-    name: "session id is deterministic from inputs",
-    now: 1_713_740_000_000,
-    randomValue: 0.123456,
-    expected: "session-1713740000000-123456",
-  },
-])("createSessionId", ({ now, randomValue, expected }) => {
-  test.each([{ label: "session id format is stable" }])("$label", () => {
-    expect(createSessionId(now, randomValue)).toBe(expected);
-  });
-});
-
-describe.each([
-  {
-    name: "new session starts empty",
+    name: "create session record seeds empty evaluation",
     input: {
       id: "session-1",
-      prompt,
+      theme,
       now: "2026-04-22T00:00:00.000Z",
     },
     expected: {
       id: "session-1",
-      prompt,
-      attempts: [],
+      theme,
+      evaluation: null,
+      recordedAt: null,
       createdAt: "2026-04-22T00:00:00.000Z",
       updatedAt: "2026-04-22T00:00:00.000Z",
     },
   },
 ])("createPracticeSessionRecord", ({ input, expected }) => {
-  test.each([{ label: "record bootstrap matches schema" }])("$label", () => {
+  test.each([{ label: "session seed is deterministic" }])("$label", () => {
     expect(createPracticeSessionRecord(input)).toEqual(expected);
   });
 });
 
 describe.each([
   {
-    name: "append first attempt",
+    name: "set stores session evaluation",
     input: {
       record: createPracticeSessionRecord({
         id: "session-1",
-        prompt,
+        theme,
         now: "2026-04-22T00:00:00.000Z",
       }),
-      attemptNumber: 1,
       evaluation,
       recordedAt: "2026-04-22T00:01:00.000Z",
       updatedAt: "2026-04-22T00:01:00.000Z",
     },
-    expectedAttemptNumbers: [1],
-  },
-  {
-    name: "replace existing attempt and keep order",
-    input: {
-      record: {
-        ...createPracticeSessionRecord({
-          id: "session-1",
-          prompt,
-          now: "2026-04-22T00:00:00.000Z",
-        }),
-        attempts: [
-          {
-            attemptNumber: 2,
-            recordedAt: "2026-04-22T00:03:00.000Z",
-            evaluation,
-          },
-          {
-            attemptNumber: 1,
-            recordedAt: "2026-04-22T00:01:00.000Z",
-            evaluation,
-          },
-        ],
-      },
-      attemptNumber: 2,
-      evaluation: {
-        ...evaluation,
-        summary: "更新後の総評",
-      },
-      recordedAt: "2026-04-22T00:04:00.000Z",
-      updatedAt: "2026-04-22T00:04:00.000Z",
+    expected: {
+      evaluation,
+      recordedAt: "2026-04-22T00:01:00.000Z",
+      updatedAt: "2026-04-22T00:01:00.000Z",
     },
-    expectedAttemptNumbers: [1, 2],
   },
-])("upsertPracticeSessionAttempt", ({ input, expectedAttemptNumbers }) => {
-  test.each([{ label: "attempts are upserted and sorted" }])("$label", () => {
-    const updated = upsertPracticeSessionAttempt(input);
-    expect(updated.attempts.map((attempt) => attempt.attemptNumber)).toEqual(
-      expectedAttemptNumbers,
-    );
-    expect(updated.updatedAt).toBe(input.updatedAt);
-  });
+])("setSessionEvaluation", ({ input, expected }) => {
+  test.each([{ label: "session evaluation is stored deterministically" }])(
+    "$label",
+    () => {
+      const actual = setSessionEvaluation(input);
+      expect({
+        evaluation: actual.evaluation,
+        recordedAt: actual.recordedAt,
+        updatedAt: actual.updatedAt,
+      }).toEqual(expected);
+    },
+  );
 });
 
 describe.each([
   {
-    name: "sessions are sorted by updatedAt desc",
-    sessions: [
+    name: "sort latest updatedAt first",
+    input: [
       {
         ...createPracticeSessionRecord({
-          id: "session-older",
-          prompt,
+          id: "session-1",
+          theme,
           now: "2026-04-22T00:00:00.000Z",
         }),
-        updatedAt: "2026-04-22T00:01:00.000Z",
+        updatedAt: "2026-04-22T00:00:00.000Z",
       },
       {
         ...createPracticeSessionRecord({
-          id: "session-newer",
-          prompt,
+          id: "session-2",
+          theme,
           now: "2026-04-22T00:00:00.000Z",
         }),
         updatedAt: "2026-04-22T00:02:00.000Z",
       },
     ],
-    expected: ["session-newer", "session-older"],
+    expectedIds: ["session-2", "session-1"],
   },
-])("sortPracticeSessions", ({ sessions, expected }) => {
-  test.each([{ label: "sessions list is sorted descending" }])("$label", () => {
-    expect(sortPracticeSessions(sessions).map((session) => session.id)).toEqual(
-      expected,
+])("sortPracticeSessions", ({ input, expectedIds }) => {
+  test.each([{ label: "session sort is deterministic" }])("$label", () => {
+    expect(sortPracticeSessions(input).map((session) => session.id)).toEqual(
+      expectedIds,
     );
   });
 });
 
 describe.each([
   {
-    name: "previous attempt payload omits comparison",
-    attemptNumber: 1,
-    evaluation,
+    name: "previous payload keeps only comparison-safe fields",
+    input: {
+      evaluation,
+    },
     expected: {
-      attemptNumber: 1,
-      transcript: evaluation.transcript,
-      summary: evaluation.summary,
+      transcript: "現在障害が起きています。",
+      summary: "要点は伝えられています。",
       scores: evaluation.scores,
-      goodPoints: evaluation.goodPoints,
-      improvementPoints: evaluation.improvementPoints,
-      nextFocus: evaluation.nextFocus,
+      goodPoints: ["要点が先にある"],
+      improvementPoints: ["数字が足りない"],
+      nextFocus: "影響範囲を数字で示す",
     },
   },
-])("toPreviousAttemptPayload", ({ attemptNumber, evaluation, expected }) => {
-  test.each([{ label: "payload keeps only retry-safe fields" }])(
+])("toPreviousEvaluationPayload", ({ input, expected }) => {
+  test.each([{ label: "comparison payload is derived deterministically" }])(
     "$label",
     () => {
-      expect(toPreviousAttemptPayload(attemptNumber, evaluation)).toEqual(
-        expected,
-      );
+      expect(toPreviousEvaluationPayload(input.evaluation)).toEqual(expected);
     },
   );
 });

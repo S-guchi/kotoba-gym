@@ -1,37 +1,31 @@
 export {
   AttemptComparisonSchema,
   AttemptEvaluationSchema,
+  CreateThemeRequestSchema,
+  CreateThemeResponseSchema,
   EvaluationScoreSchema,
-  PersonalizedPracticePromptSchema,
-  PracticePromptCategorySchema,
-  PracticePromptDurationSchema,
-  PracticePromptSchema,
-  PracticeSessionAttemptSchema,
+  ListThemesResponseSchema,
   PracticeSessionRecordSchema,
-  PreviousAttemptPayloadSchema,
+  PreviousEvaluationPayloadSchema,
   ScoreAxisSchema,
+  ThemeDurationSchema,
+  ThemeInputSchema,
+  ThemeRecordSchema,
   scoreAxes,
 } from "./src/practice";
+export { ListPersonasResponseSchema, PersonaSchema } from "./src/persona";
 export type {
   AttemptComparison,
   AttemptEvaluation,
+  CreateThemeRequest,
+  CreateThemeResponse,
   EvaluationScore,
-  PersonalizedPracticePrompt,
-  PracticePrompt,
-  PracticePromptCategory,
-  PracticePromptDuration,
-  PracticeSessionAttempt,
+  ListThemesResponse,
   PracticeSessionRecord,
-  PreviousAttemptPayload,
+  PreviousEvaluationPayload,
   ScoreAxis,
+  ThemeDuration,
+  ThemeInput,
+  ThemeRecord,
 } from "./src/practice";
-export {
-  GeneratePersonalizedPromptsRequestSchema,
-  GeneratePersonalizedPromptsResponseSchema,
-  PersonalizationProfileSchema,
-} from "./personalization.react-native";
-export type {
-  GeneratePersonalizedPromptsRequest,
-  GeneratePersonalizedPromptsResponse,
-  PersonalizationProfile,
-} from "./personalization.react-native";
+export type { ListPersonasResponse, Persona } from "./src/persona";

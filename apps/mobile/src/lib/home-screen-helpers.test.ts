@@ -1,197 +1,96 @@
 import { describe, expect, test } from "vitest";
-import type {
-  PersonalizationProfile,
-  PersonalizedPracticePrompt,
-  PracticeSessionRecord,
-} from "@kotoba-gym/core";
-import {
-  buildHomeFeed,
-  buildProfileHighlights,
-  buildResumeProgress,
-  getResumeSession,
-  isPersonalizedPrompt,
-} from "./home-screen-helpers";
+import type { PracticeSessionRecord, ThemeRecord } from "@kotoba-gym/core";
+import { buildHomeFeed, getHomeThemePreviewRows } from "./home-screen-helpers";
 
-const personalizedPrompt: PersonalizedPracticePrompt = {
-  id: "personalized-1",
-  category: "interview",
-  title: "Expo の強みを説明",
-  prompt: "面接で強みを説明してください。",
-  background:
-    "新しい案件で立ち上がりの速さが求められていました。一方で各 OS の実装差分が負担になっていたため、開発体験と保守性の観点で Expo の強みを説明する想定です。",
-  situation: "相手は実例を重視しています。",
-  goals: ["強みを先に言う", "具体例で裏付ける"],
-  durationLabel: "45〜60秒",
-  personalized: true,
-};
-
-const profile: PersonalizationProfile = {
-  role: "モバイル",
-  roleText: "React Native 中心です",
-  strengths: ["実装速度"],
-  strengthsText: "",
-  techStack: ["Expo", "TypeScript", "Supabase"],
-  techStackText: "",
-  scenarios: ["技術説明"],
-};
-
-const resumeSession: PracticeSessionRecord = {
-  id: "session-1",
-  prompt: personalizedPrompt,
-  attempts: [
-    {
-      attemptNumber: 1,
-      recordedAt: "2026-04-22T00:00:00.000Z",
-      evaluation: {
-        transcript: "回答です。",
-        summary: "総評です。",
-        scores: [
-          { axis: "conclusion", score: 3, comment: "a" },
-          { axis: "structure", score: 3, comment: "b" },
-          { axis: "specificity", score: 3, comment: "c" },
-          { axis: "technicalValidity", score: 3, comment: "d" },
-          { axis: "brevity", score: 3, comment: "e" },
-        ],
-        goodPoints: ["結論がある"],
-        improvementPoints: ["例が少ない"],
-        exampleAnswer: "改善例です。",
-        nextFocus: "具体例を追加する",
-        comparison: null,
-      },
-    },
+const theme: ThemeRecord = {
+  id: "theme-1",
+  title: "Expo の強みを説明する",
+  userInput: {
+    theme: "Expo の強み",
+    personaId: "persona-interviewer",
+    goal: "強みを評価してほしい",
+  },
+  persona: {
+    id: "persona-interviewer",
+    name: "面接官",
+    description: "技術的な深さと論理的な説明力を重視する採用担当。",
+    emoji: "👔",
+  },
+  mission: "面接官に、Expo を選ぶ判断軸と強みが伝わるように説明してください。",
+  audienceSummary: "相手は実例と判断理由を重視しています。",
+  talkingPoints: [
+    "どんな課題に合っていたか",
+    "なぜ Expo が有効だったか",
+    "開発や運用でどう効いたか",
   ],
+  recommendedStructure: [
+    "最初に強みを一言で述べる",
+    "課題との対応を話す",
+    "実例で締める",
+  ],
+  durationLabel: "45〜60秒",
   createdAt: "2026-04-22T00:00:00.000Z",
   updatedAt: "2026-04-22T00:00:00.000Z",
 };
 
-describe.each([
-  {
-    name: "profile highlights use role and first two stacks",
-    input: profile,
-    expected: ["モバイル", "Expo", "TypeScript"],
-  },
-  {
-    name: "no profile yields empty highlights",
-    input: null,
-    expected: [],
-  },
-])("buildProfileHighlights", ({ input, expected }) => {
-  test.each([{ label: "profile chips are derived deterministically" }])(
-    "$label",
-    () => {
-      expect(buildProfileHighlights(input)).toEqual(expected);
-    },
-  );
-});
+const session: PracticeSessionRecord = {
+  id: "session-1",
+  theme,
+  evaluation: null,
+  recordedAt: null,
+  createdAt: "2026-04-22T00:00:00.000Z",
+  updatedAt: "2026-04-22T00:00:00.000Z",
+};
 
-describe.each([
-  {
-    name: "finds first resumable session",
-    sessions: [resumeSession],
-    expected: resumeSession.id,
-  },
-  {
-    name: "returns null when no resumable session exists",
-    sessions: [
-      {
-        ...resumeSession,
-        attempts: [
-          ...resumeSession.attempts,
-          { ...resumeSession.attempts[0], attemptNumber: 2 },
-        ],
-      },
+const evaluatedSession: PracticeSessionRecord = {
+  ...session,
+  evaluation: {
+    transcript: "Expo を使う理由を説明しました。",
+    summary: "Expo の判断理由を説明できている。",
+    scores: [
+      { axis: "conclusion", score: 3, comment: "a" },
+      { axis: "structure", score: 3, comment: "b" },
+      { axis: "specificity", score: 3, comment: "c" },
+      { axis: "technicalValidity", score: 3, comment: "d" },
+      { axis: "brevity", score: 3, comment: "e" },
     ],
-    expected: null,
+    goodPoints: ["結論が明確"],
+    improvementPoints: ["具体例を増やす"],
+    exampleAnswer: "Expo は...",
+    nextFocus: "具体例",
+    comparison: null,
   },
-])("getResumeSession", ({ sessions, expected }) => {
-  test.each([{ label: "resume session selection is stable" }])("$label", () => {
-    expect(getResumeSession(sessions)?.id ?? null).toBe(expected);
-  });
-});
+  recordedAt: "2026-04-22T10:00:00.000Z",
+  updatedAt: "2026-04-22T10:00:00.000Z",
+};
 
 describe.each([
   {
-    name: "resume progress uses existing attempt count",
-    session: resumeSession,
-    expected: {
-      completedAttempts: 1,
-      totalAttempts: 2,
-      ratio: 0.5,
-      label: "1/2 回答済み",
-      focusText: "具体例を追加する",
-    },
-  },
-])("buildResumeProgress", ({ session, expected }) => {
-  test.each([{ label: "resume progress is deterministic" }])("$label", () => {
-    expect(buildResumeProgress(session)).toEqual(expected);
-  });
-});
-
-describe.each([
-  {
-    name: "personalized prompt is detected",
-    prompt: personalizedPrompt,
-    expected: true,
-  },
-])("isPersonalizedPrompt", ({ prompt, expected }) => {
-  test.each([{ label: "personalization badge source is stable" }])(
-    "$label",
-    () => {
-      expect(isPersonalizedPrompt(prompt)).toBe(expected);
-    },
-  );
-});
-
-describe.each([
-  {
-    name: "profile and prompts drive hero section",
+    name: "themes and sessions drive home feed",
     input: {
-      prompts: [
-        personalizedPrompt,
-        { ...personalizedPrompt, id: "personalized-2", title: "別のお題" },
-      ],
-      sessions: [resumeSession],
-      profile,
+      themes: [theme, { ...theme, id: "theme-2", title: "別テーマ" }],
+      sessions: [session],
+      now: new Date("2026-04-23T21:00:00.000+09:00"),
     },
     expected: {
-      heroPromptId: "personalized-1",
-      candidatePromptIds: ["personalized-2"],
-      heroSectionLabel: "あなた向けのおすすめ",
-      showOnboardingCta: false,
-      shouldRedirectToOnboarding: false,
-      resumeSessionId: "session-1",
+      todaysRunThemeId: "theme-1",
+      themeRowIds: ["theme-1", "theme-2"],
+      shouldShowEmptyState: false,
+      sessionCount: 1,
     },
   },
   {
-    name: "empty prompt list shows onboarding state",
+    name: "empty state is derived from both lists",
     input: {
-      prompts: [],
+      themes: [],
       sessions: [],
-      profile: null,
+      now: new Date("2026-04-23T21:00:00.000+09:00"),
     },
     expected: {
-      heroPromptId: null,
-      candidatePromptIds: [],
-      heroSectionLabel: "おすすめのお題",
-      showOnboardingCta: true,
-      shouldRedirectToOnboarding: true,
-      resumeSessionId: null,
-    },
-  },
-  {
-    name: "empty prompt list with profile keeps onboarding CTA without redirect",
-    input: {
-      prompts: [],
-      sessions: [],
-      profile,
-    },
-    expected: {
-      heroPromptId: null,
-      candidatePromptIds: [],
-      heroSectionLabel: "おすすめのお題",
-      showOnboardingCta: true,
-      shouldRedirectToOnboarding: false,
-      resumeSessionId: null,
+      todaysRunThemeId: null,
+      themeRowIds: [],
+      shouldShowEmptyState: true,
+      sessionCount: 0,
     },
   },
 ])("buildHomeFeed", ({ input, expected }) => {
@@ -200,15 +99,174 @@ describe.each([
     () => {
       const resolved = buildHomeFeed(input);
       expect({
-        heroPromptId: resolved.heroPrompt?.id ?? null,
-        candidatePromptIds: resolved.candidatePrompts.map(
-          (prompt) => prompt.id,
-        ),
-        heroSectionLabel: resolved.heroSectionLabel,
-        showOnboardingCta: resolved.showOnboardingCta,
-        shouldRedirectToOnboarding: resolved.shouldRedirectToOnboarding,
-        resumeSessionId: resolved.resumeSession?.id ?? null,
+        todaysRunThemeId: resolved.todaysRun?.theme.id ?? null,
+        themeRowIds: resolved.themeRows.map((item) => item.theme.id),
+        shouldShowEmptyState: resolved.shouldShowEmptyState,
+        sessionCount: resolved.sessionCount,
       }).toEqual(expected);
+    },
+  );
+});
+
+describe.each([
+  {
+    name: "current streak keeps yesterday anchor before today's practice",
+    now: new Date("2026-04-23T21:00:00.000+09:00"),
+    sessions: [
+      {
+        ...evaluatedSession,
+        id: "session-1",
+        recordedAt: "2026-04-20T10:00:00.000Z",
+      },
+      {
+        ...evaluatedSession,
+        id: "session-2",
+        recordedAt: "2026-04-21T10:00:00.000Z",
+      },
+      {
+        ...evaluatedSession,
+        id: "session-3",
+        recordedAt: "2026-04-22T10:00:00.000Z",
+      },
+    ],
+    expected: {
+      streakDays: 3,
+      weeklySessionCount: 3,
+      weekOverWeekDiff: 3,
+      practicedWeekdays: [true, true, true, false, false, false, false],
+    },
+  },
+  {
+    name: "current streak starts from today when practiced today",
+    now: new Date("2026-04-23T21:00:00.000+09:00"),
+    sessions: [
+      {
+        ...evaluatedSession,
+        id: "session-1",
+        recordedAt: "2026-04-22T10:00:00.000Z",
+      },
+      {
+        ...evaluatedSession,
+        id: "session-2",
+        recordedAt: "2026-04-23T10:00:00.000Z",
+      },
+      {
+        ...evaluatedSession,
+        id: "session-3",
+        recordedAt: "2026-04-15T10:00:00.000Z",
+      },
+    ],
+    expected: {
+      streakDays: 2,
+      weeklySessionCount: 2,
+      weekOverWeekDiff: 1,
+      practicedWeekdays: [false, false, true, true, false, false, false],
+    },
+  },
+])("buildHomeFeed stats", ({ now, sessions, expected }) => {
+  test.each([{ label: "practice stats are derived from evaluated sessions" }])(
+    "$label",
+    () => {
+      const resolved = buildHomeFeed({ themes: [theme], sessions, now });
+      expect(resolved.stats).toMatchObject(expected);
+    },
+  );
+});
+
+describe.each([
+  {
+    name: "recent evaluated theme is the run target",
+    themes: [theme, { ...theme, id: "theme-2", title: "別テーマ" }],
+    sessions: [
+      {
+        ...evaluatedSession,
+        id: "session-1",
+        recordedAt: "2026-04-21T10:00:00.000Z",
+      },
+      {
+        ...evaluatedSession,
+        id: "session-2",
+        theme: { ...theme, id: "theme-2", title: "別テーマ" },
+        recordedAt: "2026-04-22T10:00:00.000Z",
+      },
+    ],
+    expected: {
+      themeId: "theme-2",
+      previousScore: 60,
+      targetScore: 62,
+    },
+  },
+  {
+    name: "latest theme is the run target without evaluated sessions",
+    themes: [theme],
+    sessions: [session],
+    expected: {
+      themeId: "theme-1",
+      previousScore: null,
+      targetScore: null,
+    },
+  },
+])("buildHomeFeed today's run", ({ themes, sessions, expected }) => {
+  test.each([{ label: "run target follows the priority rule" }])(
+    "$label",
+    () => {
+      const resolved = buildHomeFeed({
+        themes,
+        sessions,
+        now: new Date("2026-04-23T21:00:00.000+09:00"),
+      });
+
+      expect({
+        themeId: resolved.todaysRun?.theme.id ?? null,
+        previousScore: resolved.todaysRun?.previousScore ?? null,
+        targetScore: resolved.todaysRun?.targetScore ?? null,
+      }).toEqual(expected);
+    },
+  );
+});
+
+describe.each([
+  {
+    name: "returns all rows when theme count is under limit",
+    rows: [
+      { theme, previousScore: 60, lastPracticedAt: "2026-04-22T10:00:00.000Z" },
+      {
+        theme: { ...theme, id: "theme-2", title: "別テーマ" },
+        previousScore: null,
+        lastPracticedAt: null,
+      },
+    ],
+    expectedIds: ["theme-1", "theme-2"],
+  },
+  {
+    name: "clips rows to three when theme count exceeds limit",
+    rows: [
+      { theme, previousScore: 60, lastPracticedAt: "2026-04-22T10:00:00.000Z" },
+      {
+        theme: { ...theme, id: "theme-2", title: "別テーマ" },
+        previousScore: null,
+        lastPracticedAt: null,
+      },
+      {
+        theme: { ...theme, id: "theme-3", title: "三つ目" },
+        previousScore: 70,
+        lastPracticedAt: "2026-04-21T10:00:00.000Z",
+      },
+      {
+        theme: { ...theme, id: "theme-4", title: "四つ目" },
+        previousScore: 80,
+        lastPracticedAt: "2026-04-20T10:00:00.000Z",
+      },
+    ],
+    expectedIds: ["theme-1", "theme-2", "theme-3"],
+  },
+])("getHomeThemePreviewRows", ({ rows, expectedIds }) => {
+  test.each([{ label: "home theme preview is capped deterministically" }])(
+    "$label",
+    () => {
+      expect(getHomeThemePreviewRows(rows).map((row) => row.theme.id)).toEqual(
+        expectedIds,
+      );
     },
   );
 });

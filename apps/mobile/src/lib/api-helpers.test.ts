@@ -74,14 +74,12 @@ describe.each([
     input: {
       ownerKey: "owner-1",
       sessionId: "session-1",
-      promptId: "tech-api-cache",
-      attemptNumber: 1,
+      themeId: "theme-api-cache",
     },
     expected: {
       ownerKey: "owner-1",
       sessionId: "session-1",
-      promptId: "tech-api-cache",
-      attemptNumber: "1",
+      themeId: "theme-api-cache",
       locale: "ja-JP",
     },
   },
@@ -99,18 +97,18 @@ describe.each([
     name: "audio descriptor is fixed to m4a",
     input: {
       audioUri: "file:///tmp/audio.m4a",
-      attemptNumber: 2,
+      sessionId: "session-2",
     },
     expected: {
       uri: "file:///tmp/audio.m4a",
-      name: "attempt-2.m4a",
+      name: "session-2.m4a",
       type: "audio/m4a",
     },
   },
 ])("createAudioUploadDescriptor", ({ input, expected }) => {
   test.each([{ label: "audio upload descriptor is stable" }])("$label", () => {
     expect(
-      createAudioUploadDescriptor(input.audioUri, input.attemptNumber),
+      createAudioUploadDescriptor(input.audioUri, input.sessionId),
     ).toEqual(expected);
   });
 });

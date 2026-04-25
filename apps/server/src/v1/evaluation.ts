@@ -1,7 +1,7 @@
 import {
   AttemptEvaluationSchema,
-  type PracticePrompt,
-  type PreviousAttemptPayload,
+  type PreviousEvaluationPayload,
+  type ThemeRecord,
 } from "@kotoba-gym/core";
 import type { ServerConfig } from "../config.js";
 import { createLLMClient } from "../lib/gemini-client.js";
@@ -10,6 +10,7 @@ import {
   EVALUATION_RESPONSE_SCHEMA,
   buildEvaluationPrompt,
   inferApiError,
+  normalizeModelEvaluationPayload,
   normalizeScores,
   withDeterministicComparison,
 } from "./evaluation-helpers.js";
@@ -17,26 +18,24 @@ import {
 export { ApiError } from "./api-error.js";
 
 function logGeminiEvaluation(params: {
-  promptId: string;
-  attemptNumber: number;
+  themeId: string;
   mimeType: string;
   raw: string;
 }) {
   console.log(
-    `[gemini][evaluation] promptId=${params.promptId} attempt=${params.attemptNumber} mimeType=${params.mimeType}`,
+    `[gemini][evaluation] themeId=${params.themeId} mimeType=${params.mimeType}`,
   );
   console.log(params.raw);
 }
 
 export async function evaluateAttempt(params: {
   config: ServerConfig;
-  prompt: PracticePrompt;
-  attemptNumber: number;
+  theme: ThemeRecord;
   audio: Uint8Array;
   mimeType: string;
   locale: string;
-  previousAttemptSummary?: string;
-  previousEvaluation?: PreviousAttemptPayload;
+  previousEvaluationSummary?: string;
+  previousEvaluation?: PreviousEvaluationPayload;
 }) {
   try {
     const client = createLLMClient(
@@ -47,10 +46,9 @@ export async function evaluateAttempt(params: {
       [
         {
           text: buildEvaluationPrompt({
-            prompt: params.prompt,
-            attemptNumber: params.attemptNumber,
+            theme: params.theme,
             locale: params.locale,
-            previousAttemptSummary: params.previousAttemptSummary,
+            previousEvaluationSummary: params.previousEvaluationSummary,
             previousEvaluation: params.previousEvaluation,
           }),
         },
@@ -68,13 +66,14 @@ export async function evaluateAttempt(params: {
       },
     );
     logGeminiEvaluation({
-      promptId: params.prompt.id,
-      attemptNumber: params.attemptNumber,
+      themeId: params.theme.id,
       mimeType: params.mimeType,
       raw,
     });
 
-    const parsed = AttemptEvaluationSchema.parse(JSON.parse(raw));
+    const parsed = AttemptEvaluationSchema.parse(
+      normalizeModelEvaluationPayload(JSON.parse(raw)),
+    );
     const normalized = {
       ...parsed,
       scores: normalizeScores(parsed.scores),

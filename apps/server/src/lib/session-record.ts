@@ -1,10 +1,10 @@
 import type {
   AttemptEvaluation,
-  PersonalizedPracticePrompt,
   PracticeSessionRecord,
-  PreviousAttemptPayload,
+  PreviousEvaluationPayload,
+  ThemeRecord,
 } from "@kotoba-gym/core";
-import { PreviousAttemptPayloadSchema } from "@kotoba-gym/core";
+import { PreviousEvaluationPayloadSchema } from "@kotoba-gym/core";
 
 export function createSessionId(now = Date.now(), randomValue = Math.random()) {
   return `session-${now}-${Math.round(randomValue * 1_000_000)}`;
@@ -12,13 +12,14 @@ export function createSessionId(now = Date.now(), randomValue = Math.random()) {
 
 export function createPracticeSessionRecord(params: {
   id: string;
-  prompt: PersonalizedPracticePrompt;
+  theme: ThemeRecord;
   now: string;
 }): PracticeSessionRecord {
   return {
     id: params.id,
-    prompt: params.prompt,
-    attempts: [],
+    theme: params.theme,
+    evaluation: null,
+    recordedAt: null,
     createdAt: params.now,
     updatedAt: params.now,
   };
@@ -30,35 +31,24 @@ export function sortPracticeSessions(sessions: PracticeSessionRecord[]) {
   );
 }
 
-export function upsertPracticeSessionAttempt(params: {
+export function setSessionEvaluation(params: {
   record: PracticeSessionRecord;
-  attemptNumber: number;
   evaluation: AttemptEvaluation;
   recordedAt: string;
   updatedAt: string;
 }): PracticeSessionRecord {
   return {
     ...params.record,
-    attempts: [
-      ...params.record.attempts.filter(
-        (attempt) => attempt.attemptNumber !== params.attemptNumber,
-      ),
-      {
-        attemptNumber: params.attemptNumber,
-        recordedAt: params.recordedAt,
-        evaluation: params.evaluation,
-      },
-    ].sort((left, right) => left.attemptNumber - right.attemptNumber),
+    evaluation: params.evaluation,
+    recordedAt: params.recordedAt,
     updatedAt: params.updatedAt,
   };
 }
 
-export function toPreviousAttemptPayload(
-  attemptNumber: number,
+export function toPreviousEvaluationPayload(
   evaluation: AttemptEvaluation,
-): PreviousAttemptPayload {
-  return PreviousAttemptPayloadSchema.parse({
-    attemptNumber,
+): PreviousEvaluationPayload {
+  return PreviousEvaluationPayloadSchema.parse({
     transcript: evaluation.transcript,
     summary: evaluation.summary,
     scores: evaluation.scores,

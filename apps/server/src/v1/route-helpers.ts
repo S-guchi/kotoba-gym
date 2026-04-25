@@ -1,19 +1,23 @@
-import { PersonalizationProfileSchema } from "@kotoba-gym/core";
+import { CreateThemeRequestSchema } from "@kotoba-gym/core";
 import { z } from "zod";
 import { ApiError } from "./api-error.js";
 
 const OwnerKeySchema = z.string().trim().min(1).max(120);
 
+const CreateThemePayloadSchema = z.object({
+  ownerKey: OwnerKeySchema,
+  input: CreateThemeRequestSchema,
+});
+
 const SessionCreateRequestSchema = z.object({
   ownerKey: OwnerKeySchema,
-  promptId: z.string().trim().min(1),
+  themeId: z.string().trim().min(1),
 });
 
 const EvaluationFieldsSchema = z.object({
   ownerKey: OwnerKeySchema,
   sessionId: z.string().trim().min(1),
-  promptId: z.string().trim().min(1),
-  attemptNumber: z.coerce.number().int().min(1).max(2).default(1),
+  themeId: z.string().trim().min(1),
   locale: z.string().min(2).default("ja-JP"),
 });
 
@@ -34,17 +38,8 @@ export function parseOwnerKey(raw: unknown) {
   return OwnerKeySchema.parse(raw);
 }
 
-export function parseProfilePayload(raw: unknown) {
-  return z
-    .object({
-      ownerKey: OwnerKeySchema,
-      profile: PersonalizationProfileSchema,
-    })
-    .parse(raw);
-}
-
-export function parsePromptGenerationPayload(raw: unknown) {
-  return parseProfilePayload(raw);
+export function parseCreateThemePayload(raw: unknown) {
+  return CreateThemePayloadSchema.parse(raw);
 }
 
 export function parseSessionCreatePayload(raw: unknown) {
@@ -55,8 +50,7 @@ export function parseEvaluationFields(form: FormData) {
   return EvaluationFieldsSchema.parse({
     ownerKey: form.get("ownerKey"),
     sessionId: form.get("sessionId"),
-    promptId: form.get("promptId"),
-    attemptNumber: form.get("attemptNumber") ?? "1",
+    themeId: form.get("themeId"),
     locale: form.get("locale") ?? "ja-JP",
   });
 }

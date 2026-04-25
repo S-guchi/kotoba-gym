@@ -10,6 +10,8 @@ import {
   ScriptResponseSchema,
   SpeechPlanRequestSchema,
   SpeechPlanResponseSchema,
+  TranscribeAudioRequestSchema,
+  TranscribeAudioResponseSchema,
   UpdateSessionRequestSchema,
 } from "@kotoba-gym/core";
 import type { Context } from "hono";
@@ -27,6 +29,7 @@ import {
   buildOrganizePrompt,
   buildScriptPrompt,
   buildSpeechPlanPrompt,
+  buildTranscribePrompt,
 } from "./prompts.js";
 import { D1SessionRepository, type SessionRepository } from "./repository.js";
 
@@ -89,6 +92,20 @@ export function createApp(deps?: {
   });
 
   app.get("/health", (c) => c.json({ ok: true }));
+
+  app.post("/v1/transcribe", async (c) => {
+    const parsed = await parseBody(c, TranscribeAudioRequestSchema);
+    if (!parsed.success) {
+      return jsonError(c, 400, "invalid_request", "音声内容を確認してください");
+    }
+
+    const generated = await getGenerator(c).generateJsonWithAudio({
+      prompt: buildTranscribePrompt(),
+      audioBase64: parsed.data.audioBase64,
+      mimeType: parsed.data.mimeType,
+    });
+    return c.json(TranscribeAudioResponseSchema.parse(generated));
+  });
 
   app.post("/v1/organize", async (c) => {
     const parsed = await parseBody(c, OrganizeRequestSchema);

@@ -6,6 +6,19 @@ import type {
   SpeechPlanRequest,
 } from "@kotoba-gym/core";
 
+export function buildTranscribePrompt() {
+  return `
+添付された音声を日本語で文字起こししてください。
+ユーザーは「話す前に頭の中を整理する」ために雑に話しています。
+きれいな文章に直しすぎず、整理の材料になる内容を残してください。
+
+JSON shape:
+{
+  "text": "文字起こし結果"
+}
+`.trim();
+}
+
 export function buildOrganizePrompt(input: OrganizeRequest) {
   return `
 次の未整理な入力を、話す前の材料に分解してください。

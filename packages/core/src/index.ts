@@ -138,6 +138,21 @@ export const OrganizeResponseSchema = z.object({
 });
 export type OrganizeResponse = z.infer<typeof OrganizeResponseSchema>;
 
+export const TranscribeAudioRequestSchema = z.object({
+  audioBase64: z.string().min(1),
+  mimeType: z.string().min(1),
+});
+export type TranscribeAudioRequest = z.infer<
+  typeof TranscribeAudioRequestSchema
+>;
+
+export const TranscribeAudioResponseSchema = z.object({
+  text: z.string().min(1),
+});
+export type TranscribeAudioResponse = z.infer<
+  typeof TranscribeAudioResponseSchema
+>;
+
 export const ConclusionsRequestSchema = z.object({
   scene: SceneSchema,
   rawInput: z.string().min(1),

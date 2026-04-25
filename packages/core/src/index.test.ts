@@ -4,6 +4,7 @@ import {
   FeedbackSchema,
   SceneSchema,
   SessionRecordSchema,
+  TranscribeAudioRequestSchema,
 } from "./index.js";
 
 describe.each([
@@ -26,6 +27,18 @@ describe.each([
 ])("CreateSessionRequestSchema", (value, expected) => {
   test("作成リクエストを検証する", () => {
     expect(CreateSessionRequestSchema.safeParse(value).success).toBe(expected);
+  });
+});
+
+describe.each([
+  [{ audioBase64: "AAAA", mimeType: "audio/m4a" }, true],
+  [{ audioBase64: "", mimeType: "audio/m4a" }, false],
+  [{ audioBase64: "AAAA", mimeType: "" }, false],
+])("TranscribeAudioRequestSchema", (value, expected) => {
+  test("音声文字起こしリクエストを検証する", () => {
+    expect(TranscribeAudioRequestSchema.safeParse(value).success).toBe(
+      expected,
+    );
   });
 });
 

@@ -80,6 +80,9 @@ const generator: JsonGenerator = {
       },
     };
   },
+  async generateJsonWithAudio() {
+    return { text: "CIについて相談したいです" };
+  },
 };
 
 describe.each([
@@ -98,6 +101,8 @@ describe.each([
 });
 
 describe.each([
+  ["/v1/transcribe", { audioBase64: "AAAA", mimeType: "audio/m4a" }, 200],
+  ["/v1/transcribe", { audioBase64: "", mimeType: "audio/m4a" }, 400],
   ["/v1/organize", { scene: "free", rawInput: "CIについて相談したい" }, 200],
   ["/v1/organize", { scene: "invalid", rawInput: "" }, 400],
   [

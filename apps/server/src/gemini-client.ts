@@ -2,6 +2,11 @@ import type { ServerConfig } from "./config.js";
 
 export interface JsonGenerator {
   generateJson(prompt: string): Promise<unknown>;
+  generateJsonWithAudio(input: {
+    prompt: string;
+    audioBase64: string;
+    mimeType: string;
+  }): Promise<unknown>;
 }
 
 function stripJsonFences(text: string) {
@@ -56,6 +61,61 @@ export function createGeminiGenerator(config: ServerConfig): JsonGenerator {
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) {
         throw new Error("Gemini returned empty response");
+      }
+
+      return JSON.parse(stripJsonFences(text));
+    },
+    async generateJsonWithAudio(input) {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent?key=${config.geminiApiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [
+                {
+                  text: [
+                    "あなたはKotoba Gymの音声入力補助です。",
+                    "録音された日本語音声を、話し言葉のニュアンスを残して文字起こしします。",
+                    "整えすぎず、フィラーや言い直しは意味が残る範囲で軽く整理します。",
+                    "返答は必ずJSONのみです。",
+                  ].join("\n"),
+                },
+              ],
+            },
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  { text: input.prompt },
+                  {
+                    inlineData: {
+                      mimeType: input.mimeType,
+                      data: input.audioBase64,
+                    },
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              responseMimeType: "application/json",
+              temperature: 0.1,
+            },
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Gemini audio request failed: ${response.status}`);
+      }
+
+      const data = (await response.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        throw new Error("Gemini returned empty audio response");
       }
 
       return JSON.parse(stripJsonFences(text));

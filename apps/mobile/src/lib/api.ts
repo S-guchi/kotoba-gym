@@ -13,6 +13,8 @@ import type {
   SessionRecord,
   SpeechPlanRequest,
   SpeechPlanResponse,
+  TranscribeAudioRequest,
+  TranscribeAudioResponse,
   UpdateSessionRequest,
 } from "@kotoba-gym/core";
 
@@ -90,6 +92,13 @@ export async function fetchSessions(ownerKey: string) {
 
 export async function organize(input: OrganizeRequest) {
   return request<OrganizeResponse>("/v1/organize", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function transcribeAudio(input: TranscribeAudioRequest) {
+  return request<TranscribeAudioResponse>("/v1/transcribe", {
     method: "POST",
     body: JSON.stringify(input),
   });

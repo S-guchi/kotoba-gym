@@ -61,14 +61,14 @@
 
 - テキストを直接入力するか、マイクボタンで音声録音
 - 音声の場合: 録音 → `POST /v1/transcribe` で文字起こし → テキスト欄に反映
-- 「整理する」ボタンで `POST /v1/sessions` を呼びセッション作成
+- 「整理する」ボタンで端末ローカルにセッションを作成
 - organizing 画面（step=organize）へ遷移
 
 ### 2. 素材整理 [AI処理] (`app/session/[sessionId]/organizing.tsx`)
 
-- `POST /v1/organize` に rawInput を送信
+- `POST /v1/organize-package` に rawInput を送信
 - AI が内容を分類（現状・課題・背景・懸念・目的・依頼・不明点）
-- 結果をセッションに保存し、materials 画面へ遷移
+- 結果を端末ローカルのセッションに保存し、materials 画面へ遷移
 
 ### 3. 素材確認・編集画面 (`app/session/[sessionId]/materials.tsx`)
 
@@ -81,7 +81,7 @@
 
 - `POST /v1/conclusions` に rawInput + materials を送信
 - AI が結論候補を3つ（A/B/C）生成
-- 結果をセッションに保存し、conclusion 画面へ遷移
+- 結果を端末ローカルのセッションに保存し、conclusion 画面へ遷移
 
 ### 5. 結論選択画面 (`app/session/[sessionId]/conclusion.tsx`)
 
@@ -105,7 +105,7 @@
 
 - `POST /v1/script` に materials + conclusion + speechPlan を送信
 - AI が 30秒版スクリプト（+ 1分版・Slack文面）とキーワードを生成
-- 結果をセッションに保存し、script 画面へ遷移
+- 結果を端末ローカルのセッションに保存し、script 画面へ遷移
 
 ### 9. スクリプト確認画面 (`app/session/[sessionId]/script.tsx`)
 
@@ -117,14 +117,14 @@
 
 - キーワードをチップ表示（カンペ代わり）
 - タイマー表示付きで録音
-- 「停止してフィードバックへ」で rehearsal 結果（録音時間）を保存し、organizing（step=feedback）へ
+- 「停止してフィードバックへ」で rehearsal 結果（録音時間）を端末ローカルに保存し、organizing（step=feedback）へ
 - 「説明文に戻る」で script 画面に戻ることも可能
 
 ### 11. フィードバック生成 [AI処理]
 
 - `POST /v1/feedback` に rawInput + conclusion + speechPlan + script + rehearsal を送信
 - AI がフィードバックを生成
-- 結果をセッションに保存し、feedback 画面へ遷移
+- 結果を端末ローカルのセッションに保存し、feedback 画面へ遷移
 
 ### 12. フィードバック画面 (`app/session/[sessionId]/feedback.tsx`)
 
@@ -140,13 +140,13 @@
 | ステップ | メソッド | パス | 用途 |
 |---|---|---|---|
 | 文字起こし | POST | `/v1/transcribe` | 音声→テキスト |
-| セッション作成 | POST | `/v1/sessions` | 新規セッション |
-| 素材整理 | POST | `/v1/organize` | rawInput→MaterialItem[] |
+| 素材整理 | POST | `/v1/organize-package` | rawInput→MaterialItem[] |
 | 結論候補 | POST | `/v1/conclusions` | 結論A/B/C生成 |
 | スピーチプラン | POST | `/v1/speech-plan` | 話す順番生成 |
 | スクリプト | POST | `/v1/script` | 30秒説明文生成 |
 | フィードバック | POST | `/v1/feedback` | 整理度レビュー |
-| セッション更新 | PUT | `/v1/sessions/:id` | 各ステップの結果保存 |
+
+セッション作成・取得・更新・履歴一覧は API ではなく、モバイル端末内のローカル保存を使う。
 
 ## セッションの状態遷移
 

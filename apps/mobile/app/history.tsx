@@ -2,8 +2,8 @@ import type { SessionRecord } from "@kotoba-gym/core";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, Text } from "react-native";
-import { fetchSessions } from "@/src/lib/api";
 import { getOwnerKey } from "@/src/lib/owner-key";
+import { fetchSessions } from "@/src/lib/session-store";
 import { Body, Card, ErrorState, Screen, Title } from "@/src/ui/components";
 import { palette } from "@/src/ui/theme";
 

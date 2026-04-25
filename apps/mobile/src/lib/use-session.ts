@@ -1,7 +1,7 @@
 import type { SessionRecord } from "@kotoba-gym/core";
 import { useEffect, useState } from "react";
-import { fetchSession } from "./api";
 import { getOwnerKey } from "./owner-key";
+import { fetchSession } from "./session-store";
 
 export function useSession(sessionId: string | undefined) {
   const [session, setSession] = useState<SessionRecord | null>(null);
@@ -21,6 +21,9 @@ export function useSession(sessionId: string | undefined) {
     getOwnerKey()
       .then(async (key) => {
         const item = await fetchSession(sessionId, key);
+        if (!item) {
+          throw new Error("整理が見つかりません");
+        }
         return { key, item };
       })
       .then(({ key, item }) => {

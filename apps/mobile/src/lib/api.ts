@@ -1,13 +1,10 @@
 import type {
-  CreateSessionRequest,
   FeedbackRequest,
   FeedbackResponse,
   OrganizePackageRequest,
   OrganizePackageResponse,
-  SessionRecord,
   TranscribeAudioRequest,
   TranscribeAudioResponse,
-  UpdateSessionRequest,
 } from "@kotoba-gym/core";
 
 const baseUrl =
@@ -44,42 +41,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return body as T;
-}
-
-export async function createSession(input: CreateSessionRequest) {
-  const response = await request<{ session: SessionRecord }>("/v1/sessions", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-  return response.session;
-}
-
-export async function updateSession(
-  sessionId: string,
-  input: UpdateSessionRequest,
-) {
-  const response = await request<{ session: SessionRecord }>(
-    `/v1/sessions/${sessionId}`,
-    {
-      method: "PUT",
-      body: JSON.stringify(input),
-    },
-  );
-  return response.session;
-}
-
-export async function fetchSession(sessionId: string, ownerKey: string) {
-  const response = await request<{ session: SessionRecord }>(
-    `/v1/sessions/${sessionId}?ownerKey=${encodeURIComponent(ownerKey)}`,
-  );
-  return response.session;
-}
-
-export async function fetchSessions(ownerKey: string) {
-  const response = await request<{ sessions: SessionRecord[] }>(
-    `/v1/sessions?ownerKey=${encodeURIComponent(ownerKey)}`,
-  );
-  return response.sessions;
 }
 
 export async function organizePackage(input: OrganizePackageRequest) {

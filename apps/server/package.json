@@ -3,12 +3,12 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "wrangler d1 migrations apply kotoba-gym --local && wrangler dev --local --ip 0.0.0.0 --port 8787",
+    "dev": "wrangler dev --local --ip 0.0.0.0 --port 8787",
     "deploy": "wrangler deploy --minify",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "biome check src migrations package.json tsconfig.json wrangler.jsonc",
-    "format": "biome format --write src migrations package.json tsconfig.json wrangler.jsonc",
+    "lint": "biome check src package.json tsconfig.json wrangler.jsonc",
+    "format": "biome format --write src package.json tsconfig.json wrangler.jsonc",
     "cf:typegen": "wrangler types"
   },
   "dependencies": {

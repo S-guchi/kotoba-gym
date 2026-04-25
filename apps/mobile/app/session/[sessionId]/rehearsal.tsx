@@ -9,8 +9,9 @@ import { File } from "expo-file-system";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Text, View } from "react-native";
-import { transcribeAudio, updateSession } from "@/src/lib/api";
+import { transcribeAudio } from "@/src/lib/api";
 import { buildRehearsalResult, formatDuration } from "@/src/lib/session-flow";
+import { updateSession } from "@/src/lib/session-store";
 import { useSession } from "@/src/lib/use-session";
 import {
   Body,

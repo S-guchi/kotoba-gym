@@ -10,13 +10,14 @@ import { File } from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
-import { createSession, transcribeAudio } from "@/src/lib/api";
+import { transcribeAudio } from "@/src/lib/api";
 import { getOwnerKey } from "@/src/lib/owner-key";
 import {
   buildSessionTitle,
   getHomeRecordingMessage,
   hasDraftInput,
 } from "@/src/lib/session-flow";
+import { createSession } from "@/src/lib/session-store";
 import { ErrorState, PrimaryButton, Screen } from "@/src/ui/components";
 import { palette } from "@/src/ui/theme";
 

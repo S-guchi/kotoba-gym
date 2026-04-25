@@ -1,12 +1,9 @@
 import type { SessionRecord } from "@kotoba-gym/core";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  generateFeedback,
-  organizePackage,
-  updateSession,
-} from "@/src/lib/api";
+import { generateFeedback, organizePackage } from "@/src/lib/api";
 import { canRequestFeedback } from "@/src/lib/session-flow";
+import { updateSession } from "@/src/lib/session-store";
 import { useSession } from "@/src/lib/use-session";
 import {
   ErrorState,

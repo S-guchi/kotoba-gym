@@ -14,11 +14,10 @@ import { createSession, transcribeAudio } from "@/src/lib/api";
 import { getOwnerKey } from "@/src/lib/owner-key";
 import {
   buildSessionTitle,
-  formatDuration,
   getHomeRecordingMessage,
   hasDraftInput,
 } from "@/src/lib/session-flow";
-import { Card, ErrorState, PrimaryButton, Screen } from "@/src/ui/components";
+import { ErrorState, PrimaryButton, Screen } from "@/src/ui/components";
 import { palette } from "@/src/ui/theme";
 
 export default function HomeScreen() {
@@ -121,7 +120,7 @@ export default function HomeScreen() {
 
   return (
     <Screen>
-      <View style={{ gap: 12 }}>
+      <View>
         {recordingMessage ? (
           <Text
             accessibilityLiveRegion="polite"
@@ -131,49 +130,12 @@ export default function HomeScreen() {
               fontSize: 15,
               fontWeight: "700",
               textAlign: "center",
+              marginBottom: 8,
             }}
           >
             {recordingMessage}
           </Text>
         ) : null}
-
-        {recorderState.isRecording ? (
-          <Card style={{ alignItems: "center", gap: 18, padding: 24 }}>
-            <Text
-              selectable
-              style={{
-                color: palette.ink,
-                fontSize: 46,
-                fontVariant: ["tabular-nums"],
-                fontWeight: "900",
-              }}
-            >
-              {formatDuration(Math.floor(recorderState.durationMillis / 1000))}
-            </Text>
-            <PrimaryButton onPress={stopRecording}>
-              停止して文字起こし
-            </PrimaryButton>
-          </Card>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            disabled={transcribing}
-            onPress={startRecording}
-            style={{
-              alignItems: "center",
-              backgroundColor: transcribing ? palette.line : palette.accent,
-              borderRadius: 999,
-              minHeight: 104,
-              justifyContent: "center",
-              paddingHorizontal: 24,
-              paddingVertical: 22,
-            }}
-          >
-            <Text style={{ color: "#FFFDF8", fontSize: 22, fontWeight: "800" }}>
-              {transcribing ? "文字起こし中..." : "音声で話す"}
-            </Text>
-          </Pressable>
-        )}
       </View>
 
       <View>
@@ -217,16 +179,46 @@ export default function HomeScreen() {
         ) : null}
       </View>
 
+      <Pressable
+        accessibilityLabel={recorderState.isRecording ? "録音を停止" : "音声で話す"}
+        accessibilityRole="button"
+        disabled={transcribing}
+        onPress={recorderState.isRecording ? stopRecording : startRecording}
+        style={{
+          alignItems: "center",
+          alignSelf: "center",
+          backgroundColor: transcribing
+            ? palette.line
+            : recorderState.isRecording
+              ? "#E05050"
+              : palette.accent,
+          borderRadius: 999,
+          height: 64,
+          justifyContent: "center",
+          width: 64,
+        }}
+      >
+        {transcribing ? (
+          <Text style={{ color: "#FFFDF8", fontSize: 13, fontWeight: "800" }}>
+            変換中
+          </Text>
+        ) : (
+          <MaterialIcons
+            color="#FFFDF8"
+            name={recorderState.isRecording ? "stop" : "mic"}
+            size={32}
+          />
+        )}
+      </Pressable>
+
       {error ? <ErrorState message={error} /> : null}
 
-      {hasInput ? (
-        <PrimaryButton
-          disabled={submitting || transcribing}
-          onPress={handleSubmit}
-        >
-          {submitting ? "送信中..." : "整理する"}
-        </PrimaryButton>
-      ) : null}
+      <PrimaryButton
+        disabled={!hasInput || submitting || transcribing}
+        onPress={handleSubmit}
+      >
+        {submitting ? "送信中..." : "整理する"}
+      </PrimaryButton>
 
       <Pressable
         accessibilityRole="button"

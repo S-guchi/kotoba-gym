@@ -1,0 +1,23 @@
+{
+  "name": "kotoba-gym",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev:mobile": "pnpm --filter @kotoba-gym/mobile dev",
+    "dev:server": "pnpm --filter @kotoba-gym/server dev",
+    "db:local:reset": "pnpm exec wrangler d1 execute kotoba-gym --local --config apps/server/wrangler.jsonc --command \"DROP TABLE IF EXISTS sessions; DROP TABLE IF EXISTS themes; DROP TABLE IF EXISTS personas; DROP TABLE IF EXISTS d1_migrations;\"",
+    "db:local:migrate": "pnpm exec wrangler d1 migrations apply kotoba-gym --local --config apps/server/wrangler.jsonc",
+    "db:local:fresh": "pnpm run db:local:reset && pnpm run db:local:migrate",
+    "build": "pnpm -C packages/core build && pnpm -C apps/server build",
+    "typecheck": "pnpm -C packages/core typecheck && pnpm -C apps/server typecheck && pnpm -C apps/mobile typecheck",
+    "test": "vitest run",
+    "lint": "pnpm -C packages/core lint && pnpm -C apps/server lint && pnpm -C apps/mobile lint && biome check AGENTS.md package.json tsconfig.json pnpm-workspace.yaml vitest.config.ts docs",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
+  }
+}

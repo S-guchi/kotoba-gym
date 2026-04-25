@@ -1,0 +1,12 @@
+node_modules/
+dist/
+logs/
+.expo/
+.expo-shared/
+.DS_Store
+.env
+*.log
+apps/server/.wrangler/
+apps/server/.dev.vars
+apps/server/.dev.vars.*
+!apps/server/.dev.vars.example

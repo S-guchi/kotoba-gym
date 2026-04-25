@@ -5,10 +5,11 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from "expo-audio";
+import { File } from "expo-file-system";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Text, View } from "react-native";
-import { updateSession } from "@/src/lib/api";
+import { transcribeAudio, updateSession } from "@/src/lib/api";
 import { buildRehearsalResult, formatDuration } from "@/src/lib/session-flow";
 import { useSession } from "@/src/lib/use-session";
 import {
@@ -33,6 +34,7 @@ export default function RehearsalScreen() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const [seconds, setSeconds] = useState(0);
+  const [transcribing, setTranscribing] = useState(false);
 
   useEffect(() => {
     AudioModule.requestRecordingPermissionsAsync().then((status) => {
@@ -62,18 +64,53 @@ export default function RehearsalScreen() {
     recorder.record();
   }
 
+  function getAudioMimeType(uri: string) {
+    if (uri.endsWith(".webm")) {
+      return "audio/webm";
+    }
+    if (uri.endsWith(".3gp")) {
+      return "audio/3gpp";
+    }
+    if (uri.endsWith(".caf")) {
+      return "audio/x-caf";
+    }
+    return "audio/mp4";
+  }
+
   async function stopRecording() {
     if (!ownerKey || !sessionId) {
       return;
     }
 
-    await recorder.stop();
-    const rehearsal = buildRehearsalResult(seconds);
-    await updateSession(sessionId, { ownerKey, rehearsal });
-    router.replace({
-      pathname: "/session/[sessionId]/organizing",
-      params: { sessionId, step: "feedback" },
-    });
+    setTranscribing(true);
+    try {
+      await recorder.stop();
+      const uri = recorder.uri ?? recorder.getStatus().url;
+      if (!uri) {
+        throw new Error("録音ファイルを取得できませんでした");
+      }
+      const file = new File(uri);
+      const transcript = await transcribeAudio({
+        audioBase64: await file.base64(),
+        mimeType: getAudioMimeType(uri),
+      });
+      const rehearsal = buildRehearsalResult({
+        durationSeconds: seconds,
+        spokenText: transcript.text,
+      });
+      await updateSession(sessionId, { ownerKey, rehearsal });
+      router.replace({
+        pathname: "/session/[sessionId]/organizing",
+        params: { sessionId, step: "feedback" },
+      });
+    } catch (e) {
+      Alert.alert(
+        "文字起こしに失敗しました",
+        e instanceof Error ? e.message : "録音内容を確認できませんでした。",
+      );
+    } finally {
+      setTranscribing(false);
+    }
   }
 
   if (loading) {
@@ -127,21 +164,23 @@ export default function RehearsalScreen() {
       </View>
 
       {recorderState.isRecording ? (
-        <PrimaryButton onPress={stopRecording}>
-          停止してフィードバックへ
+        <PrimaryButton disabled={transcribing} onPress={stopRecording}>
+          {transcribing ? "文字起こし中..." : "停止してフィードバックへ"}
         </PrimaryButton>
       ) : (
-        <PrimaryButton onPress={startRecording}>録音開始</PrimaryButton>
+        <PrimaryButton disabled={transcribing} onPress={startRecording}>
+          録音開始
+        </PrimaryButton>
       )}
       <SecondaryButton
         onPress={() =>
           router.push({
-            pathname: "/session/[sessionId]/script",
+            pathname: "/session/[sessionId]/result",
             params: { sessionId: routeSessionId },
           })
         }
       >
-        説明文に戻る
+        整理結果に戻る
       </SecondaryButton>
     </Screen>
   );

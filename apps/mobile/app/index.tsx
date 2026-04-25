@@ -109,7 +109,7 @@ export default function HomeScreen() {
       });
       router.replace({
         pathname: "/session/[sessionId]/organizing",
-        params: { sessionId: session.id, step: "organize" },
+        params: { sessionId: session.id, step: "organize-package" },
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "通信に失敗しました");
@@ -180,7 +180,9 @@ export default function HomeScreen() {
       </View>
 
       <Pressable
-        accessibilityLabel={recorderState.isRecording ? "録音を停止" : "音声で話す"}
+        accessibilityLabel={
+          recorderState.isRecording ? "録音を停止" : "音声で話す"
+        }
         accessibilityRole="button"
         disabled={transcribing}
         onPress={recorderState.isRecording ? stopRecording : startRecording}

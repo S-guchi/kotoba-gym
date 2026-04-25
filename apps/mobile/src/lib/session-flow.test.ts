@@ -1,6 +1,9 @@
+import type { SessionRecord } from "@kotoba-gym/core";
 import { describe, expect, test } from "vitest";
 import {
+  buildRehearsalResult,
   buildSessionTitle,
+  canRequestFeedback,
   formatDuration,
   getHomeRecordingMessage,
   getScriptModes,
@@ -56,6 +59,60 @@ describe.each([
 ])("formatDuration", (seconds, expected) => {
   test("秒数を mm:ss に変換する", () => {
     expect(formatDuration(seconds)).toBe(expected);
+  });
+});
+
+describe.each([[32, "最低限のCIから始めたいです"]])(
+  "buildRehearsalResult",
+  (durationSeconds, spokenText) => {
+    test("録音時間と実際に話した内容を保存する", () => {
+      expect(
+        buildRehearsalResult({ durationSeconds, spokenText }),
+      ).toMatchObject({
+        recorded: true,
+        durationSeconds,
+        spokenText,
+      });
+    });
+  },
+);
+
+describe.each([
+  ["最低限のCIから始めたいです", true],
+  ["", false],
+])("canRequestFeedback", (spokenText, expected) => {
+  test("実発話がある場合だけフィードバック生成できる", () => {
+    const session: SessionRecord = {
+      id: "session-1",
+      ownerKey: "owner-1",
+      title: "CI導入の相談",
+      rawInput: "CIについて相談したい",
+      materials: {
+        title: "CI導入の相談",
+        items: [{ key: "current", title: "現状", content: "手動確認" }],
+      },
+      conclusionCandidates: [],
+      selectedConclusion: {
+        id: "a",
+        label: "A",
+        text: "最低限のCIを入れたい",
+      },
+      speechPlan: {
+        title: "おすすめの伝え方",
+        lead: "現状から相談につなげます。",
+        steps: [{ order: 1, title: "現状", content: "手動で確認している" }],
+      },
+      script: { thirtySecond: "最低限のCIを入れたいです。", keywords: ["CI"] },
+      rehearsal: {
+        recorded: true,
+        durationSeconds: 30,
+        spokenText,
+      },
+      feedback: null,
+      createdAt: "2026-04-25T00:00:00.000Z",
+      updatedAt: "2026-04-25T00:00:00.000Z",
+    };
+    expect(canRequestFeedback(session)).toBe(expected);
   });
 });
 

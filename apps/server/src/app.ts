@@ -1,15 +1,9 @@
 import {
-  ConclusionsRequestSchema,
-  ConclusionsResponseSchema,
   CreateSessionRequestSchema,
   FeedbackRequestSchema,
   FeedbackResponseSchema,
-  OrganizeRequestSchema,
-  OrganizeResponseSchema,
-  ScriptRequestSchema,
-  ScriptResponseSchema,
-  SpeechPlanRequestSchema,
-  SpeechPlanResponseSchema,
+  OrganizePackageRequestSchema,
+  OrganizePackageResponseSchema,
   TranscribeAudioRequestSchema,
   TranscribeAudioResponseSchema,
   UpdateSessionRequestSchema,
@@ -24,11 +18,8 @@ import {
 } from "./config.js";
 import { type JsonGenerator, createGeminiGenerator } from "./gemini-client.js";
 import {
-  buildConclusionsPrompt,
   buildFeedbackPrompt,
-  buildOrganizePrompt,
-  buildScriptPrompt,
-  buildSpeechPlanPrompt,
+  buildOrganizePackagePrompt,
   buildTranscribePrompt,
 } from "./prompts.js";
 import { D1SessionRepository, type SessionRepository } from "./repository.js";
@@ -122,52 +113,16 @@ export function createApp(deps?: {
     return c.json(TranscribeAudioResponseSchema.parse(generated));
   });
 
-  app.post("/v1/organize", async (c) => {
-    const parsed = await parseBody(c, OrganizeRequestSchema);
+  app.post("/v1/organize-package", async (c) => {
+    const parsed = await parseBody(c, OrganizePackageRequestSchema);
     if (!parsed.success) {
       return jsonError(c, 400, "invalid_request", "入力内容を確認してください");
     }
 
     const generated = await getGenerator(c).generateJson(
-      buildOrganizePrompt(parsed.data),
+      buildOrganizePackagePrompt(parsed.data),
     );
-    return c.json(OrganizeResponseSchema.parse(generated));
-  });
-
-  app.post("/v1/conclusions", async (c) => {
-    const parsed = await parseBody(c, ConclusionsRequestSchema);
-    if (!parsed.success) {
-      return jsonError(c, 400, "invalid_request", "入力内容を確認してください");
-    }
-
-    const generated = await getGenerator(c).generateJson(
-      buildConclusionsPrompt(parsed.data),
-    );
-    return c.json(ConclusionsResponseSchema.parse(generated));
-  });
-
-  app.post("/v1/speech-plan", async (c) => {
-    const parsed = await parseBody(c, SpeechPlanRequestSchema);
-    if (!parsed.success) {
-      return jsonError(c, 400, "invalid_request", "入力内容を確認してください");
-    }
-
-    const generated = await getGenerator(c).generateJson(
-      buildSpeechPlanPrompt(parsed.data),
-    );
-    return c.json(SpeechPlanResponseSchema.parse(generated));
-  });
-
-  app.post("/v1/script", async (c) => {
-    const parsed = await parseBody(c, ScriptRequestSchema);
-    if (!parsed.success) {
-      return jsonError(c, 400, "invalid_request", "入力内容を確認してください");
-    }
-
-    const generated = await getGenerator(c).generateJson(
-      buildScriptPrompt(parsed.data),
-    );
-    return c.json(ScriptResponseSchema.parse(generated));
+    return c.json(OrganizePackageResponseSchema.parse(generated));
   });
 
   app.post("/v1/feedback", async (c) => {

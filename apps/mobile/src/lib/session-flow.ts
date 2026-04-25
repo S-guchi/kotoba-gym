@@ -1,6 +1,5 @@
 import type {
   GeneratedScript,
-  MaterialItem,
   RehearsalResult,
   SessionRecord,
 } from "@kotoba-gym/core";
@@ -45,23 +44,28 @@ export function formatDuration(seconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }
 
-export function hasEmptyMaterial(items: MaterialItem[]) {
-  return items.some((item) => !item.content.trim());
-}
-
 export function canRequestFeedback(session: SessionRecord) {
   return Boolean(
-    session.selectedConclusion &&
+    session.materials &&
+      session.selectedConclusion &&
       session.speechPlan &&
       session.script &&
-      session.rehearsal?.recorded,
+      session.rehearsal?.recorded &&
+      session.rehearsal.spokenText.trim(),
   );
 }
 
-export function buildRehearsalResult(durationSeconds: number): RehearsalResult {
+export function buildRehearsalResult({
+  durationSeconds,
+  spokenText,
+}: {
+  durationSeconds: number;
+  spokenText: string;
+}): RehearsalResult {
   return {
     recorded: true,
     durationSeconds,
+    spokenText,
     recordedAt: new Date().toISOString(),
   };
 }

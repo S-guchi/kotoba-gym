@@ -47,7 +47,7 @@ export default function HistoryScreen() {
             key={session.id}
             onPress={() =>
               router.push({
-                pathname: "/session/[sessionId]",
+                pathname: "/session/[sessionId]/result",
                 params: { sessionId: session.id },
               })
             }

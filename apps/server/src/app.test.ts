@@ -57,13 +57,16 @@ function createRepository(): SessionRepository {
 
 const generator: JsonGenerator = {
   async generateJson(prompt) {
-    if (prompt.includes("一番伝えたいこと")) {
+    if (prompt.includes("説明構造")) {
       return {
-        candidates: [
-          { id: "a", label: "A", text: "CIを導入したい" },
-          { id: "b", label: "B", text: "設計を相談したい" },
-          { id: "c", label: "C", text: "最低限から始めたい" },
-        ],
+        feedback: {
+          positives: ["結論が先に出ています"],
+          improvements: ["相談事項をもう少し具体化できます"],
+          nextPhrase: "まずは最低限のCIから始めてよいでしょうか",
+          before: "CIについて相談したい",
+          after: "最低限のCI導入から進めてよいか相談したいです",
+          structureLevel: 4,
+        },
       };
     }
     return {
@@ -76,6 +79,21 @@ const generator: JsonGenerator = {
             content: "手動で確認している",
           },
         ],
+      },
+      conclusionCandidates: [
+        { id: "a", label: "A", text: "CIを導入したい" },
+        { id: "b", label: "B", text: "設計を相談したい" },
+        { id: "c", label: "C", text: "最低限から始めたい" },
+      ],
+      selectedConclusion: { id: "c", label: "C", text: "最低限から始めたい" },
+      speechPlan: {
+        title: "おすすめの伝え方",
+        lead: "現状から相談につなげます。",
+        steps: [{ order: 1, title: "現状", content: "手動で確認している" }],
+      },
+      script: {
+        thirtySecond: "まずは最低限のCIから始めたいです。",
+        keywords: ["CI", "最低限"],
       },
     };
   },
@@ -103,7 +121,7 @@ test("GEMINI_API_KEY 未設定時は設定エラーを返す", async () => {
   const app = createApp({
     repository: createRepository(),
   });
-  const response = await app.request("/v1/organize", {
+  const response = await app.request("/v1/organize-package", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -119,15 +137,30 @@ test("GEMINI_API_KEY 未設定時は設定エラーを返す", async () => {
 describe.each([
   ["/v1/transcribe", { audioBase64: "AAAA", mimeType: "audio/m4a" }, 200],
   ["/v1/transcribe", { audioBase64: "", mimeType: "audio/m4a" }, 400],
-  ["/v1/organize", { rawInput: "CIについて相談したい" }, 200],
-  ["/v1/organize", { rawInput: "" }, 400],
+  ["/v1/organize-package", { rawInput: "CIについて相談したい" }, 200],
+  ["/v1/organize-package", { rawInput: "" }, 400],
   [
-    "/v1/conclusions",
+    "/v1/feedback",
     {
       rawInput: "CIについて相談したい",
       materials: {
         title: "CI導入の相談",
         items: [{ key: "current", title: "現状", content: "手動" }],
+      },
+      conclusion: { id: "a", label: "A", text: "CIを導入したい" },
+      speechPlan: {
+        title: "おすすめの伝え方",
+        lead: "現状から相談につなげます。",
+        steps: [{ order: 1, title: "現状", content: "手動で確認している" }],
+      },
+      script: {
+        thirtySecond: "まずは最低限のCIから始めたいです。",
+        keywords: ["CI"],
+      },
+      rehearsal: {
+        recorded: true,
+        durationSeconds: 30,
+        spokenText: "最低限のCIから始めたいです",
       },
     },
     200,

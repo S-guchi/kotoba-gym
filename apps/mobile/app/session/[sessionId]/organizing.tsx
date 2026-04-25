@@ -2,13 +2,11 @@ import type { SessionRecord } from "@kotoba-gym/core";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  generateConclusions,
   generateFeedback,
-  generateScript,
-  generateSpeechPlan,
-  organize,
+  organizePackage,
   updateSession,
 } from "@/src/lib/api";
+import { canRequestFeedback } from "@/src/lib/session-flow";
 import { useSession } from "@/src/lib/use-session";
 import {
   ErrorState,
@@ -17,13 +15,10 @@ import {
   Screen,
 } from "@/src/ui/components";
 
-type Step = "organize" | "conclusions" | "plan" | "script" | "feedback";
+type Step = "organize-package" | "feedback";
 
 const loadingText: Record<Step, string> = {
-  organize: "考えを整理しています",
-  conclusions: "結論候補を作っています",
-  plan: "伝える順番を組み立てています",
-  script: "30秒説明を作っています",
+  "organize-package": "整理結果を作っています",
   feedback: "今回の整理度を見ています",
 };
 
@@ -31,7 +26,7 @@ export default function OrganizingScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ sessionId?: string; step?: Step }>();
   const sessionId = params.sessionId;
-  const step = params.step ?? "organize";
+  const step = params.step ?? "organize-package";
   const { session, ownerKey, error, loading } = useSession(sessionId);
   const [runError, setRunError] = useState<string | null>(null);
 
@@ -50,82 +45,22 @@ export default function OrganizingScreen() {
       readySessionId: string,
     ) {
       try {
-        if (step === "organize") {
-          const result = await organize({
+        if (step === "organize-package") {
+          const result = await organizePackage({
             rawInput: readySession.rawInput,
           });
           await updateSession(readySessionId, {
             ownerKey: readyOwnerKey,
             title: result.materials.title,
             materials: result.materials,
-          });
-          if (active) {
-            router.replace({
-              pathname: "/session/[sessionId]/materials",
-              params: { sessionId: readySessionId },
-            });
-          }
-          return;
-        }
-
-        if (step === "conclusions" && readySession.materials) {
-          const result = await generateConclusions({
-            rawInput: readySession.rawInput,
-            materials: readySession.materials,
-          });
-          await updateSession(readySessionId, {
-            ownerKey: readyOwnerKey,
-            conclusionCandidates: result.candidates,
-          });
-          if (active) {
-            router.replace({
-              pathname: "/session/[sessionId]/conclusion",
-              params: { sessionId: readySessionId },
-            });
-          }
-          return;
-        }
-
-        if (
-          step === "plan" &&
-          readySession.materials &&
-          readySession.selectedConclusion
-        ) {
-          const result = await generateSpeechPlan({
-            materials: readySession.materials,
-            conclusion: readySession.selectedConclusion,
-          });
-          await updateSession(readySessionId, {
-            ownerKey: readyOwnerKey,
+            conclusionCandidates: result.conclusionCandidates,
+            selectedConclusion: result.selectedConclusion,
             speechPlan: result.speechPlan,
-          });
-          if (active) {
-            router.replace({
-              pathname: "/session/[sessionId]/plan",
-              params: { sessionId: readySessionId },
-            });
-          }
-          return;
-        }
-
-        if (
-          step === "script" &&
-          readySession.materials &&
-          readySession.selectedConclusion &&
-          readySession.speechPlan
-        ) {
-          const result = await generateScript({
-            materials: readySession.materials,
-            conclusion: readySession.selectedConclusion,
-            speechPlan: readySession.speechPlan,
-          });
-          await updateSession(readySessionId, {
-            ownerKey: readyOwnerKey,
             script: result.script,
           });
           if (active) {
             router.replace({
-              pathname: "/session/[sessionId]/script",
+              pathname: "/session/[sessionId]/result",
               params: { sessionId: readySessionId },
             });
           }
@@ -134,6 +69,8 @@ export default function OrganizingScreen() {
 
         if (
           step === "feedback" &&
+          canRequestFeedback(readySession) &&
+          readySession.materials &&
           readySession.selectedConclusion &&
           readySession.speechPlan &&
           readySession.script &&
@@ -141,6 +78,7 @@ export default function OrganizingScreen() {
         ) {
           const result = await generateFeedback({
             rawInput: readySession.rawInput,
+            materials: readySession.materials,
             conclusion: readySession.selectedConclusion,
             speechPlan: readySession.speechPlan,
             script: readySession.script,

@@ -17,28 +17,12 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ title: "Kotoba Gym" }} />
         <Stack.Screen name="history" options={{ title: "過去の整理" }} />
         <Stack.Screen
-          name="session/[sessionId]/index"
-          options={{ title: "整理詳細" }}
-        />
-        <Stack.Screen
           name="session/[sessionId]/organizing"
           options={{ title: "整理中" }}
         />
         <Stack.Screen
-          name="session/[sessionId]/materials"
-          options={{ title: "材料整理" }}
-        />
-        <Stack.Screen
-          name="session/[sessionId]/conclusion"
-          options={{ title: "結論選択" }}
-        />
-        <Stack.Screen
-          name="session/[sessionId]/plan"
-          options={{ title: "伝える順番" }}
-        />
-        <Stack.Screen
-          name="session/[sessionId]/script"
-          options={{ title: "説明文" }}
+          name="session/[sessionId]/result"
+          options={{ title: "整理結果" }}
         />
         <Stack.Screen
           name="session/[sessionId]/rehearsal"

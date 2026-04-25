@@ -63,6 +63,7 @@ export type GeneratedScript = z.infer<typeof GeneratedScriptSchema>;
 export const RehearsalResultSchema = z.object({
   recorded: z.boolean(),
   durationSeconds: z.number().int().nonnegative(),
+  spokenText: z.string().min(1),
   recordedAt: z.string().datetime().optional(),
 });
 export type RehearsalResult = z.infer<typeof RehearsalResultSchema>;
@@ -115,15 +116,23 @@ export const UpdateSessionRequestSchema = z.object({
 });
 export type UpdateSessionRequest = z.infer<typeof UpdateSessionRequestSchema>;
 
-export const OrganizeRequestSchema = z.object({
+export const OrganizePackageRequestSchema = z.object({
   rawInput: z.string().min(1),
 });
-export type OrganizeRequest = z.infer<typeof OrganizeRequestSchema>;
+export type OrganizePackageRequest = z.infer<
+  typeof OrganizePackageRequestSchema
+>;
 
-export const OrganizeResponseSchema = z.object({
+export const OrganizePackageResponseSchema = z.object({
   materials: OrganizedMaterialsSchema,
+  conclusionCandidates: z.array(ConclusionCandidateSchema).length(3),
+  selectedConclusion: ConclusionCandidateSchema,
+  speechPlan: SpeechPlanSchema,
+  script: GeneratedScriptSchema,
 });
-export type OrganizeResponse = z.infer<typeof OrganizeResponseSchema>;
+export type OrganizePackageResponse = z.infer<
+  typeof OrganizePackageResponseSchema
+>;
 
 export const TranscribeAudioRequestSchema = z.object({
   audioBase64: z.string().min(1),
@@ -140,43 +149,9 @@ export type TranscribeAudioResponse = z.infer<
   typeof TranscribeAudioResponseSchema
 >;
 
-export const ConclusionsRequestSchema = z.object({
-  rawInput: z.string().min(1),
-  materials: OrganizedMaterialsSchema,
-  userHint: z.string().optional(),
-});
-export type ConclusionsRequest = z.infer<typeof ConclusionsRequestSchema>;
-
-export const ConclusionsResponseSchema = z.object({
-  candidates: z.array(ConclusionCandidateSchema).length(3),
-});
-export type ConclusionsResponse = z.infer<typeof ConclusionsResponseSchema>;
-
-export const SpeechPlanRequestSchema = z.object({
-  materials: OrganizedMaterialsSchema,
-  conclusion: ConclusionCandidateSchema,
-});
-export type SpeechPlanRequest = z.infer<typeof SpeechPlanRequestSchema>;
-
-export const SpeechPlanResponseSchema = z.object({
-  speechPlan: SpeechPlanSchema,
-});
-export type SpeechPlanResponse = z.infer<typeof SpeechPlanResponseSchema>;
-
-export const ScriptRequestSchema = z.object({
-  materials: OrganizedMaterialsSchema,
-  conclusion: ConclusionCandidateSchema,
-  speechPlan: SpeechPlanSchema,
-});
-export type ScriptRequest = z.infer<typeof ScriptRequestSchema>;
-
-export const ScriptResponseSchema = z.object({
-  script: GeneratedScriptSchema,
-});
-export type ScriptResponse = z.infer<typeof ScriptResponseSchema>;
-
 export const FeedbackRequestSchema = z.object({
   rawInput: z.string().min(1),
+  materials: OrganizedMaterialsSchema,
   conclusion: ConclusionCandidateSchema,
   speechPlan: SpeechPlanSchema,
   script: GeneratedScriptSchema,

@@ -1,18 +1,10 @@
 import type {
-  ConclusionCandidate,
-  ConclusionsRequest,
-  ConclusionsResponse,
   CreateSessionRequest,
   FeedbackRequest,
   FeedbackResponse,
-  GeneratedScript,
-  OrganizeRequest,
-  OrganizeResponse,
-  ScriptRequest,
-  ScriptResponse,
+  OrganizePackageRequest,
+  OrganizePackageResponse,
   SessionRecord,
-  SpeechPlanRequest,
-  SpeechPlanResponse,
   TranscribeAudioRequest,
   TranscribeAudioResponse,
   UpdateSessionRequest,
@@ -90,8 +82,8 @@ export async function fetchSessions(ownerKey: string) {
   return response.sessions;
 }
 
-export async function organize(input: OrganizeRequest) {
-  return request<OrganizeResponse>("/v1/organize", {
+export async function organizePackage(input: OrganizePackageRequest) {
+  return request<OrganizePackageResponse>("/v1/organize-package", {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -104,38 +96,9 @@ export async function transcribeAudio(input: TranscribeAudioRequest) {
   });
 }
 
-export async function generateConclusions(input: ConclusionsRequest) {
-  return request<ConclusionsResponse>("/v1/conclusions", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
-export async function generateSpeechPlan(input: SpeechPlanRequest) {
-  return request<SpeechPlanResponse>("/v1/speech-plan", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
-export async function generateScript(input: ScriptRequest) {
-  return request<ScriptResponse>("/v1/script", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
 export async function generateFeedback(input: FeedbackRequest) {
   return request<FeedbackResponse>("/v1/feedback", {
     method: "POST",
     body: JSON.stringify(input),
   });
 }
-
-export type SelectionPayload = {
-  selectedConclusion: ConclusionCandidate;
-};
-
-export type ScriptPayload = {
-  script: GeneratedScript;
-};
